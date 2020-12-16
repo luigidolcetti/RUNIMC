@@ -1,0 +1,295 @@
+#'Some BullShit
+#'
+#'
+#' @export
+spiderMap<-function (fn_srt,
+                     fn_interpret,
+                     fn_radius=10,
+                     fn_densityMultiplier=1,
+                     fn_Nspikes=4,
+                     fn_minArea=10,
+                     fn_maxArea=100,
+                     fn_minRoundness=0.6,
+                     fn_maxRoundness=0.8,
+                     fn_coverage=0.3,
+                     fn_seedOutScore=10,
+                     fn_cutSeedList=0.1,
+                     fn_cycleWindow=1000,
+                     fn_discoverTreshold=10e-3,
+                     fn_adaptative=T,
+                     fn_drastic=0,
+                     fn_direction='random',
+                     fn_seed=1234){
+
+  TimingFunction<-data.frame(Nseeds=0,Npoly=0,Ntime=Sys.time())
+
+  xmn<-fn_srt@extent[1]
+  xmx<-fn_srt@extent[2]
+  ymn<-fn_srt@extent[3]
+  ymx<-fn_srt@extent[4]
+
+  labelSeed<-levels(fn_srt)[[1]]$ID[levels(fn_srt)[[1]]$label==rownames(fn_interpret)[fn_interpret$seed==1]]
+  bunchOfSeeds<-which(getValues(fn_srt)%in%labelSeed)
+
+  if (length(bunchOfSeeds)==0){
+    return(list(polygons=list(),
+                performance=data.frame(Nseeds=numeric(0),Npoly=numeric(0),Ntime=numeric(0)),
+                raster=fn_srt))}
+
+
+
+  if (fn_direction!='random'){
+    bunchCoords<-xyFromCell(fn_srt,bunchOfSeeds)
+    densityEstimate<-MASS::kde2d(x=bunchCoords[,'x'],
+                           y=bunchCoords[,'y'],
+                           lims = c(xmn,xmx,ymn,ymx),
+                           h = fn_radius*fn_densityMultiplier,
+
+                           n=c(xmx-xmn,ymx-ymn))
+
+
+    densityMatrix<-apply(t(densityEstimate$z),2,rev)
+    rasterDensity<-raster::raster(densityMatrix,
+                          xmn=xmn,
+                          xmx=xmx,
+                          ymn=ymn,
+                          ymx=ymx,
+                          crs=sp::CRS(as.character(NA)))
+    densityValue<-getValues(rasterDensity)[bunchOfSeeds]} else {
+      densityValue<-rep(NA,length(bunchOfSeeds))}
+
+  bunchOfSeeds<-data.frame(seed= bunchOfSeeds,
+                           score=rep(0,length(bunchOfSeeds)),
+                           active=rep(1,length(bunchOfSeeds)),
+                           density=densityValue)
+
+  bunchOfSeeds<-switch(fn_direction,
+                       insideout={bunchOfSeeds[order(bunchOfSeeds$density,decreasing = T),]},
+                       outsidein={bunchOfSeeds[order(bunchOfSeeds$density,decreasing = F),]},
+                       random={set.seed(fn_seed)
+                         bunchOfSeeds[sample(nrow(bunchOfSeeds)),]})
+
+  polyIndex=1
+  polyList<-list()
+  rds<-seq(1:fn_radius)
+  ang<-seq(0,2*pi,pi/fn_Nspikes)
+  ang<-ang[1:(length(ang)-1)]
+  mat<-expand.grid(rds,ang)
+  sinMatrix<-matrix(apply(mat,1,function(x){round(sin(x[2])*x[1])}),ncol=(length(rds)),nrow=(length(ang)),byrow = T)
+  cosMatrix<-matrix(apply(mat,1,function(x){round(cos(x[2])*x[1])}),ncol=(length(rds)),nrow=(length(ang)),byrow = T)
+
+  centerPoint<-sf::st_point(x=c(0,0),dim='XY')
+  segmentRadius<-lapply(ang,function(ang){
+    sf::st_linestring(matrix(c(c(0,sin(ang)*(fn_radius+1)),
+                           c(0,cos(ang)*(fn_radius+1))),
+                         ncol=2),
+                  dim='XY')})
+
+  pixelBox<-lapply(1:nrow(mat),function(x){
+    xPxCenter<-round(sin(mat[x,2])*mat[x,1])
+    yPxCenter<-round(cos(mat[x,2])*mat[x,1])
+    pixelBox<-matrix(c(c(xPxCenter-0.5,xPxCenter+0.5,xPxCenter+0.5,xPxCenter-0.5,xPxCenter-0.5),
+                       c(yPxCenter+0.5,yPxCenter+0.5,yPxCenter-0.5,yPxCenter-0.5,yPxCenter+0.5)),ncol=2)
+    pixelBox<-sf::st_linestring(pixelBox,dim='XY')
+  })
+
+  pixelBox<-matrix(pixelBox,ncol=fn_radius,byrow = T)
+  intersectionMatrix<-matrix(list(),ncol=fn_radius,nrow = fn_Nspikes*2)
+  for (spike in 1:(fn_Nspikes*2)){
+    for (rad in 1:(fn_radius)){
+      pB<-pixelBox[spike,rad][[1]]
+      sG<-segmentRadius[[spike]]
+      intersectionsCoords<-sf::st_intersection(sG,pB,flatten=F)
+      intersectionsCoords<-matrix(unlist(lapply(intersectionsCoords,function(x) x)),ncol=2)
+
+      distEstimate<-apply(intersectionsCoords,1,function (x){
+        sf::st_distance(centerPoint,sf::st_point(x=as.vector(x)),which='Euclidean')})
+      if (length(distEstimate)==1){
+        intersectionsCoords<-rbind(intersectionsCoords,intersectionsCoords)
+        distEstimate<-c(distEstimate,distEstimate)
+      }
+      if (length(distEstimate)==0){intersectionsCoords=NULL}
+      intersectionMatrix[spike,rad]<-list(intersectionsCoords[order(distEstimate),])
+    }
+  }
+
+
+  cycleIndex=1
+  oldCycleIndex=1
+  oldPolyIndex=1
+  oldSeedIndex=0
+  seedPointer=1
+  activeSeed<-c()
+  #
+  while(sum(bunchOfSeeds$active)>0){
+    #
+    if (length(activeSeed)==0){
+      repeat{
+        if (bunchOfSeeds$active[seedPointer]==1){
+
+          activeSeed<-bunchOfSeeds$seed[seedPointer]
+          bunchOfSeeds$score[seedPointer]<-bunchOfSeeds$score[seedPointer]+1
+          if (seedPointer==nrow(bunchOfSeeds)) {seedPointer<-1} else {seedPointer<-seedPointer+1}
+          break
+        } else {
+
+          if (seedPointer==nrow(bunchOfSeeds)) {seedPointer<-1} else {seedPointer<-seedPointer+1}
+        }
+      }
+    }
+
+    TEMP_windowFraction<-round((cycleIndex-oldCycleIndex)/fn_cycleWindow*10)
+    TEMP_remaining<-10-TEMP_windowFraction
+
+    cat(paste0(rownames(fn_interpret)[fn_interpret$seed==1],' / ',
+               'N of seeds: ',formatC(sum(bunchOfSeeds$active),flag='0',digits = 9),
+               ' / N of polygons: ',formatC(polyIndex,flag='0',digits = 9),
+               # paste0(arrowVector,collapse=''),
+               ' / cycleIndex: ', formatC(cycleIndex,flag='0',digits=9),
+               ' / discovery window |',paste0(rep("@",TEMP_windowFraction),collapse = ""),
+               paste0(rep("_",TEMP_remaining),collapse = ""),
+               '| / throwout after: ',
+               formatC(fn_seedOutScore,flag='0',digits=3),
+               '\r'))
+
+    #paste0('/ ',mill[millIndex],' ',arrowarrowchr[arrowIndex]),
+    xCoords<-xyFromCell(fn_srt,activeSeed)[1]
+    yCoords<-xyFromCell(fn_srt,activeSeed)[2]
+
+    xScan<-sinMatrix+xCoords
+    yScan<-cosMatrix+yCoords
+
+    xScan[xScan<xmn]<-NA
+    yScan[yScan<ymn]<-NA
+    xScan[xScan>xmx]<-NA
+    yScan[yScan>ymx]<-NA
+    xyScan<-matrix(1:length(xScan),ncol=ncol(xScan),nrow=nrow(xScan))
+
+    xyVal<-apply(xyScan, c(1,2),function(x){
+      ifelse((is.na(xScan[[x]]) | is.na(yScan[[x]])),
+             NA,
+             fn_srt[raster::cellFromXY(fn_srt,c(xScan[[x]],yScan[[x]]))])
+    })
+
+    spikeEnds<-apply(xyVal,1,
+                     function(profileVector){
+
+                       profileAction<-as.vector(unlist(sapply(profileVector,function(x){
+                         if (any(x %in% fn_interpret$label)) {fn_interpret$action[fn_interpret$label==x]} else {return(2)}})))
+                       profileInclude<-as.vector(unlist(sapply(profileVector,function(x){
+                         if (any(x %in% fn_interpret$label)) {fn_interpret$include[fn_interpret$label==x]} else {return(0)}})))
+
+                       profileIndex<-1:fn_radius
+                       externalVal<-Inf
+                       for ( i in profileIndex){
+                         #
+
+                         swtc<-switch(as.character(profileAction[i]),
+                                      `2` = {(list=c(i,profileInclude[i]))},
+                                      `1` = {
+                                        if (externalVal==Inf) {externalVal=profileVector[i]}
+                                        if (is.na(profileVector[i])) {(list=c(i,0))} else {
+                                          if (externalVal!=profileVector[i]) {(list=c(i,profileInclude[i]))}}},
+                                      `0` = {if (externalVal!=Inf){(list=c(i,1))}})
+                         if(!is.null(swtc)){return(swtc)}
+
+                       }
+                       return(list=c(i,1))
+                     })
+
+    polyG<-t(sapply(1:fn_Nspikes,function(x){
+      intersectionMatrix[x,spikeEnds[1,x]][[1]][spikeEnds[2,x]+1,]+c(xCoords,yCoords)}))
+    colnames(polyG)<-c('x','y')
+
+    polyG<-na.omit(polyG)
+    notDup<-!duplicated(polyG)
+    polyG<-polyG[notDup,,drop=F]
+    polyGXmax<-max(polyG[,'x'])
+    polyGXmin<-min(polyG[,'x'])
+    polyGYmax<-max(polyG[,'y'])
+    polyGYmin<-min(polyG[,'y'])
+    roughPolyArea<-(polyGXmax-polyGXmin)*(polyGYmax-polyGYmin)
+
+    if (roughPolyArea<fn_drastic) {
+      polyGX<-seq(floor(polyGXmin),floor(polyGXmax))
+      polyGY<-seq(floor(polyGYmin),floor(polyGYmax))
+      polyGXY<-expand.grid(x=polyGX,y=polyGY)
+      polyGCell<-apply(polyGXY,1,function(x) raster::cellFromXY(fn_srt,x))
+      # arrowIndex<-5
+      # arrowVector<-c(arrowVector[-1],arrowarrowchr[arrowIndex])
+      bunchOfSeeds$active[(bunchOfSeeds$seed %in% polyGCell)]<-0
+      activeSeed<-c()
+    } else {
+
+      if (!(nrow(polyG)<3)){
+
+        # if (millIndex==4) {millIndex<-1} else {millIndex<-millIndex+1}
+
+        polyG<-rbind(polyG,polyG[1,])
+        sfPolygon<-sf::st_polygon(list(as.matrix(polyG)),dim="XY")
+        polyArea<-sf::st_area(sf::st_sfc(sfPolygon))
+        polyPerimeter<-lwgeom::st_perimeter(sf::st_sfc(sfPolygon))
+        polyRoundness<-4*pi*polyArea/(polyPerimeter^2)
+        coverageDF <- (exactextractr::exact_extract(fn_srt,sf::st_sfc(sfPolygon),include_xy=T))[[1]]
+        coverageDF<-coverageDF[coverageDF$coverage_fraction>=fn_coverage,]
+        coordDF<-raster::cellFromXY(fn_srt,as.matrix(coverageDF[,c(2,3)]))
+
+        TimingFunction<-rbind(TimingFunction,data.frame(Nseeds=nrow(bunchOfSeeds),Npoly=polyIndex,Ntime=Sys.time()))
+
+        if (polyArea<fn_minArea) {
+          bunchOfSeeds$active[(bunchOfSeeds$seed %in% coordDF)]<-0
+          activeSeed<-c()}
+        else {
+          if (polyArea>fn_maxArea){
+            activeSeed<-bunchOfSeeds[bunchOfSeeds$seed %in% coordDF,]
+            activeSeed<-activeSeed[sample(length(activeSeed),1)]
+            activeSeed<-activeSeed[1]
+            bunchOfSeeds$score[bunchOfSeeds$seed==activeSeed]<-bunchOfSeeds$score[bunchOfSeeds$seed==activeSeed]+1
+          } else {
+            if (polyRoundness>=fn_minRoundness & polyRoundness<=fn_maxRoundness){
+              bunchOfSeeds$active[bunchOfSeeds$seed %in% coordDF]<-0
+              fn_srt[coordDF]<-(-polyIndex)
+              polyList[[polyIndex]]<-polyG
+              polyIndex=polyIndex+1
+              activeSeed<-c()
+            } else {
+              activeSeed<-c()}
+          }
+        }
+      } else {
+        activeSeed<-c()}
+    }
+
+    if ((cycleIndex-oldCycleIndex)==fn_cycleWindow){
+      DPI<-(polyIndex-oldPolyIndex)/(cycleIndex-oldCycleIndex)
+      if (DPI<fn_discoverTreshold & fn_adaptative==F) {break()}
+      if (DPI<fn_discoverTreshold &
+          fn_adaptative==T &
+          fn_seedOutScore>1 &
+          (fn_direction=='insideout' |
+           fn_direction=='random')) {fn_seedOutScore=fn_seedOutScore-1}
+      if (DPI<fn_discoverTreshold &
+          fn_adaptative==T &
+          (nrow(bunchOfSeeds)-round(fn_cutSeedList*nrow(bunchOfSeeds)))>0 &
+          fn_direction=='outsidein') {bunchOfSeeds<-bunchOfSeeds[-(1:round(fn_cutSeedList*nrow(bunchOfSeeds))),]}
+      oldCycleIndex=cycleIndex
+      oldPolyIndex=polyIndex
+    }
+    bunchOfSeeds$active[bunchOfSeeds$score>fn_seedOutScore]<-0
+    cycleIndex=cycleIndex+1
+  }
+  cat(paste0(rownames(fn_interpret)[fn_interpret$seed==1],' / ',
+             'N of seeds: ',formatC(sum(bunchOfSeeds$active),flag='0',digits = 9),
+             ' / N of polygons: ',formatC(polyIndex,flag='0',digits = 9),
+             ' / cycleIndex: ', formatC(cycleIndex,flag='0',digits=9),
+             ' / discovery window |',paste0(rep("@",TEMP_windowFraction),collapse = ""),
+             paste0(rep("_",TEMP_remaining),collapse = ""),
+             '| / throwout after: ',
+             formatC(fn_seedOutScore,flag='0',digits=3),
+             '\n'))
+
+  TimingFunction<-rbind(TimingFunction,data.frame(Nseeds=nrow(bunchOfSeeds),Npoly=polyIndex,Ntime=Sys.time()))
+
+  segmentationOut<-new('IMC_Segmentation',polygons=polyList,performance=TimingFunction,raster=fn_srt)
+  return(segmentationOut)
+}

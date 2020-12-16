@@ -1,0 +1,54 @@
+#'Some BullShit
+#'
+#'
+#' @export
+extractFeatures<-function(fn_raster,
+                          fn_st_sfc,
+                          fn_coverage,
+                          fn_coverage_label){
+
+  TEMP_UID<-as.character(Reduce('=',fn_st_sfc$uid))
+  fn_coverage<-matrix(fn_coverage,ncol=2,byrow = T)
+  rownames(fn_coverage)<-fn_coverage_label
+
+  if (length(TEMP_UID)==0) TEMP_UID<-as.character(Reduce('=',fn_st_sfc$uid))
+
+  TEMP_label<-fn_st_sfc$label
+  TEMP_area<-sf::st_area(fn_st_sfc)
+  TEMP_perimeter<-lwgeom::st_perimeter(fn_st_sfc)
+  TEMP_roundness<-4*pi*TEMP_area/(TEMP_perimeter^2)
+  outputTableStats<-data.frame(polygon.id=as.numeric(rownames(fn_st_sfc)),
+                               label=TEMP_label,
+                               area = TEMP_area,
+                               perimeter = TEMP_perimeter,
+                               roundness = TEMP_roundness,
+                               stringsAsFactors = F)
+
+
+  featuresList<-exactextractr::exact_extract(fn_raster[[TEMP_UID]],fn_st_sfc)
+  labels<-fn_st_sfc$label
+  polygonid<-1:nrow(fn_st_sfc)
+  extraFeaturesList<-lapply(polygonid,function(pid){
+    data.frame(uid=TEMP_UID,
+               pixel.id = 1:nrow(featuresList[[pid]]),
+               polygon.id = pid,
+               parLabel = labels[pid],
+               label = NA,
+               stringsAsFactors = F)})
+  extraFeaturesList<-do.call(rbind.data.frame,c(extraFeaturesList,stringsAsFactors=F))
+  featuresList<-do.call(rbind,featuresList)
+  prefixes<-rownames(fn_coverage)
+
+  newlabels<-sapply(1:nrow(featuresList),function(x){
+    cf<-featuresList[x,'coverage_fraction']
+    whichCf<-as.vector(apply(fn_coverage,1,function(x){cf>=min(x) & cf<=max(x)}))
+    if (!any(whichCf)) {return(NA)} else { return(paste0(prefixes[whichCf],'_',extraFeaturesList[x,'parLabel']))}
+  },simplify = T)
+  extraFeaturesList$label<-newlabels
+  featuresList<-cbind.data.frame(extraFeaturesList,featuresList,stringsAsFactors=F)
+  rm(extraFeaturesList)
+  featuresList<-featuresList[!is.na(featuresList$label),]
+  list_out<-list(value=featuresList,geometry=outputTableStats)
+
+  return(list_out)
+}

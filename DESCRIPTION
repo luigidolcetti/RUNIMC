@@ -6,6 +6,8 @@ Author: Who wrote it
 Maintainer: The package maintainer <yourself@somewhere.net>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+License: GPL-2
 Encoding: UTF-8
 LazyData: true
+Imports: raster, randomForest, MASS, methods, RColorBrewer, XML, digest, dplyr, exactextractr, imager, lwgeom, scales, sf, shiny, sp, keys, shinydashboard
+RoxygenNote: 7.1.1
