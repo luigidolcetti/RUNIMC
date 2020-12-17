@@ -1127,51 +1127,66 @@ setMethod('archive',signature = c('IMC_Classification'),
               }
             }
 
-            dir.create(filePathName,showWarnings = F)
+            fileOK<-try(saveRDS(x,filePathName))
 
-            rstrStk<-sapply(names(x),function(smp){
-
-              if (is.null(studyTable)){
-                studyTable<-data.frame(uid=smp,IMC_text_file=smp,study='NO_STUDY',sample='NO_sample',replicte='NO_replicate',ROI='NO_ROI',bioGroup='NO_BIOGROUP',stringsAsFactors = F)
+            if (exists('fileOK')){
+              if (!is.null(fileOK)){
+                if (inherits(fileOK,what = 'try-error')){
+                  message(mError('Classifier file archiviation failed'))
+                  return(-1)
+                }
               }
-              newDir<-checkDir(filePathName,'rasterStacks')
-              newDir<-checkDir(filePathName,'rasters')
-              newDir<-checkDir(paste(filePathName,'rasters',sep='/'),studyTable$IMC_text_file[studyTable$uid==smp])
-              rstFile<-lapply(names(x[[smp]]),function(chnl){
-
-                fileObjective<-paste0(newDir,'/',chnl,'.nc')
-                raster::writeRaster(x = x[[smp]][[chnl]],
-                                    filename = fileObjective,
-                                    overwrite=T,
-                                    format='CDF')
-                return(fileObjective)
-              })
-
-
-              stackDetails<-studyTable[studyTable$uid==smp,]
-              rstrStk<-IMC_stack(x = rstFile,
-                                 uid = smp,
-                                 IMC_text_file = stackDetails$IMC_text_file,
-                                 study = stackDetails$study,
-                                 sample = stackDetails$sample,
-                                 replicate = stackDetails$replicate,
-                                 ROI = stackDetails$ROI,
-                                 bioGroup = stackDetails$bioGroup,
-                                 channels = data.frame(RcolumnNames = names(x[[smp]])))
-
-
-              IMCstackSave(x = rstrStk,
-                           filename = paste(filePathName,'rasterStacks',
-                                            studyTable$IMC_text_file[studyTable$uid==smp],sep='/'))
-
-              return(rstrStk)
-            },USE.NAMES = T,simplify = F)
-
-
+            }
             if (objectReturn){
-              return(rstrStk)
+              return(x)
             }
             return(filePathName)
+            #
+            #             dir.create(filePathName,showWarnings = F)
+            #
+            #             rstrStk<-sapply(names(x),function(smp){
+            #
+            #               if (is.null(studyTable)){
+            #                 studyTable<-data.frame(uid=smp,IMC_text_file=smp,study='NO_STUDY',sample='NO_sample',replicte='NO_replicate',ROI='NO_ROI',bioGroup='NO_BIOGROUP',stringsAsFactors = F)
+            #               }
+            #               newDir<-checkDir(filePathName,'rasterStacks')
+            #               newDir<-checkDir(filePathName,'rasters')
+            #               newDir<-checkDir(paste(filePathName,'rasters',sep='/'),studyTable$IMC_text_file[studyTable$uid==smp])
+            #               rstFile<-lapply(names(x[[smp]]),function(chnl){
+            #
+            #                 fileObjective<-paste0(newDir,'/',chnl,'.nc')
+            #                 raster::writeRaster(x = x[[smp]][[chnl]],
+            #                                     filename = fileObjective,
+            #                                     overwrite=T,
+            #                                     format='CDF')
+            #                 return(fileObjective)
+            #               })
+            #
+            #
+            #               stackDetails<-studyTable[studyTable$uid==smp,]
+            #               rstrStk<-IMC_stack(x = rstFile,
+            #                                  uid = smp,
+            #                                  IMC_text_file = stackDetails$IMC_text_file,
+            #                                  study = stackDetails$study,
+            #                                  sample = stackDetails$sample,
+            #                                  replicate = stackDetails$replicate,
+            #                                  ROI = stackDetails$ROI,
+            #                                  bioGroup = stackDetails$bioGroup,
+            #                                  channels = data.frame(RcolumnNames = names(x[[smp]])))
+            #
+            #
+            #               IMCstackSave(x = rstrStk,
+            #                            filename = paste(filePathName,'rasterStacks',
+            #                                             studyTable$IMC_text_file[studyTable$uid==smp],sep='/'))
+            #
+            #               return(rstrStk)
+            #             },USE.NAMES = T,simplify = F)
+            #
+            #
+            #             if (objectReturn){
+            #               return(rstrStk)
+            #             }
+            #             return(filePathName)
           })
 
 
@@ -1454,7 +1469,7 @@ setMethod('archive',signature = c('sf','missing'),
               }
             }
 
-            fileOK<-try( sf::st_write(x,filePathName,append=F))
+            fileOK<-try( sf::st_write(x,filePathName,append=F,quiet=T))
 
             if (exists('fileOK')){
               if (!is.null(fileOK)){
@@ -1504,6 +1519,82 @@ setMethod('archive',signature = c('IMC_Classifier'),
             }
             return(filePathName)
           })
+
+#*** archive:imc_classifier ---------------------------------------------------
+
+setMethod('archive',signature = c('NULL'),
+          function(x,filePathName=NULL,objectReturn=F,forceSave=F,...){
+
+            object<-deparse(x)
+            message(mWarning(paste0(object,' is NULL, nothing to archive')))
+
+          })
+
+
+#** retrieve ---------------------------------------------------
+
+if (!isGeneric("retrieve")) {
+  setGeneric("retrieve", function(x=NULL,
+                                  fn_what=NULL,
+                                  fn_path=NULL,
+                                  fn_file=NULL,...)
+    standardGeneric("retrieve"))
+}
+
+
+setMethod('retrieve',signature = ('environment'),
+          function(x=NULL,
+                   fn_what=NULL,
+                   fn_path=NULL,
+                   fn_file=NULL,...){
+
+          })
+
+
+setMethod('retrieve',signature = ('NULL'),
+          function(x=NULL,
+                   fn_what=NULL,
+                   fn_path=NULL,
+                   fn_file=NULL,...){
+
+            if (!is.null(fn_path)) searchForRaster<-grepl('rasterStacks',fn_path)
+            if (is.null(fn_path) & !is.null(fn_file)) stop(RUNIMC:::mError('Please, specify a path where to search for this file'))
+            if (is.null(fn_path) & is.null(fn_file)) stop(RUNIMC:::mError('Please, specify a path and file'))
+            if (!is.null(fn_path)){
+              if (!dir.exists(fn_path)) stop(RUNIMC:::mError(paste0('Unable to find: ',fn_path)))}
+            if (!is.null(fn_file)) {
+              fileExtension<-unlist(strsplit(fn_file,'\\.'))
+              if (!length(fileExtension)>1) {stop(RUNIMC:::mError('File without extension, cannot decide were to store this information'))}
+              fileExtension<-fileExtension[length(fileExtension)]
+              if (!any(fileExtension %in% c('IMC_ChannelTable',
+                                            'IMC_StudyTable',
+                                            'xml',
+                                            'IMC_ClassificationDirectives',
+                                            'IMC_Classifier',
+                                            'sqlite',
+                                            'IMC_FilterFrame',
+                                            'IMC_InterpretationMatrix',
+                                            'IMC_SegmentationDirectives',
+                                            'IMC_SegmentationList',
+                                            'IMC_ExtractionDirectives',
+                                            'IMC_Classification'))) {stop(RUNIMC:::mError('Unknown file extension'))}
+            }
+            if (searchForRaster & !exists(fileExtension)){
+              objectOut<-RUNIMC:::retrieve.RsCollection(fn_file = fn_path,fn_timeStamp = T)
+              return(objectOut)
+            }
+            if (exists(fileExtension)){
+              fullPath<-file.path(fn_path,fn_file)
+              swith(fileExtension,
+                    IMC_ChannelTable = {objectOut<-RUNIMC:::retrieve.channelTable(fn_file = fullPath,fn_timeStamp = T); return(objectOut)}
+                    IMC_StudyTable = {objectOut<-RUNIMC:::retrieve.studyTable(fn_file = fullPath,fn_timeStamp = T); return(objectOut)}
+
+                    )
+            }
+
+          })
+
+
 
 
 #* other_methods ---------------------------------------------------
