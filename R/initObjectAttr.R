@@ -9,3 +9,15 @@ initObjectAttr<-function(x){
   attr(x,'fileArchive')<-NA
   return(x)
 }
+
+mdfObjectAttr<-function(x,
+                              crtnTimeStmp,
+                              mdtnTimeStmp,
+                              artnTimeStmp,
+                              fileArchive){
+  attr(x,'crtnTimeStmp')<-crtnTimeStmp
+  attr(x,'mdtnTimeStmp')<-mdtnTimeStmp
+  attr(x,'artnTimeStmp')<-artnTimeStmp
+  attr(x,'fileArchive')<-fileArchive
+  return(x)
+}

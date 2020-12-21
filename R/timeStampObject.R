@@ -3,12 +3,12 @@
 #'
 timeStampObject<-function(x,
                           crtn,
-                          mdfn,
-                          arcn){
+                          mdtn,
+                          artn){
 
   if (!missing(crtn)) attr(x,"crtnTimeStmp")<-crtn
-  if (!missing(mdfn)) attr(x,"mdtnTimeStmp")<-mdfn
-  if (!missing(arcn)) attr(x,"artnTimeStmp")<-arcn
+  if (!missing(mdtn)) attr(x,"mdtnTimeStmp")<-mdtn
+  if (!missing(artn)) attr(x,"artnTimeStmp")<-artn
 
   return(x)
 }

@@ -729,7 +729,7 @@ if (!isGeneric("archive")) {
     standardGeneric("archive"))
 }
 
-
+#' @export
 setMethod('archive',signature = ('environment'),
           function(x,what=NULL,objectReturn=F,forceSave=F,...){
 
@@ -739,10 +739,10 @@ setMethod('archive',signature = ('environment'),
 
 
               if (!forceSave){
-                mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-                arcnTimeStmp<-attr(x,'artnTimeStmp')
-                if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                  if (mdfnTimeStmp==arcnTimeStmp){
+                mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+                artnTimeStmp<-attr(x,'artnTimeStmp')
+                if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                  if (mdtnTimeStmp==artnTimeStmp){
                     message(mWarning('Archived study is up to date, you might use "forceSave=T"'))
                     return(0)
                   }
@@ -776,6 +776,7 @@ setMethod('archive',signature = ('environment'),
                 message(mMessage('Channel table archivation... OK'))
               }
               #### rasters
+
               outF<-archive(x = x$raster,
                             filePathName = paste(basePath),
                             objectReturn = F,
@@ -801,14 +802,22 @@ setMethod('archive',signature = ('environment'),
                 message(mMessage('Current analysis archivation... OK'))
               }
 
-              xmlOut<-XMLparseObject(x)
-              XML::saveXML(xmlOut,paste0(basePath,'/study.xml'))
+              writePermit<-file.access(paste0(basePath,'/study.xml'), mode=2)
+              fileExists<-file.exists(paste0(basePath,'/study.xml'))
+              if (writePermit==0 | !fileExists){
+                newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
+                attr(x,'mdtnTimeStmp')<-newTimeStmp
+                attr(x,'artnTimeStmp')<-newTimeStmp
+                attr(x,'fileArchive')<-paste0(basePath,'/study.xml')
+                xmlOut<-XMLparseObject(x)
+                XML::saveXML(xmlOut,paste0(basePath,'/study.xml'))
+              } else {stop(RUNIMC:::mError(paste0('Write permission denied to: ',basePath,'/study.xml')))}
 
               if (objectReturn){
 
                 return(x)
               }
-              return(filePathName)
+              return(paste0(basePath,'/study.xml'))
             }
 
             #### current analysis
@@ -816,10 +825,10 @@ setMethod('archive',signature = ('environment'),
 
 
               if (!forceSave){
-                mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-                arcnTimeStmp<-attr(x,'artnTimeStmp')
-                if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                  if (mdfnTimeStmp==arcnTimeStmp){
+                mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+                artnTimeStmp<-attr(x,'artnTimeStmp')
+                if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                  if (mdtnTimeStmp==artnTimeStmp){
                     message(mWarning('Archived study is up to date, you might use "forceSave=T"'))
                     return(0)
                   }
@@ -962,14 +971,22 @@ setMethod('archive',signature = ('environment'),
                 message(mMessage('Training features archivation... OK'))
               }
 
-              xmlOut<-XMLparseObject(x)
-              XML::saveXML(xmlOut,paste0(basePath,'/analysis.xml'))
+              writePermit<-file.access(paste0(basePath,'/analysis.xml'), mode=2)
+              fileExists<-file.exists(paste0(basePath,'/analysis.xml'))
+              if (writePermit==0 | !fileExists){
+                newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
+                attr(x,'mdtnTimeStmp')<-newTimeStmp
+                attr(x,'artnTimeStmp')<-newTimeStmp
+                attr(x,'fileArchive')<-paste0(basePath,'/study.xml')
+                xmlOut<-XMLparseObject(x)
+                XML::saveXML(xmlOut,paste0(basePath,'/analysis.xml'))
+              } else {stop(RUNIMC:::mError(paste0('Write permission denied to: ',basePath,'/study.xml')))}
 
               if (objectReturn){
 
                 return(x)
               }
-              return(filePathName)
+              return(paste0(basePath,'/analysis.xml'))
 
             }
 
@@ -977,16 +994,17 @@ setMethod('archive',signature = ('environment'),
           })
 
 #*** archive:imc_studyTable ---------------------------------------------------
+#' @export
 setMethod('archive',signature = 'IMC_StudyTable',
           function(x,what=NULL,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
             if (is.null(filePathName)) stop(mError('Provide file name'))
             if (!endsWith(filePathName,'.IMC_StudyTable')) filePathName<-paste0(filePathName,'.IMC_StudyTable')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('Study table file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
@@ -1011,16 +1029,17 @@ setMethod('archive',signature = 'IMC_StudyTable',
 
 
 #*** archive:imc_channeltable ---------------------------------------------------
+#' @export
 setMethod('archive',signature = 'IMC_ChannelTable',
           function(x,what=NULL,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
             if (is.null(filePathName)) stop(mError('Provide file name'))
             if (!endsWith(filePathName,'.IMC_ChannelTable')) filePathName<-paste0(filePathName,'.IMC_ChannelTable')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('Channel table file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
@@ -1045,6 +1064,7 @@ setMethod('archive',signature = 'IMC_ChannelTable',
 
 
 #*** archive:imc_RsCollection ---------------------------------------------------
+#' @export
 setMethod('archive',signature = c('IMC_RsCollection'),
           function(x,what=NULL,filePathName=NULL,objectReturn=F,forceSave=F,studyTable=NULL,...){
 
@@ -1052,10 +1072,10 @@ setMethod('archive',signature = c('IMC_RsCollection'),
             if (is.null(filePathName)) stop(mError('Provide file name'))
             # if (!endsWith(filePathName,'.txt')) filePathName<-paste0(filePathName,'.txt')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('RasterStack collection is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
@@ -1072,13 +1092,24 @@ setMethod('archive',signature = c('IMC_RsCollection'),
               newDir<-checkDir(filePathName,'rasterStacks')
               newDir<-checkDir(filePathName,'rasters')
               newDir<-checkDir(paste(filePathName,'rasters',sep='/'),studyTable$IMC_text_file[studyTable$uid==smp])
+
+
               rstFile<-lapply(names(x[[smp]]),function(chnl){
 
                 fileObjective<-paste0(newDir,'/',chnl,'.nc')
-                raster::writeRaster(x = x[[smp]][[chnl]],
+
+                if (raster::fromDisk(x[[smp]][[chnl]])){
+                temp_raster<-raster::readAll(x[[smp]][[chnl]])
+                unlink(fileObjective,force = T)
+                raster::writeRaster(x = temp_raster,
                                     filename = fileObjective,
                                     overwrite=T,
-                                    format='CDF')
+                                    format='CDF')} else{
+                                      raster::writeRaster(x = x[[smp]][[chnl]],
+                                                          filename = fileObjective,
+                                                          overwrite=T,
+                                                          format='CDF')
+                                    }
                 return(fileObjective)
               })
 
@@ -1103,13 +1134,17 @@ setMethod('archive',signature = c('IMC_RsCollection'),
             },USE.NAMES = T,simplify = F)
 
 
+            rstrStk<-new('IMC_RsCollection',rstrStk)
+
+
             if (objectReturn){
               return(rstrStk)
             }
-            return(filePathName)
+            return(paste0(filePathName,'/rasterStacks'))
           })
 
 #*** archive:imc_classification ---------------------------------------------------
+#' @export
 setMethod('archive',signature = c('IMC_Classification'),
           function(x,what=NULL,filePathName=NULL,objectReturn=F,forceSave=F,studyTable=NULL,...){
 
@@ -1117,10 +1152,10 @@ setMethod('archive',signature = c('IMC_Classification'),
             if (is.null(filePathName)) stop(mError('Provide file name'))
             if (!endsWith(filePathName,'.IMC_Classification')) filePathName<-paste0(filePathName,'.IMC_Classification')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('Classification file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
@@ -1193,23 +1228,24 @@ setMethod('archive',signature = c('IMC_Classification'),
 
 
 #*** archive:imc_filterframe ---------------------------------------------------
+#' @export
 setMethod('archive',signature = 'IMC_FilterFrame',
           function(x,what=NULL,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
             if (is.null(filePathName)) stop(mError('Provide file name'))
             if (!endsWith(filePathName,'.IMC_FilterFrame')) filePathName<-paste0(filePathName,'.IMC_FilterFrame')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('Filter definition file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
               }
             }
 
-            fileOK<-try(dput(x,filePathName))
+            fileOK<-try(saveRDS(x,filePathName))
 
             if (exists('fileOK')){
               if (!is.null(fileOK)){
@@ -1227,7 +1263,7 @@ setMethod('archive',signature = 'IMC_FilterFrame',
 
 
 #*** archive:imc_extractiondirectives ---------------------------------------------------
-
+#' @export
 setMethod('archive',signature = c('IMC_ExtractionDirectives'),
           function(x,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
@@ -1235,17 +1271,17 @@ setMethod('archive',signature = c('IMC_ExtractionDirectives'),
             if (is.null(filePathName)) stop(mError('Provide file name'))
             if (!endsWith(filePathName,'.IMC_ExtractionDirectives')) filePathName<-paste0(filePathName,'.IMC_ExtractionDirectives')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('Extraction directives file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
               }
             }
 
-            fileOK<-try(dput(x,filePathName))
+            fileOK<-try(saveRDS(x,filePathName))
 
             if (exists('fileOK')){
               if (!is.null(fileOK)){
@@ -1262,7 +1298,7 @@ setMethod('archive',signature = c('IMC_ExtractionDirectives'),
           })
 
 #*** archive:imc_classificationdirectives ---------------------------------------------------
-
+#' @export
 setMethod('archive',signature = c('IMC_ClassificationDirectives'),
           function(x,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
@@ -1270,17 +1306,17 @@ setMethod('archive',signature = c('IMC_ClassificationDirectives'),
             if (is.null(filePathName)) stop(mError('Provide file name'))
             if (!endsWith(filePathName,'.IMC_ClassificationDirectives')) filePathName<-paste0(filePathName,'.IMC_ClassificationDirectives')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('Classification directives file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
               }
             }
 
-            fileOK<-try(dput(x,filePathName))
+            fileOK<-try(saveRDS(x,filePathName))
 
             if (exists('fileOK')){
               if (!is.null(fileOK)){
@@ -1297,7 +1333,7 @@ setMethod('archive',signature = c('IMC_ClassificationDirectives'),
           })
 
 #*** archive:imc_segmantationdirectives ---------------------------------------------------
-
+#' @export
 setMethod('archive',signature = c('IMC_SegmentationDirectives'),
           function(x,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
@@ -1305,17 +1341,17 @@ setMethod('archive',signature = c('IMC_SegmentationDirectives'),
             if (is.null(filePathName)) stop(mError('Provide file name'))
             if (!endsWith(filePathName,'.IMC_SegmentationDirectives')) filePathName<-paste0(filePathName,'.IMC_SegmentationDirectives')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('Segmentation directives file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
               }
             }
 
-            fileOK<-try(dput(x,filePathName))
+            fileOK<-try(saveRDS(x,filePathName))
 
             if (exists('fileOK')){
               if (!is.null(fileOK)){
@@ -1332,7 +1368,7 @@ setMethod('archive',signature = c('IMC_SegmentationDirectives'),
           })
 
 #*** archive:imc_InterpretationMatrix ---------------------------------------------------
-
+#' @export
 setMethod('archive',signature = c('IMC_InterpretationMatrix'),
           function(x,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
@@ -1340,17 +1376,17 @@ setMethod('archive',signature = c('IMC_InterpretationMatrix'),
             if (is.null(filePathName)) stop(mError('Provide file name'))
             if (!endsWith(filePathName,'.IMC_InterpretationMatrix')) filePathName<-paste0(filePathName,'.IMC_InterpretationMatrix')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('Interpretation matrix file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
               }
             }
 
-            fileOK<-try(dput(x,filePathName))
+            fileOK<-try(saveRDS(x,filePathName))
 
             if (exists('fileOK')){
               if (!is.null(fileOK)){
@@ -1367,17 +1403,18 @@ setMethod('archive',signature = c('IMC_InterpretationMatrix'),
           })
 
 #*** archive:imc_trainingfeatures ---------------------------------------------------
+#' @export
 setMethod('archive',signature = c('IMC_TrainingFeatures'),
           function(x,what=NULL,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
 
             if (is.null(filePathName)) stop(mError('Provide file name'))
-            if (!endsWith(filePathName,'IMC_TrainingFeatures')) filePathName<-paste0(filePathName,'IMC_TrainingFeatures')
+            if (!endsWith(filePathName,'IMC_TrainingFeatures')) filePathName<-paste0(filePathName,'.IMC_TrainingFeatures')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('Training features file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
@@ -1416,7 +1453,7 @@ setMethod('archive',signature = c('IMC_TrainingFeatures'),
 
 
 #*** archive:imc_segmentationList ---------------------------------------------------
-
+#' @export
 setMethod('archive',signature = c('IMC_SegmentationList'),
           function(x,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
@@ -1424,10 +1461,10 @@ setMethod('archive',signature = c('IMC_SegmentationList'),
             if (is.null(filePathName)) stop(mError('Provide file name'))
             if (!endsWith(filePathName,'.IMC_SegmentationList')) filePathName<-paste0(filePathName,'.IMC_SegmentationList')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('Segmentation file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
@@ -1452,6 +1489,7 @@ setMethod('archive',signature = c('IMC_SegmentationList'),
 
 
 #*** archive:imc_expressionmatrix ---------------------------------------------------
+#' @export
 setMethod('archive',signature = c('sf','missing'),
           function(x,what=NULL,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
@@ -1459,10 +1497,10 @@ setMethod('archive',signature = c('sf','missing'),
             if (is.null(filePathName)) stop(mError('Provide file name'))
             if (!endsWith(filePathName,'.sqlite')) filePathName<-paste0(filePathName,'.sqlite')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('Expression file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
@@ -1486,7 +1524,7 @@ setMethod('archive',signature = c('sf','missing'),
           })
 
 #*** archive:imc_classifier ---------------------------------------------------
-
+#' @export
 setMethod('archive',signature = c('IMC_Classifier'),
           function(x,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
@@ -1494,10 +1532,10 @@ setMethod('archive',signature = c('IMC_Classifier'),
             if (is.null(filePathName)) stop(mError('Provide file name'))
             if (!endsWith(filePathName,'.IMC_Classifier')) filePathName<-paste0(filePathName,'.IMC_Classifier')
             if (!forceSave){
-              mdfnTimeStmp<-attr(x,'mdtnTimeStmp')
-              arcnTimeStmp<-attr(x,'artnTimeStmp')
-              if (!is.na(mdfnTimeStmp) & !is.na(arcnTimeStmp)){
-                if (mdfnTimeStmp==arcnTimeStmp){
+              mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
+              artnTimeStmp<-attr(x,'artnTimeStmp')
+              if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
+                if (mdtnTimeStmp==artnTimeStmp){
                   message(mWarning('Classifier file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
@@ -1520,28 +1558,25 @@ setMethod('archive',signature = c('IMC_Classifier'),
             return(filePathName)
           })
 
-#*** archive:imc_classifier ---------------------------------------------------
-
+#*** archive:NULL---------------------------------------------------
+#' @export
 setMethod('archive',signature = c('NULL'),
           function(x,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
-            object<-deparse(x)
+            object<-deparse(substitute(x))
             message(mWarning(paste0(object,' is NULL, nothing to archive')))
+            return(-1)
 
           })
 
 
 #** retrieve ---------------------------------------------------
-
 if (!isGeneric("retrieve")) {
-  setGeneric("retrieve", function(x=NULL,
-                                  fn_what=NULL,
-                                  fn_path=NULL,
-                                  fn_file=NULL,...)
+  setGeneric("retrieve", function(x,fn_what=NULL,fn_path=NULL,fn_file=NULL,...)
     standardGeneric("retrieve"))
 }
 
-
+#' @export
 setMethod('retrieve',signature = ('environment'),
           function(x=NULL,
                    fn_what=NULL,
@@ -1550,18 +1585,19 @@ setMethod('retrieve',signature = ('environment'),
 
           })
 
-
+#' @export
 setMethod('retrieve',signature = ('NULL'),
           function(x=NULL,
                    fn_what=NULL,
                    fn_path=NULL,
                    fn_file=NULL,...){
 
-            if (!is.null(fn_path)) searchForRaster<-grepl('rasterStacks',fn_path)
-            if (is.null(fn_path) & !is.null(fn_file)) stop(RUNIMC:::mError('Please, specify a path where to search for this file'))
+
+            if (!is.null(fn_path)) searchForRaster<-grepl('rasterStacks',fn_path) else searchForRaster<-F
+            # if (is.null(fn_path) & !is.null(fn_file)) stop(RUNIMC:::mError('Please, specify a path where to search for this file'))
             if (is.null(fn_path) & is.null(fn_file)) stop(RUNIMC:::mError('Please, specify a path and file'))
-            if (!is.null(fn_path)){
-              if (!dir.exists(fn_path)) stop(RUNIMC:::mError(paste0('Unable to find: ',fn_path)))}
+            if (!is.null(fn_path) & !is.null(fn_file)){
+              if (!dir.exists(fn_path) & !file.exists(fn_file) & !file.exists(file.path(fn_path,fn_file))) stop(RUNIMC:::mError(paste0('Unable to find: ',fn_path)))}
             if (!is.null(fn_file)) {
               fileExtension<-unlist(strsplit(fn_file,'\\.'))
               if (!length(fileExtension)>1) {stop(RUNIMC:::mError('File without extension, cannot decide were to store this information'))}
@@ -1573,23 +1609,34 @@ setMethod('retrieve',signature = ('NULL'),
                                             'IMC_Classifier',
                                             'sqlite',
                                             'IMC_FilterFrame',
+                                            'IMC_TrainingFeatures',
                                             'IMC_InterpretationMatrix',
                                             'IMC_SegmentationDirectives',
                                             'IMC_SegmentationList',
                                             'IMC_ExtractionDirectives',
                                             'IMC_Classification'))) {stop(RUNIMC:::mError('Unknown file extension'))}
             }
-            if (searchForRaster & !exists(fileExtension)){
+            if (searchForRaster & !exists('fileExtension')){
               objectOut<-RUNIMC:::retrieve.RsCollection(fn_file = fn_path,fn_timeStamp = T)
               return(objectOut)
             }
-            if (exists(fileExtension)){
-              fullPath<-file.path(fn_path,fn_file)
-              swith(fileExtension,
-                    IMC_ChannelTable = {objectOut<-RUNIMC:::retrieve.channelTable(fn_file = fullPath,fn_timeStamp = T); return(objectOut)}
-                    IMC_StudyTable = {objectOut<-RUNIMC:::retrieve.studyTable(fn_file = fullPath,fn_timeStamp = T); return(objectOut)}
+            if (exists('fileExtension')){
+              if (file.exists(fn_file)) {fullPath<-fn_file} else {fullPath<-file.path(fn_path,fn_file) }
 
-                    )
+              switch(fileExtension,
+                    IMC_ChannelTable = {objectOut<-RUNIMC:::retrieve.channelTable(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                    IMC_StudyTable = {objectOut<-RUNIMC:::retrieve.studyTable(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                    IMC_ClassificationDirectives = {objectOut<-RUNIMC:::retrieve.classificationDirectives(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                    IMC_Classifier = {objectOut<-RUNIMC:::retrieve.classifier(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                    sqlite = {objectOut<-RUNIMC:::retrieve.expressionMatrix(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                    IMC_FilterFrame = {objectOut<-RUNIMC:::retrieve.filterFrame(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                    IMC_TrainingFeatures = {objectOut<-RUNIMC:::retrieve.trainingFeatures(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                    IMC_InterpretationMatrix = {objectOut<-RUNIMC:::retrieve.interpretationMatrix(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                    IMC_SegmentationDirectives = {objectOut<-RUNIMC:::retrieve.segmentationDirectives(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                    IMC_SegmentationList = {objectOut<-RUNIMC:::retrieve.segmentationList(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                    IMC_ExtractionDirectives = {objectOut<-RUNIMC:::retrieve.extractionDirectives(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                    IMC_Classification = {objectOut<-RUNIMC:::retrieve.classification(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                    xml = {objectOut<-RUNIMC:::retrieve.xml(fn_file = fullPath,fn_timeStamp = T); return(objectOut)})
             }
 
           })
@@ -1667,6 +1714,7 @@ if (!isGeneric("cleanUpClassification")) {
     standardGeneric("cleanUpClassification"))
 }
 
+#' @export
 setMethod('cleanUpClassification',signature(x='IMC_Classification'),
           function(x,Npixels=2,directioMethod=4,...){
 
@@ -1678,7 +1726,7 @@ setMethod('cleanUpClassification',signature(x='IMC_Classification'),
           }
 )
 
-
+#' @export
 setMethod('cleanUpClassification',signature(x='environment'),
           function(x,Npixels=2,directioMethod=4,...){
 
@@ -1697,3 +1745,4 @@ setMethod('cleanUpClassification',signature(x='environment'),
 
           }
 )
+exists('fileExtension')

@@ -1,6 +1,17 @@
 
 server <- function(input, output, session) {
 
+  session$onSessionEnded(function(){
+    if (exists('rstStack')) rm(rstStack,envir = .GlobalEnv)
+    if (exists('nmsRst')) rm(nmsRst,envir = .GlobalEnv)
+    if (exists('plc')) rm(plc,envir = .GlobalEnv)
+    if (exists('plcn')) rm(plcn,envir = .GlobalEnv)
+    if (exists('pWidth')) rm(pWidth,envir = .GlobalEnv)
+    if (exists('pHeight')) rm(pHeight,envir = .GlobalEnv)
+    if (exists('hotKey')) rm(hotKey,envir = .GlobalEnv)
+    if (exists('NAcol')) rm(NAcol,envir = .GlobalEnv)
+  })
+
   ###### reactive values ######
 
   PAINTMODE<-shiny::reactiveValues(pntm='n',
