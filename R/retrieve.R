@@ -351,7 +351,7 @@ retrieve.xml<-function(fn_file=NULL,
   rootNode<-XML::xmlRoot(fileContent)
   childrenNode<-XML::xmlChildren(rootNode)
   chldNdNames<-names(childrenNode)
-  if (any('currentAnalysis' %in% chldNdNames) & !any('exprs' %in% chldNdNames)){
+  if (XML::xmlName(rootNode)=='study'){
     newStudy<-new.env()
     attr(newStudy,'crtnTimeStmp')<-XML::xmlGetAttr(rootNode,'crtnTimeStmp')
     attr(newStudy,'mdtnTimeStmp')<-XML::xmlGetAttr(rootNode,'mdtnTimeStmp')
@@ -400,7 +400,7 @@ retrieve.xml<-function(fn_file=NULL,
 
   }
   #parse Analysis
-  if (!any('currentAnalysis' %in% chldNdNames) & any('exprs' %in% chldNdNames)){
+  if (XML::xmlName(rootNode)=='analysis'){
 
     newAnal<-new.env()
     attr(newAnal,'crtnTimeStmp')<-XML::xmlGetAttr(rootNode,'crtnTimeStmp')
@@ -506,5 +506,5 @@ retrieve.xml<-function(fn_file=NULL,
 
   }
 
-  return(fileContent)
+  # return(fileContent)
 }

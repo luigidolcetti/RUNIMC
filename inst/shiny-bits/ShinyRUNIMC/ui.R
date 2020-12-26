@@ -27,15 +27,27 @@ ui <- shinydashboard::dashboardPage(
                             accept = c("text",
                                        ".txt")),
                   shiny::verbatimTextOutput('fileUpload',placeholder = T),
-                  width = 4),
+                  width = 12),
+                shinydashboard::box(
+                  shiny::fileInput("deftblUpload", "Upload label definitions",
+                                   multiple = FALSE,
+                                   accept = ".sqlite"),
+                  width = 6),
+
                 shinydashboard::box(
                   shiny::fileInput("dldtblUpload", "Upload Polygons",
                             multiple = FALSE,
                             accept = ".sqlite"),
-                  width = 4),
+                  width = 6),
+
+                shinydashboard::box(
+                  downloadButton('deftbl','Download label definitions'),
+                  width = 6),
+
+
                 shinydashboard::box(
                   downloadButton('dldtbl','Download Polygons'),
-                  width = 4)
+                  width = 6)
               )
       ),
       shinydashboard::tabItem(tabName = "Picture",

@@ -215,6 +215,45 @@ setMethod('newAnalysis',signature = ('environment'),
               }
           })
 
+#** dismissAnalisys ---------------------------------------------------
+if (!isGeneric("dismissAnalysis")) {
+  setGeneric("dismissAnalysis", function(x,analysis=NULL,...)
+    standardGeneric("dismissAnalysis"))
+}
+
+#' @export
+setMethod('dismissAnalysis',signature = ('environment'),
+          function(x,analysis=NULL,...){
+            browser()
+            dsmsFolder<-checkDir(file.path(x$rootFolder,x$name,'analysis'),'dismissed')
+            if (is.null(x$analysis)) stop(mError('There are no analysis to dismiss'))
+            if (analysis==x$currentAnalysis$name) analysis<-NULL
+            if (is.null(analysis)) {
+              message(mWarning('No analysis name specified, current analysis will be dismissed, continue?'))
+              answr<-readline()
+              if (!grepl("y",answr,ignore.case = T)) stop(mWarning('Dismissal aborted'))
+              analysis<-x$currentAnalysis$name
+              x$analysis<-x$analysis[x$analysis!=analysis]
+              file.copy(from = x$currentAnalysis$folder,to = dsmsFolder,overwrite = T,recursive = T)
+              unlink(x$currentAnalysis$folder,recursive = T,force = T)
+              x$currentAnalysis<-NULL
+              message(mMessage(paste0(analysis, ' dismissed')))
+              return(0)
+            }
+            lstAnl<-listAnalysis(x)
+            if (!any(analysis %in% lstAnl)) stop(mError("Specified analysis doesn't exist in this study"))
+            file.copy(from = file.path(x$rootFolder,x$name,'analysis',analysis),to = dsmsFolder,overwrite = T,recursive = T)
+            unlink(file.path(x$rootFolder,x$name,'analysis',analysis),recursive = T,force = T)
+            x$analysis<-x$analysis[x$analysis!=analysis]
+            return(mMessage(paste0(analysis, ' dismissed')))
+          })
+
+#' @export
+setMethod('dismissAnalysis',signature = c('missing'),
+          function(x,analysis=NULL,...){
+            stop(mError('Specify study'))
+          })
+
 #** listAnalisys ---------------------------------------------------
 if (!isGeneric("listAnalysis")) {
   setGeneric("listAnalysis", function(x,...)
@@ -224,8 +263,7 @@ if (!isGeneric("listAnalysis")) {
 #' @export
 setMethod('listAnalysis',signature = ('environment'),
           function(x,...){
-            anls<-x@analysis
-            return(anls)
+            x$analysis
           })
 
 #** showCurrentAnalysis ---------------------------------------------------
@@ -238,8 +276,7 @@ if (!isGeneric("showCurrentAnalysis")) {
 #' @export
 setMethod('showCurrentAnalysis',signature = ('environment'),
           function(x,...){
-            anls<-x@currentAnalysis
-            return(anls)
+            x$currentAnalysis
           })
 
 #** channels ---------------------------------------------------
@@ -251,7 +288,7 @@ if (!isGeneric("channels")) {
 #' @export
 setMethod('channels',signature = ('ANY'),
           function(x,...){
-            return(x@channels)
+            x$channels
           })
 
 #** rasterFromMarker ---------------------------------------------------
@@ -281,8 +318,7 @@ if (!isGeneric("channelsAll")) {
 #' @export
 setMethod('channelsAll',signature = ('ANY'),
           function(x,...){
-            lyr<-x$channels$RcolumnNames[x$channels$loaded]
-            return(lyr)
+            x$channels$RcolumnNames[x$channels$loaded]
           })
 
 #** addFilter ---------------------------------------------------
@@ -322,20 +358,30 @@ setMethod('addFilter',signature = ('environment'),
 
 #** deployFilters ---------------------------------------------------
 if (!isGeneric("deployFilters")) {
-  setGeneric("deployFilters", function(x, ...)
+  setGeneric("deployFilters", function(x,saveToDisk=T, ...)
     standardGeneric("deployFilters"))
 }
 
 #' @export
 setMethod('deployFilters',signature = ('environment'),
-          function(x,...){
+          function(x,saveToDisk=T...){
+browser()
+            if (saveToDisk){
+              oldRstk<-list.files(file.path(x$currentAnalysis$folder,'rasterStacks'),full.names = T,recursive = F)
+              unlink(oldRstk,recursive = T)
+              oldRst<-list.dirs(file.path(x$currentAnalysis$folder,'rasters'),full.names = T,recursive = F)
+              unlink(oldRst,recursive = T)
+              message(mMessage('Clean up raster and rasterStack folders'))
+            }
 
             ff<-x$currentAnalysis$filters
             derivedRasters<-apply(ff,1,function(fltDf){
               imageRFilter(fn_rasterStack = x$raster,
                            fn_filter = fltDf$filter,
                            fn_filterParameterList = fltDf$parameters,
-                           fn_markerList = fltDf$channels)
+                           fn_markerList = fltDf$channels,
+                           fn_saveToDisk = saveToDisk,
+                           fn_pathToFile = x$currentAnalysis$folder)
             })
 
 
@@ -369,7 +415,17 @@ setMethod('deployFilters',signature = ('environment'),
             attr(x,'mdtnTimeStmp')<-newTimeStmp
             attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
 
+            if (saveToDisk){
+              sapply(names(derivedRasters),function(nms){
+                IMCstackSave(derivedRasters[[nms]],
+                             file.path(x$currentAnalysis$folder,
+                                       'rasterStacks',
+                                       paste0(derivedRasters[[nms]]@IMC_text_file,'.stk')))
+              })
+            }
+
             x$currentAnalysis$derivedRasters<-derivedRasters
+
           })
 
 #** addExtractionDirectives ---------------------------------------------------
@@ -809,7 +865,7 @@ setMethod('archive',signature = ('environment'),
                 attr(x,'mdtnTimeStmp')<-newTimeStmp
                 attr(x,'artnTimeStmp')<-newTimeStmp
                 attr(x,'fileArchive')<-paste0(basePath,'/study.xml')
-                xmlOut<-XMLparseObject(x)
+                xmlOut<-XMLparseObject(x,'study')
                 XML::saveXML(xmlOut,paste0(basePath,'/study.xml'))
               } else {stop(RUNIMC:::mError(paste0('Write permission denied to: ',basePath,'/study.xml')))}
 
@@ -977,10 +1033,10 @@ setMethod('archive',signature = ('environment'),
                 newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
                 attr(x,'mdtnTimeStmp')<-newTimeStmp
                 attr(x,'artnTimeStmp')<-newTimeStmp
-                attr(x,'fileArchive')<-paste0(basePath,'/study.xml')
-                xmlOut<-XMLparseObject(x)
+                attr(x,'fileArchive')<-paste0(basePath,'/analysis.xml')
+                xmlOut<-XMLparseObject(x,'analysis')
                 XML::saveXML(xmlOut,paste0(basePath,'/analysis.xml'))
-              } else {stop(RUNIMC:::mError(paste0('Write permission denied to: ',basePath,'/study.xml')))}
+              } else {stop(RUNIMC:::mError(paste0('Write permission denied to: ',basePath,'/analysis.xml')))}
 
               if (objectReturn){
 
@@ -1099,17 +1155,17 @@ setMethod('archive',signature = c('IMC_RsCollection'),
                 fileObjective<-paste0(newDir,'/',chnl,'.nc')
 
                 if (raster::fromDisk(x[[smp]][[chnl]])){
-                temp_raster<-raster::readAll(x[[smp]][[chnl]])
-                unlink(fileObjective,force = T)
-                raster::writeRaster(x = temp_raster,
-                                    filename = fileObjective,
-                                    overwrite=T,
-                                    format='CDF')} else{
-                                      raster::writeRaster(x = x[[smp]][[chnl]],
-                                                          filename = fileObjective,
-                                                          overwrite=T,
-                                                          format='CDF')
-                                    }
+                  temp_raster<-raster::readAll(x[[smp]][[chnl]])
+                  unlink(fileObjective,force = T)
+                  raster::writeRaster(x = temp_raster,
+                                      filename = fileObjective,
+                                      overwrite=T,
+                                      format='CDF')} else{
+                                        raster::writeRaster(x = x[[smp]][[chnl]],
+                                                            filename = fileObjective,
+                                                            overwrite=T,
+                                                            format='CDF')
+                                      }
                 return(fileObjective)
               })
 
@@ -1624,19 +1680,19 @@ setMethod('retrieve',signature = ('NULL'),
               if (file.exists(fn_file)) {fullPath<-fn_file} else {fullPath<-file.path(fn_path,fn_file) }
 
               switch(fileExtension,
-                    IMC_ChannelTable = {objectOut<-RUNIMC:::retrieve.channelTable(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
-                    IMC_StudyTable = {objectOut<-RUNIMC:::retrieve.studyTable(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
-                    IMC_ClassificationDirectives = {objectOut<-RUNIMC:::retrieve.classificationDirectives(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
-                    IMC_Classifier = {objectOut<-RUNIMC:::retrieve.classifier(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
-                    sqlite = {objectOut<-RUNIMC:::retrieve.expressionMatrix(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
-                    IMC_FilterFrame = {objectOut<-RUNIMC:::retrieve.filterFrame(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
-                    IMC_TrainingFeatures = {objectOut<-RUNIMC:::retrieve.trainingFeatures(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
-                    IMC_InterpretationMatrix = {objectOut<-RUNIMC:::retrieve.interpretationMatrix(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
-                    IMC_SegmentationDirectives = {objectOut<-RUNIMC:::retrieve.segmentationDirectives(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
-                    IMC_SegmentationList = {objectOut<-RUNIMC:::retrieve.segmentationList(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
-                    IMC_ExtractionDirectives = {objectOut<-RUNIMC:::retrieve.extractionDirectives(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
-                    IMC_Classification = {objectOut<-RUNIMC:::retrieve.classification(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
-                    xml = {objectOut<-RUNIMC:::retrieve.xml(fn_file = fullPath,fn_timeStamp = T); return(objectOut)})
+                     IMC_ChannelTable = {objectOut<-RUNIMC:::retrieve.channelTable(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_StudyTable = {objectOut<-RUNIMC:::retrieve.studyTable(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_ClassificationDirectives = {objectOut<-RUNIMC:::retrieve.classificationDirectives(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_Classifier = {objectOut<-RUNIMC:::retrieve.classifier(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     sqlite = {objectOut<-RUNIMC:::retrieve.expressionMatrix(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_FilterFrame = {objectOut<-RUNIMC:::retrieve.filterFrame(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_TrainingFeatures = {objectOut<-RUNIMC:::retrieve.trainingFeatures(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_InterpretationMatrix = {objectOut<-RUNIMC:::retrieve.interpretationMatrix(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_SegmentationDirectives = {objectOut<-RUNIMC:::retrieve.segmentationDirectives(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_SegmentationList = {objectOut<-RUNIMC:::retrieve.segmentationList(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_ExtractionDirectives = {objectOut<-RUNIMC:::retrieve.extractionDirectives(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_Classification = {objectOut<-RUNIMC:::retrieve.classification(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     xml = {objectOut<-RUNIMC:::retrieve.xml(fn_file = fullPath,fn_timeStamp = T); return(objectOut)})
             }
 
           })

@@ -1,11 +1,15 @@
 #'Some BullShit
 #'
 #'
-XMLparseObject<-function(x){
+XMLparseObject<-function(x=NULL,objectType=NULL){
+
+  if (is.null(x)) stop(mError('Specify an object to serialise'))
+  if (is.null(objectType)) stop(mError('Specify an object Type'))
+  if (!any(objectType %in% c('study','analysis'))) stop(mError('Object type must be either study or analysis'))
 
   slts<-ls(x)
   xmlDoc<-XML::newXMLDoc()
-  root<-XML::newXMLNode('object',
+  root<-XML::newXMLNode(objectType,
                         attrs = c(class=class(x),
                                   crtnTimeStmp=attr(x,'crtnTimeStmp'),
                                   mdtnTimeStmp=attr(x,'mdtnTimeStmp'),

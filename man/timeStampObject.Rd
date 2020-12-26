@@ -4,7 +4,7 @@
 \alias{timeStampObject}
 \title{Some BullShit}
 \usage{
-timeStampObject(x, crtn, mdfn, arcn)
+timeStampObject(x, crtn, mdtn, artn)
 }
 \description{
 Some BullShit

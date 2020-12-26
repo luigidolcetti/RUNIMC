@@ -499,11 +499,52 @@ server <- function(input, output, session) {
 
       paste0(rstStack@IMC_text_file,".sqlite")},
     content = function(file) {
-      st_write(GEOM$dataBase,file,append=F)
+      sf::st_write(GEOM$dataBase,file,append=F)
 
     }
   )
 
+  ###### uopload def Table#####
+
+  shiny::observeEvent(input$deftblUpload,{
+
+    GEOM$dataBase<-sf::st_sf(uid=character(0),
+                             label=character(0),
+                             color=character(0),
+                             GEOMETRY=sf::st_sfc(),
+                             stringsAsFactors = F)
+
+    LBLTBLV$table<-data.frame(label=character(0),
+                              note=character(0),
+                              color=character(0),
+                              show=logical(0),
+                              stringsAsFactors = FALSE)
+
+    LBLTBLV$table<-utils::read.table(file = input$deftblUpload$datapath,
+                                     header = T,
+                                     sep = '\t',
+                                     as.is = T,
+                                     check.names = F,
+                                     stringsAsFactors = F)
+
+  })
+
+
+  ###### Download def table ######
+
+
+
+  output$deftbl <- shiny::downloadHandler(
+
+    filename = function(){
+
+
+      "labels.txt"},
+    content = function(file) {
+      utils::write.table(LBLTBLV$table,file,append=F,sep = '\t',row.names = F,col.names = T,quote = F)
+
+    }
+  )
 
 
 

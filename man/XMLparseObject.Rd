@@ -4,7 +4,7 @@
 \alias{XMLparseObject}
 \title{Some BullShit}
 \usage{
-XMLparseObject(x)
+XMLparseObject(x = NULL, objectType = NULL)
 }
 \description{
 Some BullShit
