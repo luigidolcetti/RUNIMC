@@ -1,0 +1,55 @@
+#'Some BullShit
+#'
+#'
+#' @export
+monkeyForest<-function(fn_rst,
+                       fn_layers,
+                       fn_newLayerName='random_mask',
+                       fn_colN,
+                       fn_rowN,
+                       fn_forest,
+                       fn_filePath=NULL,
+                       fn_append=T){
+
+  testMatrix<-raster::getValues(fn_rst)[,fn_layers]
+
+  prediction_for_table <-(predict(fn_forest,testMatrix))
+
+  trainingLabels<-fn_forest$classes
+
+  rat<-data.frame(ID=1:length(trainingLabels),label=trainingLabels)
+
+  prediction_for_table_numeric<-unname(sapply(prediction_for_table,function(x){
+    rat$ID[rat$label==x]}))
+
+  prediction_for_table_numeric<-matrix(prediction_for_table_numeric,
+                                       ncol = fn_colN,
+                                       nrow = fn_rowN,
+                                       byrow = T)
+
+  newRaster<-raster::raster(prediction_for_table_numeric,
+                    xmn=0,
+                    xmx=ncol(prediction_for_table_numeric),
+                    ymn=0,
+                    ymx=nrow(prediction_for_table_numeric),
+                    crs=sp::CRS(as.character(NA)))
+
+  levels(newRaster)[[1]]<-rat
+  if (fn_append==T) {
+    out<-fn_rst
+    out[[fn_newLayerName]]<-newRaster
+  } else {
+    out<-newRaster
+  }
+
+  if (!is.null(fn_filePath)){
+  raster::writeRaster(x = out,
+                      filename = fn_filePath,
+                      overwrite=T,
+                      format='raster')
+    out<-raster::raster(fn_filePath)
+  }
+
+
+  return(out)
+}

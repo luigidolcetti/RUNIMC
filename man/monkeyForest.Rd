@@ -7,10 +7,13 @@
 monkeyForest(
   fn_rst,
   fn_layers,
-  fn_newLayerName = "random_mask",
+  fn_newLayerName = "label",
+  fn_undeterminedLabel = "undetermined",
+  fn_Ptreshold = NULL,
   fn_colN,
   fn_rowN,
   fn_forest,
+  fn_filePath = NULL,
   fn_append = T
 )
 }

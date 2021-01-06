@@ -13,7 +13,7 @@ imageRFilter<-function(fn_rasterStack,
   defaults<-formals(eval(parse(text=paste0('imager::',fn_filter))))
 
   new_rasterStack<-sapply(names(fn_rasterStack),function(x)list(),USE.NAMES = T)
-  new_rstStk<-list()
+
 
   for (st in names(fn_rasterStack)){
 
@@ -23,6 +23,7 @@ imageRFilter<-function(fn_rasterStack,
     ymx<-fn_rasterStack[[st]]@extent[4]
 
     if (fn_saveToDisk) pathDir<-checkDir(file.path(fn_pathToFile,'rasters'),fn_rasterStack[[st]]@IMC_text_file)
+    new_rstStk<-list()
 
     for (i in fn_markerList){
       for (p in fn_filterParameterList){

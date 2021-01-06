@@ -4,7 +4,14 @@
 \alias{cleanUpAntiClumps}
 \title{Some BullShit}
 \usage{
-cleanUpAntiClumps(fn_rstStack, fn_Ncount = 2, fn_directions = 4)
+cleanUpAntiClumps(
+  fn_rstStack,
+  fn_Ncount = 2,
+  fn_directions = 4,
+  fn_layerLabel = "label",
+  fn_label = NULL,
+  fn_dumpLabel = "undetermined"
+)
 }
 \description{
 Some BullShit

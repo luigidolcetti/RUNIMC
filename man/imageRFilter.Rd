@@ -4,7 +4,14 @@
 \alias{imageRFilter}
 \title{Some BullShit}
 \usage{
-imageRFilter(fn_rasterStack, fn_filter, fn_markerList, fn_filterParameterList)
+imageRFilter(
+  fn_rasterStack,
+  fn_filter,
+  fn_markerList,
+  fn_filterParameterList,
+  fn_saveToDisk,
+  fn_pathToFile
+)
 }
 \description{
 Some BullShit

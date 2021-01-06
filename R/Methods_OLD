@@ -225,7 +225,7 @@ if (!isGeneric("dismissAnalysis")) {
 #' @export
 setMethod('dismissAnalysis',signature = ('environment'),
           function(x,analysis=NULL,...){
-
+            browser()
             dsmsFolder<-checkDir(file.path(x$rootFolder,x$name,'analysis'),'dismissed')
             if (is.null(x$analysis)) stop(mError('There are no analysis to dismiss'))
             if (analysis==x$currentAnalysis$name) analysis<-NULL
@@ -427,13 +427,6 @@ setMethod('deployFilters',signature = ('environment'),
 
             x$currentAnalysis$derivedRasters<-derivedRasters
 
-            if (saveToDisk){
-              attr(x$currentAnalysis$derivedRasters,'mdtnTimeStmp')<-newTimeStmp
-              attr(x$currentAnalysis$derivedRasters,'artnTimeStmp')<-newTimeStmp
-              attr(x$currentAnalysis$derivedRasters,'fileArchive')<-file.path(x$currentAnalysis$folder,'rasterStacks')
-
-            }
-
           })
 
 #** addExtractionDirectives ---------------------------------------------------
@@ -617,44 +610,21 @@ setMethod('classify',signature = ('environment'),
 
                      TEST_monkey<-sapply(uids,function(uid){
 
-
-                       rst<-list(x$raster[[uid]],x$currentAnalysis$derivedRasters[[uid]])
-                       rstrStk<-IMC_stack(x = rst,
-                                          uid = x$raster[[uid]]@uid,
-                                          IMC_text_file = x$raster[[uid]]@IMC_text_file,
-                                          study = x$raster[[uid]]@study,
-                                          sample = x$raster[[uid]]@sample,
-                                          replicate = x$raster[[uid]]@replicate,
-                                          ROI = x$raster[[uid]]@ROI,
-                                          bioGroup = x$raster[[uid]]@bioGroup,
-                                          channels = x$raster[[uid]]@channels)
-
-
-                       # rst<-as(rst,'IMC_rasterStack')
-                       # rst@uid = x$raster[[uid]]@uid
-                       # rst@IMC_text_file = x$rastr[[uid]]@IMC_text_file
-                       # rst@study = x$rastr[[uid]]@study
-                       # rst@sample = x$rastr[[uid]]@sample
-                       # rst@replicate = x$rastr[[uid]]@replicate
-                       # rst@ROI = x$rastr[[uid]]@ROI
-                       # rst@bioGroup = x$rastr[[uid]]@bioGroup
+                       rst<-raster::stack(x$raster[[uid]],x$currentAnalysis$derivedRasters[[uid]])
 
                        if (saveToDisk) {
                          fn_filePath<-file.path(x$currentAnalysis$folder,
-                                                'test/classification')
-                         checkDir(fn_filePath,'rasters')
-                         checkDir(fn_filePath,'rasterStacks')
+                                                'test/classification',
+                                                paste0(x$raster[[uid]]@IMC_text_file,'.grd'))
                        } else {
                              fn_filePath<-NULL
                        }
 
-                       mf<-monkeyForest(fn_rst =rstrStk,
+                       mf<-monkeyForest(fn_rst =rst,
                                         fn_layers = pFtr,
-                                        fn_newLayerName = 'label',
-                                        fn_undeterminedLabel='undetermined',
-                                        fn_Ptreshold=NULL,
-                                        fn_colN = ncol(rstrStk),
-                                        fn_rowN = nrow(rstrStk),
+                                        fn_newLayerName = 'random_mask',
+                                        fn_colN = ncol(rst),
+                                        fn_rowN = nrow(rst),
                                         fn_forest =rfCls,
                                         fn_filePath = fn_filePath,
                                         fn_append = F)},USE.NAMES = T)
@@ -669,42 +639,28 @@ setMethod('classify',signature = ('environment'),
             attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
             if (saveToDisk) {
               attr(x$currentAnalysis$classification,'artnTimeStmp')<-newTimeStmp
-              attr(x$currentAnalysis$classification,'fileArchive')<-file.path(x$currentAnalysis$folder,'test/classification/rasterStacks')
+              attr(x$currentAnalysis$classification,'fileArchive')<-file.path(x$currentAnalysis$folder,'test/classification')
             }
           })
 
 #** addInterpretationMatrix ---------------------------------------------------
 if (!isGeneric("addInterpretationMatrix")) {
-  setGeneric("addInterpretationMatrix", function(x,undtLabel=NULL,undtID=NULL,...)
+  setGeneric("addInterpretationMatrix", function(x,...)
     standardGeneric("addInterpretationMatrix"))
 }
 
 #' @export
 setMethod('addInterpretationMatrix',signature = ('environment'),
-          function(x,undtLabel=NULL,undtID=NULL,...){
+          function(x,...){
 
             if (is.null(x$currentAnalysis$classifier)) stop(mError('coud not find a classification model to apply'))
 
             iMat<-guideMatrix(x$currentAnalysis$classifier)
-
             for (i in names(iMat)){
               iMat[[i]]$seed[iMat[[i]]$level==i]<-1
               iMat[[i]]$include[iMat[[i]]$level==i]<-1
               iMat[[i]]$action[iMat[[i]]$level!=i]<-2
             }
-
-            if (!is.null(undtLabel) & !is.null(undtID)){
-              iMat<-sapply(names(iMat),function(nms){
-                iMat[[nms]]<-rbind.data.frame(iMat[[nms]],data.frame(level=undtLabel,
-                                                                     label=undtID,
-                                                                     seed=0,
-                                                                     include=1,
-                                                                     action=0,
-                                                                     row.names = undtLabel,
-                                                                     stringsAsFactors = F))
-              },USE.NAMES = T,simplify = F)
-            }
-
 
             iMat<-new('IMC_InterpretationMatrix',iMat)
             x$currentAnalysis$interpretationMatrix<-iMat
@@ -745,23 +701,19 @@ setMethod('addSegmentationDirectives',signature = ('environment'),
 #** segment ---------------------------------------------------
 
 if (!isGeneric("segment")) {
-  setGeneric("segment", function(x,labelLayer='label',...)
+  setGeneric("segment", function(x,...)
     standardGeneric("segment"))
 }
 
 #' @export
 setMethod('segment',signature = ('environment'),
-          function(x,labelLayer='label',...){
+          function(x,...){
 
             if (is.null(x$currentAnalysis$segmentationDirectives)) stop(mError('Before segmenting directives must be specified'))
 
             mthd<-x$currentAnalysis$segmentationDirectives@method
             mthdPrmtrs<-x$currentAnalysis$segmentationDirectives@methodParameters
-            rstToSegment<-sapply(names(x$currentAnalysis$classification),function(nms){
-              if (!any(labelLayer %in% names(x$currentAnalysis$classification[[nms]]))) stop(RUNIMC:::mError('Check classification layer name provided'))
-              return(x$currentAnalysis$classification[[nms]][[labelLayer]])
-            },USE.NAMES = T,simplify = F)
-
+            rstToSegment<-x$currentAnalysis$classification
             iMat<-x$currentAnalysis$interpretationMatrix
 
             switch(mthd,
@@ -851,7 +803,7 @@ if (!isGeneric("archive")) {
 #' @export
 setMethod('archive',signature = ('environment'),
           function(x,what=NULL,objectReturn=F,forceSave=F,studyTable=NULL,...){
-browser()
+
             objectList<-ls(x)
 
             if (any('rootFolder' %in% objectList)){
@@ -1272,168 +1224,89 @@ setMethod('archive',signature = c('IMC_Classification'),
 
 
             if (is.null(filePathName)) stop(mError('Provide file name'))
-            # if (!endsWith(filePathName,'.txt')) filePathName<-paste0(filePathName,'.txt')
             if (!forceSave){
               mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
               artnTimeStmp<-attr(x,'artnTimeStmp')
               if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
                 if (mdtnTimeStmp==artnTimeStmp){
-                  message(mWarning('Classification is up to date, you might use "forceSave=T"'))
+                  message(mWarning('Classification file is up to date, you might use "forceSave=T"'))
                   return(0)
                 }
               }
             }
 
-            dir.create(filePathName,showWarnings = F)
+            fileOK<-try(
+              x<-sapply(names(x),function(smp){
+                smpTxtName<-studyTable$IMC_text_file[studyTable$uid==smp]
+                filePath<-file.path(filePathName,paste0(smpTxtName,'.grd'))
+                raster::writeRaster(x = x[[smp]],
+                                    filename = filePath,
+                                    overwrite=T,
+                                    format='raster')
+                raster(filePath)
+              }))
 
-            rstrStk<-sapply(names(x),function(smp){
 
-              if (is.null(studyTable)){
-                studyTable<-data.frame(uid=smp,IMC_text_file=smp,study='NO_STUDY',sample='NO_sample',replicte='NO_replicate',ROI='NO_ROI',bioGroup='NO_BIOGROUP',stringsAsFactors = F)
+            if (exists('fileOK')){
+              if (!is.null(fileOK)){
+                if (inherits(fileOK,what = 'try-error')){
+                  message(mError('Classifier file archiviation failed'))
+                  return(-1)
+                }
               }
-              newDir<-checkDir(filePathName,'rasterStacks')
-              newDir<-checkDir(filePathName,'rasters')
-              newDir<-checkDir(paste(filePathName,'rasters',sep='/'),studyTable$IMC_text_file[studyTable$uid==smp])
-
-
-              rstFile<-lapply(names(x[[smp]]),function(chnl){
-
-                fileObjective<-paste0(newDir,'/',chnl,'.grd')
-
-                if (raster::fromDisk(x[[smp]][[chnl]])){
-                  temp_raster<-raster::readAll(x[[smp]][[chnl]])
-                  unlink(fileObjective,force = T)
-                  raster::writeRaster(x = temp_raster,
-                                      filename = fileObjective,
-                                      overwrite=T,
-                                      format='raster')} else{
-                                        raster::writeRaster(x = x[[smp]][[chnl]],
-                                                            filename = fileObjective,
-                                                            overwrite=T,
-                                                            format='raster')
-                                      }
-                return(fileObjective)
-              })
-
-
-              stackDetails<-studyTable[studyTable$uid==smp,]
-              rstrStk<-IMC_stack(x = rstFile,
-                                 uid = smp,
-                                 IMC_text_file = stackDetails$IMC_text_file,
-                                 study = stackDetails$study,
-                                 sample = stackDetails$sample,
-                                 replicate = stackDetails$replicate,
-                                 ROI = stackDetails$ROI,
-                                 bioGroup = stackDetails$bioGroup,
-                                 channels = data.frame(RcolumnNames = names(x[[smp]])))
-
-
-              IMCstackSave(x = rstrStk,
-                           filename = paste0(filePathName,'/rasterStacks/',
-                                             studyTable$IMC_text_file[studyTable$uid==smp],'.stk'))
-
-              return(rstrStk)
-            },USE.NAMES = T,simplify = F)
-
-
-            rstrStk<-new('IMC_Classification',rstrStk)
-
-
-            if (objectReturn){
-              return(rstrStk)
             }
-            return(paste0(filePathName,'/rasterStacks'))
+            if (objectReturn){
+              return(x)
+            }
+            return(filePathName)
+            #
+            #             dir.create(filePathName,showWarnings = F)
+            #
+            #             rstrStk<-sapply(names(x),function(smp){
+            #
+            #               if (is.null(studyTable)){
+            #                 studyTable<-data.frame(uid=smp,IMC_text_file=smp,study='NO_STUDY',sample='NO_sample',replicte='NO_replicate',ROI='NO_ROI',bioGroup='NO_BIOGROUP',stringsAsFactors = F)
+            #               }
+            #               newDir<-checkDir(filePathName,'rasterStacks')
+            #               newDir<-checkDir(filePathName,'rasters')
+            #               newDir<-checkDir(paste(filePathName,'rasters',sep='/'),studyTable$IMC_text_file[studyTable$uid==smp])
+            #               rstFile<-lapply(names(x[[smp]]),function(chnl){
+            #
+            #                 fileObjective<-paste0(newDir,'/',chnl,'.nc')
+            #                 raster::writeRaster(x = x[[smp]][[chnl]],
+            #                                     filename = fileObjective,
+            #                                     overwrite=T,
+            #                                     format='CDF')
+            #                 return(fileObjective)
+            #               })
+            #
+            #
+            #               stackDetails<-studyTable[studyTable$uid==smp,]
+            #               rstrStk<-IMC_stack(x = rstFile,
+            #                                  uid = smp,
+            #                                  IMC_text_file = stackDetails$IMC_text_file,
+            #                                  study = stackDetails$study,
+            #                                  sample = stackDetails$sample,
+            #                                  replicate = stackDetails$replicate,
+            #                                  ROI = stackDetails$ROI,
+            #                                  bioGroup = stackDetails$bioGroup,
+            #                                  channels = data.frame(RcolumnNames = names(x[[smp]])))
+            #
+            #
+            #               IMCstackSave(x = rstrStk,
+            #                            filename = paste(filePathName,'rasterStacks',
+            #                                             studyTable$IMC_text_file[studyTable$uid==smp],sep='/'))
+            #
+            #               return(rstrStk)
+            #             },USE.NAMES = T,simplify = F)
+            #
+            #
+            #             if (objectReturn){
+            #               return(rstrStk)
+            #             }
+            #             return(filePathName)
           })
 
-# #*** archive:imc_classification ---------------------------------------------------
-# setMethod('archive',signature = c('IMC_Classification'),
-#           function(x,what=NULL,filePathName=NULL,objectReturn=F,forceSave=F,studyTable=NULL,...){
-#
-#
-#             if (is.null(filePathName)) stop(mError('Provide file name'))
-#             if (!forceSave){
-#               mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
-#               artnTimeStmp<-attr(x,'artnTimeStmp')
-#               if (!is.na(mdtnTimeStmp) & !is.na(artnTimeStmp)){
-#                 if (mdtnTimeStmp==artnTimeStmp){
-#                   message(mWarning('Classification file is up to date, you might use "forceSave=T"'))
-#                   return(0)
-#                 }
-#               }
-#             }
-#
-#             fileOK<-try(
-#               x<-sapply(names(x),function(smp){
-#                 smpTxtName<-studyTable$IMC_text_file[studyTable$uid==smp]
-#                 filePath<-file.path(filePathName,paste0(smpTxtName,'.grd'))
-#                 raster::writeRaster(x = x[[smp]],
-#                                     filename = filePath,
-#                                     overwrite=T,
-#                                     format='raster')
-#                 raster(filePath)
-#               }))
-#
-#
-#             if (exists('fileOK')){
-#               if (!is.null(fileOK)){
-#                 if (inherits(fileOK,what = 'try-error')){
-#                   message(mError('Classifier file archiviation failed'))
-#                   return(-1)
-#                 }
-#               }
-#             }
-#             if (objectReturn){
-#               return(x)
-#             }
-#             return(filePathName)
-#             #
-#             #             dir.create(filePathName,showWarnings = F)
-#             #
-#             #             rstrStk<-sapply(names(x),function(smp){
-#             #
-#             #               if (is.null(studyTable)){
-#             #                 studyTable<-data.frame(uid=smp,IMC_text_file=smp,study='NO_STUDY',sample='NO_sample',replicte='NO_replicate',ROI='NO_ROI',bioGroup='NO_BIOGROUP',stringsAsFactors = F)
-#             #               }
-#             #               newDir<-checkDir(filePathName,'rasterStacks')
-#             #               newDir<-checkDir(filePathName,'rasters')
-#             #               newDir<-checkDir(paste(filePathName,'rasters',sep='/'),studyTable$IMC_text_file[studyTable$uid==smp])
-#             #               rstFile<-lapply(names(x[[smp]]),function(chnl){
-#             #
-#             #                 fileObjective<-paste0(newDir,'/',chnl,'.nc')
-#             #                 raster::writeRaster(x = x[[smp]][[chnl]],
-#             #                                     filename = fileObjective,
-#             #                                     overwrite=T,
-#             #                                     format='CDF')
-#             #                 return(fileObjective)
-#             #               })
-#             #
-#             #
-#             #               stackDetails<-studyTable[studyTable$uid==smp,]
-#             #               rstrStk<-IMC_stack(x = rstFile,
-#             #                                  uid = smp,
-#             #                                  IMC_text_file = stackDetails$IMC_text_file,
-#             #                                  study = stackDetails$study,
-#             #                                  sample = stackDetails$sample,
-#             #                                  replicate = stackDetails$replicate,
-#             #                                  ROI = stackDetails$ROI,
-#             #                                  bioGroup = stackDetails$bioGroup,
-#             #                                  channels = data.frame(RcolumnNames = names(x[[smp]])))
-#             #
-#             #
-#             #               IMCstackSave(x = rstrStk,
-#             #                            filename = paste(filePathName,'rasterStacks',
-#             #                                             studyTable$IMC_text_file[studyTable$uid==smp],sep='/'))
-#             #
-#             #               return(rstrStk)
-#             #             },USE.NAMES = T,simplify = F)
-#             #
-#             #
-#             #             if (objectReturn){
-#             #               return(rstrStk)
-#             #             }
-#             #             return(filePathName)
-#           })
-#
 
 
 
@@ -1782,7 +1655,7 @@ setMethod('archive',signature = c('NULL'),
 
 #** retrieve ---------------------------------------------------
 if (!isGeneric("retrieve")) {
-  setGeneric("retrieve", function(...)
+  setGeneric("retrieve", function(x,fn_what=NULL,fn_path=NULL,fn_file=NULL,...)
     standardGeneric("retrieve"))
 }
 
@@ -1790,16 +1663,70 @@ if (!isGeneric("retrieve")) {
 setMethod('retrieve',signature = ('environment'),
           function(x=NULL,
                    fn_what=NULL,
+                   fn_path=NULL,
                    fn_file=NULL,...){
-
 
           })
 
 #' @export
-setMethod('retrieve',signature = ('character'),
-          function(fn_file=NULL,...){
-            retrieve.generic(fn_file)
-            })
+setMethod('retrieve',signature = ('NULL'),
+          function(x=NULL,
+                   fn_what=NULL,
+                   fn_path=NULL,
+                   fn_file=NULL,...){
+
+
+            if (!is.null(fn_path)) searchForRaster<-grepl('rasterStacks',fn_path) else searchForRaster<-F
+            if (!is.null(fn_path)) searchForClassification<-grepl('classification',fn_path) else searchForClassification<-F
+            # if (is.null(fn_path) & !is.null(fn_file)) stop(RUNIMC:::mError('Please, specify a path where to search for this file'))
+            if (is.null(fn_path) & is.null(fn_file)) stop(RUNIMC:::mError('Please, specify a path and file'))
+            if (!is.null(fn_path) & !is.null(fn_file)){
+              if (!dir.exists(fn_path) & !file.exists(fn_file) & !file.exists(file.path(fn_path,fn_file))) stop(RUNIMC:::mError(paste0('Unable to find: ',fn_path)))}
+            if (!is.null(fn_file)) {
+              fileExtension<-unlist(strsplit(fn_file,'\\.'))
+              if (!length(fileExtension)>1) {stop(RUNIMC:::mError('File without extension, cannot decide were to store this information'))}
+              fileExtension<-fileExtension[length(fileExtension)]
+              if (!any(fileExtension %in% c('IMC_ChannelTable',
+                                            'IMC_StudyTable',
+                                            'xml',
+                                            'IMC_ClassificationDirectives',
+                                            'IMC_Classifier',
+                                            'sqlite',
+                                            'IMC_FilterFrame',
+                                            'IMC_TrainingFeatures',
+                                            'IMC_InterpretationMatrix',
+                                            'IMC_SegmentationDirectives',
+                                            'IMC_SegmentationList',
+                                            'IMC_ExtractionDirectives'))) {stop(RUNIMC:::mError('Unknown file extension'))}
+            }
+            if (searchForRaster & !exists('fileExtension')){
+              objectOut<-RUNIMC:::retrieve.RsCollection(fn_file = fn_path,fn_timeStamp = T)
+              return(objectOut)
+            }
+            if (searchForClassification & !exists('fileExtension')){
+              objectOut<-RUNIMC:::retrieve.classification(fn_file = fn_path,fn_timeStamp = T)
+              return(objectOut)
+            }
+            if (exists('fileExtension')){
+              if (file.exists(fn_file)) {fullPath<-fn_file} else {fullPath<-file.path(fn_path,fn_file) }
+
+              switch(fileExtension,
+                     IMC_ChannelTable = {objectOut<-RUNIMC:::retrieve.channelTable(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_StudyTable = {objectOut<-RUNIMC:::retrieve.studyTable(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_ClassificationDirectives = {objectOut<-RUNIMC:::retrieve.classificationDirectives(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_Classifier = {objectOut<-RUNIMC:::retrieve.classifier(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     sqlite = {objectOut<-RUNIMC:::retrieve.expressionMatrix(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_FilterFrame = {objectOut<-RUNIMC:::retrieve.filterFrame(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_TrainingFeatures = {objectOut<-RUNIMC:::retrieve.trainingFeatures(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_InterpretationMatrix = {objectOut<-RUNIMC:::retrieve.interpretationMatrix(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_SegmentationDirectives = {objectOut<-RUNIMC:::retrieve.segmentationDirectives(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_SegmentationList = {objectOut<-RUNIMC:::retrieve.segmentationList(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     IMC_ExtractionDirectives = {objectOut<-RUNIMC:::retrieve.extractionDirectives(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     # IMC_Classification = {objectOut<-RUNIMC:::retrieve.classification(fn_file = fullPath,fn_timeStamp = T); return(objectOut)},
+                     xml = {objectOut<-RUNIMC:::retrieve.xml(fn_file = fullPath,fn_timeStamp = T); return(objectOut)})
+            }
+
+          })
 
 
 
@@ -1870,33 +1797,15 @@ setMethod('IMC_stack',signature(x='IMC_RasterStack'),
 
 #**  cleanup classification---------------------------------------------------
 if (!isGeneric("cleanUpClassification")) {
-  setGeneric("cleanUpClassification", function(x,
-                                               Npixels=2,
-                                               directioMethod=4,
-                                               layerLabel='label',
-                                               newLayerLabel='cleanUP',
-                                               label=NULL,
-                                               dumpLabel='undetermined',...)
+  setGeneric("cleanUpClassification", function(x,Npixels=2,directioMethod=4, ...)
     standardGeneric("cleanUpClassification"))
 }
 
 #' @export
 setMethod('cleanUpClassification',signature(x='IMC_Classification'),
-          function(x,
-                   Npixels=2,
-                   directioMethod=4,
-                   layerLabel='label',
-                   newLayerLabel='cleanUP',
-                   label=NULL,
-                   dumpLabel='undetermined',...){
+          function(x,Npixels=2,directioMethod=4,...){
 
-            newClassification<-cleanUpAntiClumps(x,
-                                                 fn_Ncount = Npixels,
-                                                 fn_directions = directioMethod,
-                                                 fn_layerLabel = layerLabel,
-                                                 fn_newLayerLabel = newLayerLabel,
-                                                 fn_label = label,
-                                                 fn_dumpLabel = dumpLabel)
+            newClassification<-cleanUpAntiClumps(x,fn_Ncount = Npixels,fn_directions = directioMethod)
 
             newClassification<-new('IMC_Classification',newClassification)
             return(newClassification)
@@ -1906,43 +1815,32 @@ setMethod('cleanUpClassification',signature(x='IMC_Classification'),
 
 #' @export
 setMethod('cleanUpClassification',signature(x='environment'),
-          function(x,
-                   Npixels=2,
-                   directioMethod=4,
-                   layerLabel='label',
-                   newLayerLabel='cleanUP',
-                   label=NULL,
-                   dumpLabel='undetermined',...){
+          function(x,Npixels=2,directioMethod=4,...){
 
             if (is.null(x$currentAnalysis$classification)) stop(mError('coud not find any classification'))
-
             oldClassification<-x$currentAnalysis$classification
             newClassification<-cleanUpAntiClumps(oldClassification,
                                                  fn_Ncount = Npixels,
-                                                 fn_directions = directioMethod,
-                                                 fn_layerLabel = layerLabel,
-                                                 fn_newLayerLabel=newLayerLabel,
-                                                 fn_label = label,
-                                                 fn_dumpLabel = dumpLabel)
+                                                 fn_directions = directioMethod)
+
+            onDisk<-sapply(oldClassification,raster::fromDisk,USE.NAMES = T,simplify = T)
+            newClassification<-sapply(names(onDisk),function(x){
+              if (onDisk[[x]]){
+                raster::writeRaster(newClassification[[x]],
+                                    filename = filename(oldClassification[[x]]),
+                                    overwrite=T,
+                                    format='raster')
+                raster(filename(oldClassification[[x]]))
+              }
+            })
 
             newClassification<-new('IMC_Classification',newClassification)
-
-
-            newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
-
-            attr(newClassification,'crtnTimeStmp')<-attr(x$currentAnalysis$classification,'crtnTimeStmp')
-            attr(newClassification,'mdtnTimeStmp')<-newTimeStmp
-
-            if (!is.null(attr(x$currentAnalysis$classification,'fileArchive'))){
-              attr(newClassification,'artnTimeStmp')<-newTimeStmp
-              attr(newClassification,'fileArchive')<-attr(x$currentAnalysis$classification,'fileArchive')
-            }
-
             x$currentAnalysis$classification<-newClassification
 
+            newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
             attr(x,'mdtnTimeStmp')<-newTimeStmp
             attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
 
           }
 )
-
+exists('fileExtension')
