@@ -10,7 +10,9 @@ topoMap<-function(fn_classification=NULL,
                   fn_clumpDirection=8,
                   fn_mtry=length(fn_features)/3,
                   fn_ntree=100,
-                  fn_trace=10){
+                  fn_trace=10,
+                  fn_filePath=NULL){
+
 
   if (is.null(fn_classification)) stop(RUNIMC:::mError('no classification specified'))
   if (is.null(fn_classificationLyr)) stop(RUNIMC:::mError('no classification layer specified'))
@@ -21,6 +23,11 @@ topoMap<-function(fn_classification=NULL,
                         area=matrix(rep(fn_area,length(fn_label)),
                                     ncol = 2,
                                     byrow = T))
+  }
+  if (!is.null(fn_filePath)){
+    TMfilePath<-RUNIMC:::checkDir(parentalFolder = fn_filePath,childFolder = 'topoMap')
+    filePathRaster<-RUNIMC:::checkDir(parentalFolder = TMfilePath,childFolder = 'rasters')
+    filePathRasterStack<-RUNIMC:::checkDir(parentalFolder = TMfilePath,childFolder = 'rasterStacks')
   }
 
   smpCl<-names(fn_classification)
@@ -112,6 +119,10 @@ topoMap<-function(fn_classification=NULL,
 
 
   classOut<-sapply(smpCl,function(smp){
+    if (!is.null(fn_filePath)){
+      dirTXT<-fn_classification[[smp]]@IMC_text_file
+      filePathRasterTXT<-RUNIMC:::checkDir(parentalFolder = filePathRaster,dirTXT)
+    }
     labelOut<-sapply(fn_label,function(lbl){
 
       cat(paste0('predict raster for :::',lbl,'::: in ',smp,'\n'))
@@ -125,9 +136,29 @@ topoMap<-function(fn_classification=NULL,
                               na.rm=T,
                               progress='text')
       names(outRst)<-lbl
+      if (!is.null(fn_filePath)){
+        fileObjective<-file.path(filePathRasterTXT,paste0(lbl,'.nc'))
+        raster::writeRaster(x = outRst,
+                            filename = fileObjective,
+                            overwrite=T,
+                            format='CDF')
+        outRst<-raster::raster(fileObjective)
+      }
       return(outRst)
     },USE.NAMES = T,simplify = F)
-    outStk<-raster::stack(labelOut)
+    # outStk<-raster::stack(labelOut)
+    outStk<-RUNIMC:::IMC_stack(x = labelOut,
+                               uid = fn_classification[[smp]]@uid,
+                               IMC_text_file = fn_classification[[smp]]@IMC_text_file,
+                               study = fn_classification[[smp]]@study,
+                               sample = fn_classification[[smp]]@sample,
+                               replicate = fn_classification[[smp]]@replicate,
+                               ROI = fn_classification[[smp]]@ROI,
+                               bioGroup = fn_classification[[smp]]@bioGroup,
+                               channels = fn_classification[[smp]]@channels)
+    if (!is.null(fn_filePath)){
+      IMCstackSave(outStk,file.path(filePathRasterStack,paste0(fn_classification[[smp]]@IMC_text_file,'.stk')))
+    }
     return(outStk)
   },USE.NAMES = T,simplify = F)
   return(classOut)
