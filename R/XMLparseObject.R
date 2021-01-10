@@ -17,7 +17,7 @@ XMLparseObject<-function(x=NULL,objectType=NULL){
                                   fileArchive=attr(x,'fileArchive')),
                         doc = xmlDoc)
   objectS<-sapply(slts,function(s){
-browser()
+
     instObj<-eval(parse(text=s),envir = x)
     sltClass<-class(instObj)
     sltTypeOf<-typeof(instObj)

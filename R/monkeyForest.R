@@ -87,7 +87,7 @@ monkeyForest<-function(fn_rst,
                      bioGroup = fn_rst@bioGroup,
                      channels = fn_rst@channels)
 
-  IMCstackSave(rstrStk,file.path(fn_filePath,'rasterStacks',paste0(fn_rst@IMC_text_file,'.stk')))
+  rstrStk<-IMCstackSave(rstrStk,file.path(fn_filePath,'rasterStacks',paste0(fn_rst@IMC_text_file,'.stk')))
 
   return(rstrStk)
 }

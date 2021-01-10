@@ -58,7 +58,7 @@ loadTxtToStack<-function(fn_path,
 
 
   if (!is.null(fn_rasterStackPath)) {
-    IMCstackSave(rstrStk,paste0(fn_rasterStackPath,'/',fn_file,'.stk'))
+    rstrStk<-IMCstackSave(rstrStk,paste0(fn_rasterStackPath,'/',fn_file,'.stk'))
     cat(paste0(fn_file,'.stk',' saved in ',fn_rasterStackPath))
   }
   return(rstrStk)

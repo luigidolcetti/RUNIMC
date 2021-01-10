@@ -51,7 +51,7 @@ ratMap<-function (fn_srt,
   polyIndex=1
   polyList<-list()
 
-  rMsk<-radialMask(fn_radius,fn_Nspikes)
+  rMsk<-RUNIMC:::radialMask(fn_radius,fn_Nspikes)
   sinMatrix<-rMsk$sinMatrix
   cosMatrix<-rMsk$cosMatrix
   intersectionMatrix<-rMsk$intersectionMatrix

@@ -417,12 +417,12 @@ setMethod('deployFilters',signature = ('environment'),
             attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
 
             if (saveToDisk){
-              sapply(names(derivedRasters),function(nms){
+              derivedRasters<-sapply(names(derivedRasters),function(nms){
                 IMCstackSave(derivedRasters[[nms]],
                              file.path(x$currentAnalysis$folder,
                                        'rasterStacks',
                                        paste0(derivedRasters[[nms]]@IMC_text_file,'.stk')))
-              })
+              },USE.NAMES = T,simplify = F)
             }
 
             x$currentAnalysis$derivedRasters<-derivedRasters
@@ -645,7 +645,7 @@ setMethod('classify',signature = ('environment'),
                          checkDir(fn_filePath,'rasters')
                          checkDir(fn_filePath,'rasterStacks')
                        } else {
-                             fn_filePath<-NULL
+                         fn_filePath<-NULL
                        }
 
                        mf<-monkeyForest(fn_rst =rstrStk,
@@ -802,6 +802,26 @@ setMethod('segment',signature = ('environment'),
 
                        }
                      }
+                   },
+
+                   ratMap = {
+
+                     if (!is.null(x$raster)) rst<-x$raster
+                     if (!is.null(x$currentAnalysis$derivedRaster)) dRst<-x$currentAnalysis$derivedRasters
+
+                     newMaps<-topoMap(fn_classification = x$currentAnalysis$classification,
+                                 fn_classificationLyr = mthdPrmtrs$classificationLyr,
+                                 fn_label = mthdPrmtrs$label,
+                                 fn_area = mthdPrmtrs$area,
+                                 fn_raster = rst,
+                                 fn_derivedRaster = dRst,
+                                 fn_features = mthdPrmtrs$featureList,
+                                 fn_maxClumps = mthdPrmtrs$maxClumps,
+                                 fn_ntree = mthdPrmtrs$ntree,
+                                 fn_filePath = mthdPrmtrs$filePath )
+
+
+
                    })
 
 
@@ -851,7 +871,7 @@ if (!isGeneric("archive")) {
 #' @export
 setMethod('archive',signature = ('environment'),
           function(x,what=NULL,objectReturn=F,forceSave=F,studyTable=NULL,...){
-browser()
+
             objectList<-ls(x)
 
             if (any('rootFolder' %in% objectList)){
@@ -1084,7 +1104,7 @@ browser()
                             filePathName = paste(basePath,'tf',sep='/'),
                             objectReturn = F,
                             forceSave = forceSave,
-                            )
+              )
               if (outF!=-1 & outF!=0){
                 newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
                 attr(x$trainingFeatures,'mdtnTimeStmp')<-newTimeStmp
@@ -1799,7 +1819,7 @@ setMethod('retrieve',signature = ('environment'),
 setMethod('retrieve',signature = ('character'),
           function(fn_file=NULL,...){
             retrieve.generic(fn_file)
-            })
+          })
 
 
 
@@ -1946,3 +1966,54 @@ setMethod('cleanUpClassification',signature(x='environment'),
           }
 )
 
+#**  concentric classification---------------------------------------------------
+if (!isGeneric("concentricClassification")) {
+  setGeneric("concentricClassification", function(x,
+                                                  fn_classification=NULL,
+                                                  fn_classificationLyr=NULL,
+                                                  fn_label=NULL,
+                                                  fn_area=NULL,
+                                                  fn_prefix='topoMap_',
+                                                  fn_raster=NULL,
+                                                  fn_derivedRaster=NULL,
+                                                  fn_features=NULL,
+                                                  fn_maxClumps=10,
+                                                  fn_clumpDirection=8,
+                                                  fn_mtry=length(fn_features)/3,
+                                                  fn_ntree=100,
+                                                  fn_trace=10,
+                                                  fn_filePath=NULL,...)
+    standardGeneric("concentricClassification"))
+}
+
+#' @export
+setMethod('concentricClassification',signature(x='IMC_Classification'),
+          function(x,
+                   fn_classification=NULL,
+                   fn_classificationLyr=NULL,
+                   fn_label=NULL,
+                   fn_area=NULL,
+                   fn_prefix='topoMap_',
+                   fn_raster=NULL,
+                   fn_derivedRaster=NULL,
+                   fn_features=NULL,
+                   fn_maxClumps=10,
+                   fn_clumpDirection=8,
+                   fn_mtry=length(fn_features)/3,
+                   fn_ntree=100,
+                   fn_trace=10,
+                   fn_filePath=NULL,...){
+
+            newClassification<-cleanUpAntiClumps(x,
+                                                 fn_Ncount = Npixels,
+                                                 fn_directions = directioMethod,
+                                                 fn_layerLabel = layerLabel,
+                                                 fn_newLayerLabel = newLayerLabel,
+                                                 fn_label = label,
+                                                 fn_dumpLabel = dumpLabel)
+
+            newClassification<-new('IMC_Classification',newClassification)
+            return(newClassification)
+
+          }
+)

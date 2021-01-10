@@ -13,6 +13,8 @@ plot.raster(
   fn_colorsDiscrete = NULL,
   fn_labels = NULL,
   fn_segmentation = NULL,
+  fn_segmentLabel = NULL,
+  fn_segmentColor = NULL,
   fn_zoom = NULL
 )
 }

@@ -9,6 +9,7 @@ cleanUpAntiClumps(
   fn_Ncount = 2,
   fn_directions = 4,
   fn_layerLabel = "label",
+  fn_newLayerLabel = "cleanUP_label",
   fn_label = NULL,
   fn_dumpLabel = "undetermined"
 )
