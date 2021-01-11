@@ -437,13 +437,13 @@ setMethod('deployFilters',signature = ('environment'),
           })
 
 #** addExtractionDirectives ---------------------------------------------------
-if (!isGeneric("addExtractionDirictives")) {
-  setGeneric("addExtractionDirictives", function(x,coverage=NULL,prefix=NULL,append=T,...)
-    standardGeneric("addExtractionDirictives"))
+if (!isGeneric("addExtractionDirectives")) {
+  setGeneric("addExtractionDirectives", function(x,coverage=NULL,prefix=NULL,append=T,...)
+    standardGeneric("addExtractionDirectives"))
 }
 
 #' @export
-setMethod('addExtractionDirictives',signature = ('environment'),
+setMethod('addExtractionDirectives',signature = ('environment'),
           function(x,coverage=NULL,prefix=NULL,append=T,...){
 
 
