@@ -5,8 +5,8 @@
 \title{Some BullShit}
 \usage{
 topoMap(
-  fn_classification = NULL,
-  fn_classificationLyr = NULL,
+  fn_rstStack = NULL,
+  fn_layerLabel = NULL,
   fn_label = NULL,
   fn_area = NULL,
   fn_prefix = "topoMap_",
@@ -17,8 +17,7 @@ topoMap(
   fn_clumpDirection = 8,
   fn_mtry = length(fn_features)/3,
   fn_ntree = 100,
-  fn_trace = 10,
-  fn_filePath = NULL
+  fn_trace = 10
 )
 }
 \description{

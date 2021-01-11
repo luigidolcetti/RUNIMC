@@ -17,22 +17,24 @@ topoMap<-function(fn_rstStack=NULL,
                   fn_trace=10){
 
 
-
   if (is.null(fn_rstStack)) stop(RUNIMC:::mError('no classification specified'))
   if (is.null(fn_layerLabel)) stop(RUNIMC:::mError('no classification layer specified'))
   if (is.null(fn_label)) stop(RUNIMC:::mError('no classification label specified'))
-  if (is.null(fn_area)) stop(RUNIMC:::mError('no area limits specified'))
-  if (class(fn_area)=='numeric' & length(fn_area)==2){
-    fn_area<-data.frame(label=fn_label,
-                        area=matrix(rep(fn_area,length(fn_label)),
-                                    ncol = 2,
-                                    byrow = T))
+  if (is.null(fn_area)) stop(RUNIMC:::mError('no area limits specified')) else{
+    if (class(fn_area)=='numeric'){
+      if (length(fn_area)<2) stop(RUNIMC:::mError('area needs a lower and upper boundary'))
+      fn_area<-data.frame(label=fn_label,
+                          area=I(matrix(rep(c(min(fn_area),max(fn_area)),length(fn_label)),
+                                        ncol = 2,
+                                        byrow = T)),
+                          stringsAsFactors = T)
+    }
+    if (length(fn_area[1,2])<2) stop(RUNIMC:::mError('area table should be at least a lable column, an upper and a lower limit'))
+    if (colnames(fn_area)[1]!='label') stop (RUNIMC:::mError('first column names for area table should be label'))
   }
-  # if (!is.null(fn_filePath)){
-  #   TMfilePath<-RUNIMC:::checkDir(parentalFolder = fn_filePath,childFolder = 'topoMap')
-  #   filePathRaster<-RUNIMC:::checkDir(parentalFolder = TMfilePath,childFolder = 'rasters')
-  #   filePathRasterStack<-RUNIMC:::checkDir(parentalFolder = TMfilePath,childFolder = 'rasterStacks')
-  # }
+  if (!all(fn_label %in% fn_area$label)) stop(RUNIMC:::mError('some classification label do not match area definition'))
+
+
 
   smpCl<-names(fn_rstStack)
   smpRs<-names(fn_raster)
@@ -50,6 +52,9 @@ topoMap<-function(fn_rstStack=NULL,
 
       lvls<-raster::levels(fn_rstStack[[smp]][[fn_layerLabel]])[[1]]
       rowLabels<-which(grepl(lbl,lvls$label))
+      if (length(rowLabels)==0) {stop(RUNIMC:::mError('unrecognised label'))} else{
+        if (length(rowLabels)>1) {message(RUNIMC:::mWarning(paste0(paste0(lvls$label[rowLabels],collapse = ', '), 'will be collapsed to ',lbl)))}
+      }
       IDlabels<-lvls$ID[rowLabels]
       labelMask<-lapply(IDlabels,function(x){
         fn_rstStack[[smp]][[fn_layerLabel]]==x
@@ -105,6 +110,11 @@ topoMap<-function(fn_rstStack=NULL,
 
   rf<-sapply(fn_label,function(lbl){
     cat('Random Forest...:::',lbl,':::\n')
+    if (nrow(tableOut[[lbl]])==0){
+      message(RUNIMC:::mWarning(paste0("couldn't find suitable cells for ",lbl)))
+      rf<-NULL
+      return(rf)
+    }
     rf<-randomForest::randomForest(x=tableOut[[lbl]][,fn_features],
                                    y=tableOut[[lbl]][,'pD'],
                                    mtry=fn_mtry,
@@ -116,23 +126,27 @@ topoMap<-function(fn_rstStack=NULL,
 
   classOut<-sapply(smpCl,function(smp){
 
-    # if (!is.null(fn_filePath)){
-    #   dirTXT<-fn_rstStack[[smp]]@IMC_text_file
-    #   filePathRasterTXT<-RUNIMC:::checkDir(parentalFolder = filePathRaster,dirTXT)
-    # }
     labelOut<-sapply(fn_label,function(lbl){
 
 
       cat(paste0('predict raster for :::',lbl,'::: in ',smp,'\n'))
-      maskedRaster<-raster::mask(x=superRaster[[smp]],
-                                 mask = classMask[[smp]][[lbl]],
-                                 maskvalue=1,
-                                 inverse=T)
 
-      outRst<-raster::predict(maskedRaster,
-                              rf[[lbl]],
-                              na.rm=T,
-                              progress='text')
+
+      if (is.null(rf[[lbl]])){
+        message(RUNIMC:::mWarning('Impossible to produce map for ',lbl,' returning a flat map'))
+        outRst<-classMask[[smp]][[lbl]]
+        outRst[outRst==0]<-NA
+      } else {
+        maskedRaster<-raster::mask(x=superRaster[[smp]],
+                                   mask = classMask[[smp]][[lbl]],
+                                   maskvalue=1,
+                                   inverse=T)
+        outRst<-raster::predict(maskedRaster,
+                                rf[[lbl]],
+                                na.rm=T,
+                                progress='text')
+      }
+
       names(outRst)<-paste0(fn_prefix,lbl)
       # if (!is.null(fn_filePath)){
       filePath<-raster::filename(fn_rstStack[[smp]][[fn_layerLabel]])
