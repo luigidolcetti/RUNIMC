@@ -24,8 +24,7 @@ ui <- shinydashboard::dashboardPage(
                 shinydashboard::box(
                   shiny::fileInput("fileRaster", "Upload one Raster Stack",
                             multiple = FALSE,
-                            accept = c("text",
-                                       ".txt")),
+                            accept = ".stk"),
                   shiny::verbatimTextOutput('fileUpload',placeholder = T),
                   width = 12),
                 shinydashboard::box(
@@ -76,19 +75,19 @@ ui <- shinydashboard::dashboardPage(
                   width = 5
                 ),
                 shinydashboard::box(
-                  shiny::sliderInput("sTrls","Sigma translation",
+                  shiny::sliderInput("sTrls","Thresholds",
                               min = 0,
                               max = 1,
                               value = c(0,1),step = 0.001),
-                  shiny::sliderInput("xTrls","X translation",
+                  shiny::sliderInput("xTrls","X position",
                               min = rstStack[[1]]@extent[1],
                               max = rstStack[[1]]@extent[2],
                               value = round((rstStack[[1]]@extent[2]-rstStack[[1]]@extent[1])/2)),
-                  shiny::sliderInput("yTrls","Y translation",
+                  shiny::sliderInput("yTrls","Y position",
                               min = rstStack[[1]]@extent[3],
                               max = rstStack[[1]]@extent[4],
                               value = round((rstStack[[1]]@extent[4]-rstStack[[1]]@extent[3])/2)),
-                  shiny::sliderInput("zTrls","Z translation",
+                  shiny::sliderInput("zTrls","Zoom",
                               min = 1,
                               max = {
                                 TEMP<-min(rstStack[[1]]@extent[2],rstStack[[1]]@extent[4])
@@ -99,19 +98,19 @@ ui <- shinydashboard::dashboardPage(
                   width = 5
                 ),
                 shinydashboard::box(
-                  shiny::selectInput("lTrls0","Layer0",
+                  shiny::selectInput("lTrls0","Layer 0",
                               choices = nmsRst,
                               selected = nmsRst[[1]]),
-                  shiny::selectInput("lTrls1","Layer1",
+                  shiny::selectInput("lTrls1","Layer 1",
                               choices = nmsRst,
                               selected = nmsRst[[1]]),
-                  shiny::selectInput("lTrls2","Layer2",
+                  shiny::selectInput("lTrls2","Layer 2",
                               choices = nmsRst,
                               selected = nmsRst[[1]]),
-                  shiny::selectInput("lTrls3","Layer3",
+                  shiny::selectInput("lTrls3","Layer 3",
                               choices = nmsRst,
                               selected = nmsRst[[1]]),
-                  shiny::selectInput("lTrls4","Layer4",
+                  shiny::selectInput("lTrls4","Layer 4",
                               choices = nmsRst,
                               selected = nmsRst[[1]]),
                   width = 2
