@@ -757,16 +757,19 @@ setMethod('segment',signature = ('environment'),
 
             mthd<-x$currentAnalysis$segmentationDirectives@method
             mthdPrmtrs<-x$currentAnalysis$segmentationDirectives@methodParameters
-            rstToSegment<-sapply(names(x$currentAnalysis$classification),function(nms){
-              if (!any(labelLayer %in% names(x$currentAnalysis$classification[[nms]]))) stop(RUNIMC:::mError('Check classification layer name provided'))
-              return(x$currentAnalysis$classification[[nms]][[labelLayer]])
-            },USE.NAMES = T,simplify = F)
 
-            iMat<-x$currentAnalysis$interpretationMatrix
+
+
 
             switch(mthd,
 
                    spiderMap = {
+
+                     rstToSegment<-sapply(names(x$currentAnalysis$classification),function(nms){
+                       if (!any(labelLayer %in% names(x$currentAnalysis$classification[[nms]]))) stop(RUNIMC:::mError('Check classification layer name provided'))
+                       return(x$currentAnalysis$classification[[nms]][[labelLayer]])
+                     },USE.NAMES = T,simplify = F)
+                     iMat<-x$currentAnalysis$interpretationMatrix
 
                      polygonsList<-list()
                      for (rst in names(rstToSegment)){
@@ -774,8 +777,8 @@ setMethod('segment',signature = ('environment'),
 
                          cat(paste(rst,i,'\n',sep=":::"))
                          interpretationMatrixInstance<-iMat[[i]]
-                         group_area<-TEST$currentAnalysis$trainingFeatures$geometry$area[TEST$currentAnalysis$trainingFeatures$geometry$label==i]
-                         group_roundness<-TEST$currentAnalysis$trainingFeatures$geometry$roundness[TEST$currentAnalysis$trainingFeatures$geometry$label==i]
+                         group_area<-x$currentAnalysis$trainingFeatures$geometry$area[x$currentAnalysis$trainingFeatures$geometry$label==i]
+                         group_roundness<-x$currentAnalysis$trainingFeatures$geometry$roundness[x$currentAnalysis$trainingFeatures$geometry$label==i]
                          groupAreaRange<-quantile(group_area,mthdPrmtrs$areaQuantile)*mthdPrmtrs$areaExpansion
                          groupRoundnessRange<-quantile(group_roundness,mthdPrmtrs$roundnessQuantile)*mthdPrmtrs$roundnessExpansion
 
@@ -806,22 +809,47 @@ setMethod('segment',signature = ('environment'),
 
                    ratMap = {
 
-                     if (!is.null(x$raster)) rst<-x$raster
-                     if (!is.null(x$currentAnalysis$derivedRaster)) dRst<-x$currentAnalysis$derivedRasters
+                     rstToSegment<-sapply(names(x$currentAnalysis$classification),function(nms){
+                       if (!any(labelLayer %in% names(x$currentAnalysis$classification[[nms]]))) stop(RUNIMC:::mError('Check classification layer name provided'))
+                       return(x$currentAnalysis$classification[[nms]][[labelLayer]])
+                     },USE.NAMES = T,simplify = F)
 
-                     newMaps<-topoMap(fn_classification = x$currentAnalysis$classification,
-                                 fn_classificationLyr = mthdPrmtrs$classificationLyr,
-                                 fn_label = mthdPrmtrs$label,
-                                 fn_area = mthdPrmtrs$area,
-                                 fn_raster = rst,
-                                 fn_derivedRaster = dRst,
-                                 fn_features = mthdPrmtrs$featureList,
-                                 fn_maxClumps = mthdPrmtrs$maxClumps,
-                                 fn_ntree = mthdPrmtrs$ntree,
-                                 fn_filePath = mthdPrmtrs$filePath )
+                     polygonsList<-list()
+                     for (rst in names(rstToSegment)){
+                       for (i in labelLayer){
+browser()
+                         mrkr<-tf_labelList(x$currentAnalysis$trainingFeatures)
+                         mrkrIndex<-which(sapply(mrkr,function(x)grepl(x,i),USE.NAMES = F,simplify = T))
 
 
+                         cat(paste(rst,mrkr[mrkrIndex],'\n',sep=":::"))
+                         group_area<-x$currentAnalysis$trainingFeatures$geometry$area[x$currentAnalysis$trainingFeatures$geometry$label==mrkr[mrkrIndex]]
+                         group_roundness<-x$currentAnalysis$trainingFeatures$geometry$roundness[x$currentAnalysis$trainingFeatures$geometry$label==mrkr[mrkrIndex]]
+                         groupAreaRange<-quantile(group_area,mthdPrmtrs$areaQuantile)*mthdPrmtrs$areaExpansion
+                         groupRoundnessRange<-quantile(group_roundness,mthdPrmtrs$roundnessQuantile)*mthdPrmtrs$roundnessExpansion
 
+                         TEMP<-list(ratMap(fn_srt = raster::crop(rstToSegment[[rst]][[i]],raster::extent(c(1,100,1,100))),
+                                           fn_Nspikes=mthdPrmtrs$spikes,
+                                           fn_radius = round(sqrt(groupAreaRange[[2]]*mthdPrmtrs$radiusExpansion/pi)),
+                                           fn_coverage = mthdPrmtrs$coverage,
+                                           fn_minArea = groupAreaRange[[1]],
+                                           fn_maxArea = groupAreaRange[[2]],
+                                           fn_minRoundness = groupRoundnessRange[[1]],
+                                           fn_maxRoundness = groupRoundnessRange[[2]],
+                                           fn_seedOutScore = mthdPrmtrs$seedOutScore,
+                                           fn_cycleWindow = mthdPrmtrs$cycleWindow,
+                                           fn_discoverTreshold = mthdPrmtrs$discoverTreshold,
+                                           fn_adaptative = mthdPrmtrs$adaptative,
+                                           fn_drastic = groupAreaRange[[1]]*mthdPrmtrs$drastic,
+                                           fn_lowPenalty = mthdPrmtrs$lowPenalty,
+                                           fn_highPenalty = mthdPrmtrs$highPenalty,
+                                           fn_roundnessPenalty = mthdPrmtrs$roundnessPenalty,
+                                           fn_seed = mthdPrmtrs$seed))
+                         polygonsList[[rst]][[i]]<-list()
+                         polygonsList[[rst]][[i]]<-TEMP[[1]]
+
+                       }
+                     }
                    })
 
 
@@ -1969,51 +1997,118 @@ setMethod('cleanUpClassification',signature(x='environment'),
 #**  concentric classification---------------------------------------------------
 if (!isGeneric("concentricClassification")) {
   setGeneric("concentricClassification", function(x,
-                                                  fn_classification=NULL,
-                                                  fn_classificationLyr=NULL,
-                                                  fn_label=NULL,
-                                                  fn_area=NULL,
-                                                  fn_prefix='topoMap_',
-                                                  fn_raster=NULL,
-                                                  fn_derivedRaster=NULL,
-                                                  fn_features=NULL,
-                                                  fn_maxClumps=10,
-                                                  fn_clumpDirection=8,
-                                                  fn_mtry=length(fn_features)/3,
-                                                  fn_ntree=100,
-                                                  fn_trace=10,
-                                                  fn_filePath=NULL,...)
-    standardGeneric("concentricClassification"))
+                                                  classificationLyr=NULL,
+                                                  label=NULL,
+                                                  area=NULL,
+                                                  prefix='topoMap_',
+                                                  raster=NULL,
+                                                  derivedRaster=NULL,
+                                                  features=NULL,
+                                                  maxClumps=10,
+                                                  clumpDirection=8,
+                                                  mtry=length(features)/3,
+                                                  ntree=100,
+                                                  trace=10,...)
+             standardGeneric("concentricClassification"))
 }
 
 #' @export
 setMethod('concentricClassification',signature(x='IMC_Classification'),
           function(x,
-                   fn_classification=NULL,
-                   fn_classificationLyr=NULL,
-                   fn_label=NULL,
-                   fn_area=NULL,
-                   fn_prefix='topoMap_',
-                   fn_raster=NULL,
-                   fn_derivedRaster=NULL,
-                   fn_features=NULL,
-                   fn_maxClumps=10,
-                   fn_clumpDirection=8,
-                   fn_mtry=length(fn_features)/3,
-                   fn_ntree=100,
-                   fn_trace=10,
-                   fn_filePath=NULL,...){
+                   classificationLyr=NULL,
+                   label=NULL,
+                   area=NULL,
+                   prefix='topoMap_',
+                   raster=NULL,
+                   derivedRaster=NULL,
+                   features=NULL,
+                   maxClumps=10,
+                   clumpDirection=8,
+                   mtry=length(features)/3,
+                   ntree=100,
+                   trace=10,...){
 
-            newClassification<-cleanUpAntiClumps(x,
-                                                 fn_Ncount = Npixels,
-                                                 fn_directions = directioMethod,
-                                                 fn_layerLabel = layerLabel,
-                                                 fn_newLayerLabel = newLayerLabel,
-                                                 fn_label = label,
-                                                 fn_dumpLabel = dumpLabel)
+            newClassification<-topoMap(fn_rstStack=x,
+                                       fn_layerLabel=classificationLyr,
+                                       fn_label=label,
+                                       fn_area=area,
+                                       fn_prefix=prefix,
+                                       fn_raster=raster,
+                                       fn_derivedRaster=derivedRaster,
+                                       fn_features=features,
+                                       fn_maxClumps=maxClumps,
+                                       fn_clumpDirection=clumpDirection,
+                                       fn_mtry=mtry,
+                                       fn_ntree=ntree,
+                                       fn_trace=trace)
 
             newClassification<-new('IMC_Classification',newClassification)
             return(newClassification)
+
+          }
+)
+
+
+#' @export
+setMethod('concentricClassification',signature(x='environment'),
+          function(x,
+                   classificationLyr=NULL,
+                   label=NULL,
+                   area=NULL,
+                   prefix='topoMap_',
+                   raster=NULL,
+                   derivedRaster=NULL,
+                   features=NULL,
+                   maxClumps=10,
+                   clumpDirection=8,
+                   mtry=length(features)/3,
+                   ntree=100,
+                   trace=10,...){
+
+            if (is.null(x$currentAnalysis$classification)) stop(mError('coud not find any classification'))
+            if (is.null(label)) label<-tf_labelList(x)
+            if (is.null(area)) area<-tf_areaQuantile(x,c(0,1))
+            if (is.null(raster)){
+              if (!is.null(x$raster)) raster<-x$raster
+            }
+            if (is.null(derivedRaster)){
+              if (!is.null(x$currentAnalysis$derivedRasters)) derivedRaster<-x$currentAnalysis$derivedRasters
+            }
+            if (is.null(features)){
+              if (!is.null(x$currentAnalysis$classificationDirectives@methodParameters$predictiveFeatures)) features<-x$currentAnalysis$classificationDirectives@methodParameters$predictiveFeatures
+            }
+
+            newClassification<-topoMap(fn_rstStack=x$currentAnalysis$classification,
+                                       fn_layerLabel=classificationLyr,
+                                       fn_label=label,
+                                       fn_area=area,
+                                       fn_prefix=prefix,
+                                       fn_raster=raster,
+                                       fn_derivedRaster=derivedRaster,
+                                       fn_features=features,
+                                       fn_maxClumps=maxClumps,
+                                       fn_clumpDirection=clumpDirection,
+                                       fn_mtry=mtry,
+                                       fn_ntree=ntree,
+                                       fn_trace=trace)
+
+            newClassification<-new('IMC_Classification',newClassification)
+
+
+            newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
+
+            attr(newClassification,'crtnTimeStmp')<-attr(x$currentAnalysis$classification,'crtnTimeStmp')
+            attr(newClassification,'mdtnTimeStmp')<-newTimeStmp
+
+            if (!is.null(attr(x$currentAnalysis$classification,'fileArchive'))){
+              attr(newClassification,'artnTimeStmp')<-newTimeStmp
+              attr(newClassification,'fileArchive')<-attr(x$currentAnalysis$classification,'fileArchive')
+            }
+
+            x$currentAnalysis$classification<-newClassification
+
+            attr(x,'mdtnTimeStmp')<-newTimeStmp
+            attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
 
           }
 )
