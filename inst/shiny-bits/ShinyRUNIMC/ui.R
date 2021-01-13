@@ -67,7 +67,12 @@ ui <- shinydashboard::dashboardPage(
                 ),
                 shinydashboard::box(
                   textOutput('NofV'),
-                  shiny::selectInput('cvrLabel','coverage label',""),
+                  shiny::selectInput('cvrLabel','coverage label ss',""),
+				  "On top-left image:", shiny::br(), 
+				  "Left Click - add point", shiny::br(), 
+				  "Return - complete polygon", shiny::br(), 
+				  "Shift-v - remove points", shiny::br(), 
+				  "Shift-c - remove point/polygon around point",
                   width = 2
                 ),
                 shinydashboard::box(
