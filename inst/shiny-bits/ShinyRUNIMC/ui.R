@@ -24,11 +24,9 @@ ui <- shinydashboard::dashboardPage(
                 shinydashboard::box(
                   shiny::fileInput("fileRaster", "Upload one Raster Stack",
                             multiple = FALSE,
-<<<<<<< HEAD
-                            accept = c('.stk')),
-=======
+
                             accept = ".stk"),
->>>>>>> 17eeb94492e77514afc8495b84d6207b9bdf76ec
+
                   shiny::verbatimTextOutput('fileUpload',placeholder = T),
                   width = 12),
                 shinydashboard::box(
@@ -72,10 +70,10 @@ ui <- shinydashboard::dashboardPage(
                 shinydashboard::box(
                   textOutput('NofV'),
                   shiny::selectInput('cvrLabel','coverage label ss',""),
-				  "On top-left image:", shiny::br(), 
-				  "Left Click - add point", shiny::br(), 
-				  "Return - complete polygon", shiny::br(), 
-				  "Shift-v - remove points", shiny::br(), 
+				  "On top-left image:", shiny::br(),
+				  "Left Click - add point", shiny::br(),
+				  "Return - complete polygon", shiny::br(),
+				  "Shift-v - remove points", shiny::br(),
 				  "Shift-c - remove point/polygon around point",
                   width = 2
                 ),
