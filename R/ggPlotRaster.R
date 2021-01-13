@@ -52,6 +52,10 @@ plot.raster<-function(fn_raster=NULL,
 
   DFsubRaster<-raster::as.data.frame(subRaster,xy=T,long = F)
   colnames(DFsubRaster)<-c('x','y',fn_layer)
+  # PRB: layer to plot should be numeric or factor, if character labels then reformat as factor locally
+  if(class(DFsubRaster[,fn_layer])=='character'){
+    DFsubRaster[,fn_layer] <- as.factor(DFsubRaster[,fn_layer])
+  }
 
   ggList<-sapply(fn_layer,function(lyr){
 

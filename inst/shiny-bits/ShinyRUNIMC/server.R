@@ -407,11 +407,11 @@ server <- function(input, output, session) {
 
   shiny::observeEvent(input$plotT_click,{
 
-    shiny::updateSliderInput(session,"xTrls","X translation",
+    shiny::updateSliderInput(session,"xTrls",NULL,
                              min = rstStack[[1]]@extent[1],
                              max = rstStack[[1]]@extent[2],
                              value = round(input$plotT_click$x))
-    shiny::updateSliderInput(session,"yTrls","Y translation",
+    shiny::updateSliderInput(session,"yTrls",NULL,
                              min = rstStack[[1]]@extent[3],
                              max = rstStack[[1]]@extent[4],
                              value = round(input$plotT_click$y))
@@ -444,15 +444,15 @@ server <- function(input, output, session) {
     isolate({
 
 
-      shiny::updateSliderInput(session,"xTrls","X translation",
+      shiny::updateSliderInput(session,"xTrls",NULL,
                         min = rstStack[[1]]@extent[1],
                         max = rstStack[[1]]@extent[2],
                         value = round((rstStack[[1]]@extent[2]-rstStack[[1]]@extent[1])/2))
-      shiny::updateSliderInput(session,"yTrls","Y translation",
+      shiny::updateSliderInput(session,"yTrls",NULL,
                         min = rstStack[[1]]@extent[3],
                         max = rstStack[[1]]@extent[4],
                         value = round((rstStack[[1]]@extent[4]-rstStack[[1]]@extent[3])/2))
-      shiny::updateSliderInput(session,"zTrls","Z translation",
+      shiny::updateSliderInput(session,"zTrls",NULL,
                         min = 1,
                         max = {
                           TEMP<-min(rstStack[[1]]@extent[2],rstStack[[1]]@extent[4])
@@ -461,19 +461,19 @@ server <- function(input, output, session) {
                           TEMP<-min(rstStack[[1]]@extent[2],rstStack[[1]]@extent[4])
                           if (TEMP<100) {TEMP/2} else {50}})
 
-      shiny::updateSelectInput(session,"lTrls0","Layer0",
+      shiny::updateSelectInput(session,"lTrls0",NULL,
                         choices = nmsRst,
                         selected = nmsRst[[1]])
-      shiny::updateSelectInput(session,"lTrls1","Layer1",
+      shiny::updateSelectInput(session,"lTrls1",NULL,
                         choices = nmsRst,
                         selected = nmsRst[[1]])
-      shiny::updateSelectInput(session,"lTrls2","Layer2",
+      shiny::updateSelectInput(session,"lTrls2",NULL,
                         choices = nmsRst,
                         selected = nmsRst[[1]])
-      shiny::updateSelectInput(session,"lTrls3","Layer3",
+      shiny::updateSelectInput(session,"lTrls3",NULL,
                         choices = nmsRst,
                         selected = nmsRst[[1]])
-      shiny::updateSelectInput(session,"lTrls4","Layer4",
+      shiny::updateSelectInput(session,"lTrls4",NULL,
                         choices = nmsRst,
                         selected = nmsRst[[1]])
     })

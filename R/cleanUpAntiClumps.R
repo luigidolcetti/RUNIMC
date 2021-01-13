@@ -11,8 +11,8 @@ cleanUpAntiClumps<-function(fn_rstStack,
                             fn_dumpLabel='undetermined'){
 
   if (!any(fn_directions %in% c(4,8))) stop(RUNIMC:::mError('directions must be either 4 or 8'))
-  if (is.null(fn_label) & length(fn_Ncount)>1) stop(RUNIMC:::mError('providing a vector of counts require explicit labels'))
-  if (!is.null(fn_label) & (length(fn_label)!=length(fn_Ncount))) stop(RUNIMC:::mError("length of label doesn't match length of count vector"))
+  if (is.null(fn_label) & dim(fn_Ncount)[1]>1) stop(RUNIMC:::mError('providing a vector of counts require explicit labels'))
+  if (!is.null(fn_label) & (length(fn_label)!=dim(fn_Ncount)[1])) stop(RUNIMC:::mError("length of label doesn't match length of count vector"))
 
   smp<-names(fn_rstStack)
 
@@ -44,20 +44,16 @@ cleanUpAntiClumps<-function(fn_rstStack,
 
     if (is.null(fn_label)){
       IDtoConsider<-lvls$ID[lvls$label!=fn_dumpLabel]
-      Ncount<-rep(fn_Ncount,length(IDtoConsider))
+      Ncount<-rep(fn_Ncount,length(IDtoConsider))       # conditions above guarentee fn_Ncount has 1 elelment
       names(Ncount)<-lvls$ID[lvls$label!=fn_dumpLabel]
-    }
-
-    if (!is.null(fn_label)){
+    } else {
       IDtoConsider<-lvls$ID[lvls$label %in% fn_label]
       if (length(fn_Ncount)==1){
         Ncount<-rep(fn_Ncount,length(IDtoConsider))
         names(Ncount)<-lvls$ID[lvls$label %in% fn_label]
       } else {
-        if (length(fn_Ncount)==length(fn_label)){
-          Ncount<-fn_Ncount
-          names(Ncount)<-lvls$ID[lvls$label %in% fn_label]
-        }
+        Ncount<-fn_Ncount       # conditions above guarentee fn_Ncount has right number of rows
+        names(Ncount)<-lvls$ID[lvls$label %in% fn_label]
       }
     }
 
