@@ -726,7 +726,49 @@ setMethod('addSegmentationDirectives',signature = ('environment'),
 
 
             if (is.null(method)) stop(mError('provide a method'))
-            if (is.null(methodParameters)) stop(mError(paste0('provide parameters for ',method) ))
+            if (is.null(methodParameters)) {
+              message(mWarning(paste0('no parameters provided for ',method,', default parameters will be added. You can change them manually in *@methodParameters') ))
+              switch(method,
+                spiderMap = {
+                  methodParameters<-list(areaQuantile=c(0,1),
+                           roundnessQuantile=c(0,1),
+                           areaExpansion=c(1,1),
+                           roundnessExpansion = c(1,1),
+                           spikes=8,
+                           radiusExpansion = 1.5,
+                           densityMultiplier=1,
+                           coverage = 0.5,
+                           seedOutScore = 3,
+                           cutSeedList = 0.05,
+                           cycleWindow = 1000,
+                           discoverTreshold = 1e-3,
+                           adaptative = T,
+                           drasticExpansion = 0.75,
+                           direction = 'random',
+                           seed=123)
+
+                },
+                ratMap = {
+                  methodParameters<-list(areaQuantile=c(0,1),
+                           roundnessQuantile=c(0,1),
+                           areaExpansion=c(1,1),
+                           roundnessExpansion = c(1,1),
+                           spikes=8,
+                           radiusExpansion = 1.5,
+                           coverage = 0.5,
+                           seedOutScore = 3,
+                           cycleWindow = 1000,
+                           discoverTreshold = 1e-3,
+                           adaptative = T,
+                           drasticExpansion = 0.5,
+                           lowPenalty=2,
+                           highPenalty=1,
+                           roundnessPenalty=1,
+                           seed=123)
+
+                }
+              )
+              }
 
 
             newDirectives<-new('IMC_SegmentationDirectives',
@@ -798,7 +840,8 @@ setMethod('segment',signature = ('environment'),
                                               fn_discoverTreshold = mthdPrmtrs$discoverTreshold,
                                               fn_adaptative = mthdPrmtrs$adaptative,
                                               fn_drastic = groupAreaRange[[1]]*mthdPrmtrs$drastic,
-                                              fn_direction = mthdPrmtrs$direction))
+                                              fn_direction = mthdPrmtrs$direction,
+                                              fn_seed = mthdPrmtrs$seed))
                          polygonsList[[rst]][[i]]<-list()
                          polygonsList[[rst]][[i]]<-TEMP[[1]]
 
@@ -924,7 +967,8 @@ setMethod('testSegment',signature = ('environment'),
                                           fn_discoverTreshold = mthdPrmtrs$discoverTreshold,
                                           fn_adaptative = mthdPrmtrs$adaptative,
                                           fn_drastic = groupAreaRange[[1]]*mthdPrmtrs$drastic,
-                                          fn_direction = mthdPrmtrs$direction))
+                                          fn_direction = mthdPrmtrs$direction,
+                                          fn_seed = mthdPrmtrs$seed))
 
                      timerStop<-Sys.time()
 
@@ -994,7 +1038,7 @@ setMethod('testSegment',signature = ('environment'),
             condensedPoligonList<-extractMeanPixel(fn_polygons = condensedPoligonList,
                                                    fn_raster = x$raster)
 
-            browser()
+
 
             logicRaster<-polygonsList[[uid]][[newMarker]]@raster<0
 
