@@ -24,8 +24,7 @@ ui <- shinydashboard::dashboardPage(
                 shinydashboard::box(
                   shiny::fileInput("fileRaster", "Upload one Raster Stack",
                             multiple = FALSE,
-                            accept = c("text",
-                                       ".txt")),
+                            accept = c('.stk')),
                   shiny::verbatimTextOutput('fileUpload',placeholder = T),
                   width = 12),
                 shinydashboard::box(

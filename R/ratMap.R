@@ -27,7 +27,7 @@ ratMap<-function (fn_srt,
   ymn<-fn_srt@extent[3]
   ymx<-fn_srt@extent[4]
 
-  # browser()
+  #
   DFraster<-raster::as.data.frame(fn_srt,xy=T)
   colnames(DFraster)<-c('x','y','value')
   cellIndex<-raster::cellFromXY(fn_srt,DFraster[,c('x','y')])
@@ -36,8 +36,8 @@ ratMap<-function (fn_srt,
   DFraster<-DFraster[order(DFraster$value,decreasing = F),]
 
   bunchOfSeeds<-data.frame(seed= DFraster$cellIndex,
-                           score=0,
-                           active=1)
+                           score=rep(0,nrow(DFraster)),
+                           active=rep(1,nrow(DFraster)))
   rm(DFraster)
   lyr<-names(fn_srt)
 
@@ -64,7 +64,7 @@ ratMap<-function (fn_srt,
   activeSeed<-c()
   #
   while(sum(bunchOfSeeds$active)>0){
-    # browser()
+    #
 
     #
     if (length(activeSeed)==0){
