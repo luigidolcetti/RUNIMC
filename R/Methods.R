@@ -766,6 +766,28 @@ setMethod('addSegmentationDirectives',signature = ('environment'),
                            roundnessPenalty=1,
                            seed=123)
 
+                },
+                slothMap = {
+                  methodParameters<-list(areaQuantile=c(0,1),
+                                         roundnessQuantile=c(0,1),
+                                         areaExpansion=c(1,1),
+                                         roundnessExpansion = c(1,1),
+                                         spikes=8,
+                                         radiusExpansion = 1.5,
+                                         coverage = 0.5,
+                                         seedOutScore = 3,
+                                         cycleWindow = 1000,
+                                         discoverTreshold = 1e-3,
+                                         adaptative = T,
+                                         drasticExpansion = 0.1,
+                                         lowPenalty=0,
+                                         highPenalty=0,
+                                         roundnessPenalty=0,
+                                         areaAdaptRate=0.1,
+                                         roundnessAdaptRate=0.1,
+                                         fusion=T,
+                                         seed=123)
+
                 }
               )
               }
@@ -1018,6 +1040,55 @@ setMethod('testSegment',signature = ('environment'),
                                        fn_lowPenalty = mthdPrmtrs$lowPenalty,
                                        fn_highPenalty = mthdPrmtrs$highPenalty,
                                        fn_roundnessPenalty = mthdPrmtrs$roundnessPenalty,
+                                       fn_seed = mthdPrmtrs$seed))
+
+                     timerStop<-Sys.time()
+
+
+                     polygonsList<-list()
+                     polygonsList[[uid]][[mrkr[mrkrIndex]]]<-list()
+                     polygonsList[[uid]][[mrkr[mrkrIndex]]]<-TEMP[[1]]
+
+                     newMarker<-mrkr[mrkrIndex]
+
+                   },
+
+                   slothMap = {
+
+                     rstToSegment<-raster::crop(x=x$currentAnalysis$classification[[uid]][[labelLayer]],y=limits)
+
+                     mrkr<-tf_labelList(x$currentAnalysis$trainingFeatures)
+                     mrkrIndex<-which(sapply(mrkr,function(x)grepl(x,label),USE.NAMES = F,simplify = T))
+
+                     cat(paste(uid,mrkr[mrkrIndex],'\n',sep=":::"))
+                     group_area<-x$currentAnalysis$trainingFeatures$geometry$area[x$currentAnalysis$trainingFeatures$geometry$label==mrkr[mrkrIndex]]
+                     group_area_mean<-mean(group_area)
+                     group_roundness<-x$currentAnalysis$trainingFeatures$geometry$roundness[x$currentAnalysis$trainingFeatures$geometry$label==mrkr[mrkrIndex]]
+                     groupAreaRange<-quantile(group_area,mthdPrmtrs$areaQuantile)*mthdPrmtrs$areaExpansion
+                     groupRoundnessRange<-quantile(group_roundness,mthdPrmtrs$roundnessQuantile)*mthdPrmtrs$roundnessExpansion
+
+                     timerStart<-Sys.time()
+
+                     TEMP<-list(slothMap(fn_srt = rstToSegment,
+                                       fn_Nspikes=mthdPrmtrs$spikes,
+                                       fn_radius = round(sqrt(groupAreaRange[[2]]*mthdPrmtrs$radiusExpansion/pi)),
+                                       fn_coverage = mthdPrmtrs$coverage,
+                                       fn_minArea = groupAreaRange[[1]],
+                                       fn_maxArea = groupAreaRange[[2]],
+                                       fn_minRoundness = groupRoundnessRange[[1]],
+                                       fn_maxRoundness = groupRoundnessRange[[2]],
+                                       fn_seedOutScore = mthdPrmtrs$seedOutScore,
+                                       fn_cycleWindow = mthdPrmtrs$cycleWindow,
+                                       fn_discoverTreshold = mthdPrmtrs$discoverTreshold,
+                                       fn_adaptative = mthdPrmtrs$adaptative,
+                                       fn_drastic = groupAreaRange[[1]]*mthdPrmtrs$drastic,
+                                       fn_lowPenalty = mthdPrmtrs$lowPenalty,
+                                       fn_highPenalty = mthdPrmtrs$highPenalty,
+                                       fn_roundnessPenalty = mthdPrmtrs$roundnessPenalty,
+                                       fn_areaAdaptRate = mthdPrmtrs$areaAdaptRate,
+                                       fn_roundnessAdaptRate = mthdPrmtrs$roundnessAdaptRate,
+                                       fn_fusion = mthdPrmtrs$fusion,
+                                       fn_areaMean = group_area_mean,
                                        fn_seed = mthdPrmtrs$seed))
 
                      timerStop<-Sys.time()

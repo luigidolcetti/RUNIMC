@@ -1,0 +1,335 @@
+#'Some BullShit
+#'
+#'
+#' @export
+slothMap<-function (fn_srt,
+                    fn_radius=10,
+                    fn_Nspikes=4,
+                    fn_minArea=10,
+                    fn_maxArea=100,
+                    fn_minRoundness=0.6,
+                    fn_maxRoundness=0.8,
+                    fn_coverage=0.3,
+                    fn_seedOutScore=10,
+                    fn_cycleWindow=1000,
+                    fn_discoverTreshold=10e-3,
+                    fn_adaptative=T,
+                    fn_drastic=0,
+                    fn_lowPenalty=2,
+                    fn_highPenalty=1,
+                    fn_roundnessPenalty=1,
+                    fn_areaAdaptRate=0,
+                    fn_roundnessAdaptRate=0,
+                    fn_fusion=T,
+                    fn_areaMean=50,
+                    fn_seed=1234){
+
+  TimingFunction<-data.frame(Nseeds=0,Npoly=0,Ntime=Sys.time())
+
+  # medianArea<-((fn_maxArea-fn_minArea)/2)+fn_minArea
+  xmn<-fn_srt@extent[1]
+  xmx<-fn_srt@extent[2]
+  ymn<-fn_srt@extent[3]
+  ymx<-fn_srt@extent[4]
+
+  #
+  DFraster<-raster::as.data.frame(fn_srt,xy=T)
+  colnames(DFraster)<-c('x','y','value')
+  cellIndex<-raster::cellFromXY(fn_srt,DFraster[,c('x','y')])
+  DFraster<-data.frame(cellIndex=cellIndex,DFraster,stringsAsFactors = F)
+  DFraster<-DFraster[!is.na(DFraster$value),]
+  DFraster<-DFraster[order(DFraster$value,decreasing = F),]
+
+  bunchOfSeeds<-data.frame(seed= DFraster$cellIndex,
+                           score=rep(0,nrow(DFraster)),
+                           active=rep(1,nrow(DFraster)))
+  rm(DFraster)
+  lyr<-names(fn_srt)
+
+  if (nrow(bunchOfSeeds)==0){
+    return(list(polygons=list(),
+                performance=data.frame(Nseeds=numeric(0),Npoly=numeric(0),Ntime=numeric(0)),
+                raster=fn_srt))}
+
+
+
+  polyIndex=1
+  polyList<-list()
+  areaList<-list()
+
+  rMsk<-RUNIMC:::radialMask(fn_radius,fn_Nspikes)
+  sinMatrix<-rMsk$sinMatrix
+  cosMatrix<-rMsk$cosMatrix
+  intersectionMatrix<-rMsk$intersectionMatrix
+
+  cycleIndex=1
+  oldCycleIndex=1
+  oldPolyIndex=1
+  oldSeedIndex=0
+  seedPointer=1
+  activeSeed<-c()
+  #
+  while(sum(bunchOfSeeds$active)>0){
+    #
+
+    #
+    if (length(activeSeed)==0){
+      repeat{
+        if (bunchOfSeeds$active[seedPointer]==1){
+
+          activeSeed<-bunchOfSeeds$seed[seedPointer]
+          bunchOfSeeds$score[seedPointer]<-bunchOfSeeds$score[seedPointer]+1
+          if (seedPointer==nrow(bunchOfSeeds)) {seedPointer<-1} else {seedPointer<-seedPointer+1}
+          break
+        } else {
+
+          if (seedPointer==nrow(bunchOfSeeds)) {seedPointer<-1} else {seedPointer<-seedPointer+1}
+        }
+      }
+    }
+
+    TEMP_windowFraction<-round((cycleIndex-oldCycleIndex)/fn_cycleWindow*10)
+    TEMP_remaining<-10-TEMP_windowFraction
+
+    cat(paste0(lyr,' / ',
+               'N of seeds: ',formatC(sum(bunchOfSeeds$active),flag='0',digits = 9),
+               ' / N of polygons: ',formatC(polyIndex,flag='0',digits = 9),
+               ' / cycleIndex: ', formatC(cycleIndex,flag='0',digits=9),
+               ' / discovery window |',paste0(rep("@",TEMP_windowFraction),collapse = ""),
+               paste0(rep("_",TEMP_remaining),collapse = ""),
+               '| / throwout after: ',
+               formatC(fn_seedOutScore,flag='0',digits=3),
+               ' / Area range: ',
+               formatC(fn_minArea,flag=' ',digits=3),
+               ' % ',
+               formatC(fn_maxArea,flag=' ',digits=3),
+               ' / Roundness range: ',
+               formatC(fn_minRoundness,flag=' ',digits=3),
+               ' % ',
+               formatC(fn_maxRoundness,flag=' ',digits=3),
+               '\r'))
+
+    TEMP<-raster::xyFromCell(fn_srt,activeSeed)
+
+    xCoords<-TEMP[1]
+    yCoords<-TEMP[2]
+
+    xScan<-sinMatrix+xCoords
+    yScan<-cosMatrix+yCoords
+
+    xScan[xScan<xmn]<-NA
+    yScan[yScan<ymn]<-NA
+    xScan[xScan>xmx]<-NA
+    yScan[yScan>ymx]<-NA
+    xyScan<-matrix(1:length(xScan),ncol=ncol(xScan),nrow=nrow(xScan))
+
+    xyVal<-apply(xyScan, c(1,2),function(x){
+      ifelse((is.na(xScan[[x]]) | is.na(yScan[[x]])),
+             NA,
+             fn_srt[raster::cellFromXY(fn_srt,c(xScan[[x]],yScan[[x]]))]
+      )
+    })
+
+    orgVal<-fn_srt[raster::cellFromXY(fn_srt,c(xCoords,yCoords))]
+    # orgVal<-DFraster$value[DFraster$x==xCoords & DFraster$y==yCoords]
+
+    spikeEnds<-apply(xyVal,1,
+                     function(profileVector){
+                       profileVector[profileVector<0]<-NA
+                       gradienVector<-diff(c(orgVal,profileVector))
+                       signVector<-sign(gradienVector)
+                       signVector[is.na(signVector)]<-(-0.5)
+                       scoreVector<-cumsum(signVector)
+                       if (any(is.na(profileVector))){
+                         i<-min(which(is.na(profileVector)))
+                       } else {
+                         i<-min(which(scoreVector==max(scoreVector)))
+                       }
+
+                       if (is.na(profileVector[i])) u<-0 else u<-1
+
+                       return(list=c(i,u))
+                     })
+
+
+    polyG<-t(sapply(1:fn_Nspikes,function(x){
+      intersectionMatrix[x,spikeEnds[1,x]][[1]][spikeEnds[2,x]+1,]+c(xCoords,yCoords)}))
+    colnames(polyG)<-c('x','y')
+
+    polyG<-na.omit(polyG)
+    notDup<-!duplicated(polyG)
+    polyG<-polyG[notDup,,drop=F]
+
+    if (!(nrow(polyG)<3)){
+      polyG<-rbind(polyG,polyG[1,])
+      sfPolygon<-sf::st_polygon(list(as.matrix(polyG)),dim="XY")
+      polyArea<-sf::st_area(sf::st_sfc(sfPolygon))
+      polyPerimeter<-lwgeom::st_perimeter(sf::st_sfc(sfPolygon))
+      polyRoundness<-4*pi*polyArea/(polyPerimeter^2)
+      coverageDF <- (exactextractr::exact_extract(fn_srt,sf::st_sfc(sfPolygon),include_xy=T))[[1]]
+      coverageDF<-coverageDF[coverageDF$coverage_fraction>=fn_coverage,]
+      coordDF<-raster::cellFromXY(fn_srt,as.matrix(coverageDF[,c(2,3)]))
+
+      TimingFunction<-rbind(TimingFunction,data.frame(Nseeds=nrow(bunchOfSeeds),Npoly=polyIndex,Ntime=Sys.time()))
+      if (polyArea>=fn_minArea & polyArea<=fn_maxArea & polyRoundness>=fn_minRoundness & polyRoundness<=fn_maxRoundness){
+        bunchOfSeeds$active[bunchOfSeeds$seed %in% coordDF]<-0
+        fn_srt[coordDF]<-(-polyIndex)
+        # polyList[[polyIndex]]<-polyG
+        polyList[[polyIndex]]<-sfPolygon
+        areaList[[polyIndex]]<-polyArea
+        polyIndex=polyIndex+1
+      }
+    }
+
+    activeSeed<-c()
+
+    if ((cycleIndex-oldCycleIndex)==fn_cycleWindow){
+      DPI<-(polyIndex-oldPolyIndex)/(cycleIndex-oldCycleIndex)
+      if (DPI<fn_discoverTreshold & fn_adaptative==F) {break()}
+      if (DPI<fn_discoverTreshold &
+          fn_adaptative==T &
+          fn_seedOutScore>1) {fn_seedOutScore=fn_seedOutScore-1}
+      if (DPI<fn_discoverTreshold &
+          fn_adaptative==T ){
+        fn_minArea<-fn_minArea-(fn_minArea*fn_areaAdaptRate)
+        fn_maxArea<-fn_maxArea+(fn_maxArea*fn_areaAdaptRate)
+        fn_minRoundness<-fn_minRoundness-(fn_minRoundness*fn_roundnessAdaptRate)
+        fn_maxRoundness<-fn_maxRoundness+(fn_maxRoundness*fn_roundnessAdaptRate)
+      }
+      oldCycleIndex=cycleIndex
+      oldPolyIndex=polyIndex
+    }
+    bunchOfSeeds$active[bunchOfSeeds$score>fn_seedOutScore]<-0
+    cycleIndex=cycleIndex+1
+  }
+  cat(paste0(lyr,' / ',
+             'N of seeds: ',formatC(sum(bunchOfSeeds$active),flag='0',digits = 9),
+             ' / N of polygons: ',formatC(polyIndex,flag='0',digits = 9),
+             ' / cycleIndex: ', formatC(cycleIndex,flag='0',digits=9),
+             ' / discovery window |',paste0(rep("@",TEMP_windowFraction),collapse = ""),
+             paste0(rep("_",TEMP_remaining),collapse = ""),
+             '| / throwout after: ',
+             formatC(fn_seedOutScore,flag='0',digits=3),
+             ' / Area range: ',
+             formatC(fn_minArea,flag=' ',digits=3),
+             ' % ',
+             formatC(fn_maxArea,flag=' ',digits=3),
+             ' / Roundness range: ',
+             formatC(fn_minRoundness,flag=' ',digits=3),
+             ' % ',
+             formatC(fn_maxRoundness,flag=' ',digits=3),
+             '\n'))
+
+
+
+  if (fn_fusion){
+
+    polyFSC<-sf::st_sfc(polyList)
+    polyIntersection<-sf::st_intersects(polyFSC)
+    browser()
+    out<-rep(0,length(polyIntersection))
+    adjacentTable<-lapply(polyIntersection,function(x){
+      outOut<-out
+      outOut[x]<-1
+      return(outOut)
+    })
+
+    adjacentTable<-do.call(rbind,adjacentTable)
+    colnames(adjacentTable)<-1:ncol(adjacentTable)
+    rownames(adjacentTable)<-1:nrow(adjacentTable)
+    nt<-network::network(adjacentTable,directed = F,loops = F)
+    nt<-igraph::graph_from_adjacency_matrix(adjmatrix = adjacentTable,mode = 'undirected',diag = F)
+    nt_components<-igraph::components(nt)
+    nt_subgrapg<-igraph::induced_subgraph(nt,names(nt_components$membership)[nt_components$membership==1])
+    nt_edges<-igraph::as_edgelist(nt_subgrapg)
+    nt_edgesFilter<-apply(nt_edges,1,function(x){
+      deltaAlone<-sum((areaList[[as.numeric(x[1])]]-fn_areaMean)^2,(areaList[[as.numeric(x[2])]]-fn_areaMean)^2)
+      deltaSum<-((areaList[[as.numeric(x[1])]]+areaList[[as.numeric(x[2])]])-fn_areaMean)^2
+      if (deltaSum<deltaAlone) return(x) else return(NULL)
+    })
+
+    nt_vertex<-unique(as.vector(nt_edges))
+    nt_permutations<-t(expand.grid(rep(list(c(T,F)),nrow(nt_edges))))
+
+    new_deltaPermutations<-pbapply::pbapply(nt_permutations,2,function(prmt){
+      new_edges<-nt_edges[prmt,,drop=F]
+      new_vertex<-nt_vertex[!(nt_vertex %in% unique(as.vector(new_edges)))]
+      new_emptyEdges<-t(sapply(new_vertex,function(x){c(x,NA)},USE.NAMES = F,simplify = T))
+      new_subgraph<-igraph::graph_from_edgelist(new_edges, directed = F)
+      new_subgraph<-igraph::add_vertices(new_subgraph,length(new_vertex),name=new_vertex)
+      new_components<-igraph::components(new_subgraph)
+      new_groups<-sapply(unique(new_components$membership),function(x){
+        polygonsInGroup<-names(new_components$membership[new_components$membership==x])
+      })
+      new_area<-lapply(new_groups,function(x){
+        sum(unlist(areaList[as.numeric(x)]))
+      })
+
+      new_cumulativeDelta<-sum((unlist(new_area)-fn_areaMean)^2)
+      return(list(area=new_cumulativeDelta,graph=new_subgraph))
+
+    })
+
+    mm<-lapply(new_deltaPermutations,function(x)x$area)
+    which(mm==min(unlist(mm)))
+    plot(new_deltaPermutations[[128]]$graph)
+
+
+    plot(nt)
+    whichAT<-apply(adjacentTable,1,sum)
+    adjacentTable_reduced<-adjacentTable[whichAT>1,]
+
+    areaSum<-apply(adjacentTable_reduced,2,function(x){
+      browser()
+      areaS<-unlist(areaList[as.logical(x)],recursive = T)
+      areaSum<-sum(areaS)
+      deltaSingle<-sum((fn_areaMean-areaS)^2)
+      deltaSum<-(fn_areaMean-areaSum)^2
+      return(c(deltaSingle,deltaSum))
+    })
+
+    deviationList<-lapply(areaList,function(x) {(fn_areaMean-x)^2})
+    deviationTotal<-do.call(sum,deviationList)
+
+
+    polyCondensation<-1
+    newPolyList<-list()
+    newPolyIndex<-1
+    while (nrow(polyIntersection)>0 & any(polyCondensation>0)){
+
+      polyCondensation<-sapply(polyIntersection,function(clmp){
+        clmpArea<-  sapply(clmp,function(x){
+          (sf::st_area(polyFSC[[x]])-fn_areaMean)^2
+        },USE.NAMES = F,simplify = T)
+        clmpAreaDeviation<-sum(clmpArea)
+        clmpUnion<-nngeo::st_remove_holes(sf::st_union(polyFSC[clmp]))
+        clmpUnionArea<-sf::st_area(clmpUnion)
+        clmpUnionAreaDeviation<-(clmpUnionArea-fn_areaMean)^2
+        if (clmpAreaDeviation<clmpUnionAreaDeviation) return(-clmpAreaDeviation) else return (clmpUnionAreaDeviation)
+      },USE.NAMES = F,simplify = T)
+      winnerClump<-which(polyCondensation[polyCondensation>0]==min(polyCondensation[polyCondensation>0]))
+      if (length(winnerClump)==0) break() else winnerClump<-winnerClump[1]
+      newPolygon<-nngeo::st_remove_holes(sf::st_union(polyFSC[polyIntersection[[winnerClump]]]))
+      polyFSC<-polyFSC[-polyIntersection[[winnerClump]]]
+      if (!sf::st_is_empty(newPolygon)) {
+        newPolyList[[newPolyIndex]]<-newPolygon[[1]]
+        newPolyIndex<-newPolyIndex+1
+      }
+      polyIntersection<-sf::st_intersects(polyFSC)
+    }
+
+    newPolyList<-unlist(newPolyList,recursive = F)
+    remainingPolyList<-unlist(polyFSC,recursive = F)
+
+    newPolyList<-append(newPolyList,remainingPolyList)
+
+    # plot(nngeo::st_remove_holes(sf::st_union( polyFSC[c(1,38)])))
+  } else { newPolyList<-unlist(sf::st_sfc(polyList),recursive = F)}
+
+  TimingFunction<-rbind(TimingFunction,data.frame(Nseeds=nrow(bunchOfSeeds),Npoly=polyIndex,Ntime=Sys.time()))
+
+  segmentationOut<-new('IMC_Segmentation',polygons=newPolyList,performance=TimingFunction,raster=fn_srt)
+  return(segmentationOut)
+}
+
+
