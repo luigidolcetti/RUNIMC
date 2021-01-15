@@ -137,6 +137,14 @@ server <- function(input, output, session) {
     # browser()
     if (j==3 && !any(v %in% colors())) {v<-'!!!! invalid color !!!!'}
     if (j==3 && any(v %in% LBLTBLV$table[,3])) {v<-'!!!! color in use !!!!'}
+    if (j==1){
+      labelSplit<-strsplit(v,character(0))[[1]]
+      labelLetters<-grepl('^[A-Za-z]+$', labelSplit)
+      labelNumbers<-grepl('^[0-9]+$', labelSplit)
+      labelLogic<-labelLetters|labelNumbers
+      labelLogic<-Reduce('&',labelLogic)
+      if (!labelLogic | labelNumbers[1]) {v<-'!!!! invalid label !!!!'}
+    }
     if (j==1 && any(v %in% LBLTBLV$table[,1])) {v<-'!!!! label in use !!!!'}
     if (nrow(GEOM$dataBase)!=0){
       if (j==3 ) {
