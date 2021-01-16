@@ -2,7 +2,7 @@
 % Please edit documentation in R/ggPlotRaster.R
 \name{plot.raster}
 \alias{plot.raster}
-\title{Some BullShit}
+\title{Plot a raster image of data or classified cells with polygon overlays}
 \usage{
 plot.raster(
   fn_raster = NULL,
@@ -19,5 +19,15 @@ plot.raster(
 )
 }
 \description{
-Some BullShit
+fn_raster = An IMC_RasterStack with data to plot, could be data (e.g. STUDY$raster[[5]]) or a classification (e.g. STUDY$currentAnalysis$classification[[1]])
+fn_layer = The name of the layer within fn_raster to plot
+fn_scaleColourLimits = c(min, max) of limiting the data plotted, min bacomes black, max becomes white.
+fn_limitsType = How the colour limits are to be interpreted, either 'quantile' (quantiles) or 'fix' (raw values?).
+fn_colorsContinuous = ?
+fn_colorsDiscrete = ?
+fn_labels = Specify alternative label names?
+fn_segmentation = Segmentation ("simple feature" collection of polygons) overlays to be added
+fn_segmentLabel = Which segmentation label to overlay
+fn_segmentColor = Colour for the segmentation overlay
+fn_zoom = c(x_centre, y_centre, x_sixe, y_size) region of the layer to zoom into.
 }

@@ -14,7 +14,8 @@ extractPolygons<-function(fn_polygonList){
         if (nRowPoly!=0) {
           polygon.id=1:nRowPoly
 
-          geoM<-sf::st_sfc(lapply(fn_polygonList[[sld]][[mrkr]]@polygons,function(x)sf::st_polygon(list(x))))
+          geoM<-sf::st_sfc(lapply(fn_polygonList[[sld]][[mrkr]]@polygons,function(x){
+            sf::st_polygon(list(x))}))
           geoArea <- sf::st_area(geoM)
           geoPerimeter <-  lwgeom::st_perimeter(geoM)
           geoRoundness<-4*pi*geoArea/(geoPerimeter^2)

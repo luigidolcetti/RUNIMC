@@ -729,68 +729,72 @@ setMethod('addSegmentationDirectives',signature = ('environment'),
             if (is.null(methodParameters)) {
               message(mWarning(paste0('no parameters provided for ',method,', default parameters will be added. You can change them manually in *@methodParameters') ))
               switch(method,
-                spiderMap = {
-                  methodParameters<-list(areaQuantile=c(0,1),
-                           roundnessQuantile=c(0,1),
-                           areaExpansion=c(1,1),
-                           roundnessExpansion = c(1,1),
-                           spikes=8,
-                           radiusExpansion = 1.5,
-                           densityMultiplier=1,
-                           coverage = 0.5,
-                           seedOutScore = 3,
-                           cutSeedList = 0.05,
-                           cycleWindow = 1000,
-                           discoverTreshold = 1e-3,
-                           adaptative = T,
-                           drasticExpansion = 0.75,
-                           direction = 'random',
-                           seed=123)
+                     spiderMap = {
+                       methodParameters<-list(areaQuantile=c(0,1),
+                                              roundnessQuantile=c(0,1),
+                                              areaExpansion=c(1,1),
+                                              roundnessExpansion = c(1,1),
+                                              spikes=8,
+                                              radiusExpansion = 1.5,
+                                              densityMultiplier=1,
+                                              coverage = 0.5,
+                                              seedOutScore = 3,
+                                              cutSeedList = 0.05,
+                                              cycleWindow = 1000,
+                                              discoverTreshold = 1e-3,
+                                              adaptative = T,
+                                              drasticExpansion = 0.75,
+                                              direction = 'random',
+                                              seed=123)
 
-                },
-                ratMap = {
-                  methodParameters<-list(areaQuantile=c(0,1),
-                           roundnessQuantile=c(0,1),
-                           areaExpansion=c(1,1),
-                           roundnessExpansion = c(1,1),
-                           spikes=8,
-                           radiusExpansion = 1.5,
-                           coverage = 0.5,
-                           seedOutScore = 3,
-                           cycleWindow = 1000,
-                           discoverTreshold = 1e-3,
-                           adaptative = T,
-                           drasticExpansion = 0.5,
-                           lowPenalty=2,
-                           highPenalty=1,
-                           roundnessPenalty=1,
-                           seed=123)
+                     },
+                     ratMap = {
+                       methodParameters<-list(areaQuantile=c(0,1),
+                                              roundnessQuantile=c(0,1),
+                                              areaExpansion=c(1,1),
+                                              roundnessExpansion = c(1,1),
+                                              spikes=8,
+                                              radiusExpansion = 1.5,
+                                              coverage = 0.5,
+                                              seedOutScore = 3,
+                                              cycleWindow = 1000,
+                                              discoverTreshold = 1e-3,
+                                              adaptative = T,
+                                              drasticExpansion = 0.5,
+                                              lowPenalty=2,
+                                              highPenalty=1,
+                                              roundnessPenalty=1,
+                                              seed=123)
 
-                },
-                slothMap = {
-                  methodParameters<-list(areaQuantile=c(0,1),
-                                         roundnessQuantile=c(0,1),
-                                         areaExpansion=c(1,1),
-                                         roundnessExpansion = c(1,1),
-                                         spikes=8,
-                                         radiusExpansion = 1.5,
-                                         coverage = 0.5,
-                                         seedOutScore = 3,
-                                         cycleWindow = 1000,
-                                         discoverTreshold = 1e-3,
-                                         adaptative = T,
-                                         drasticExpansion = 0.1,
-                                         lowPenalty=0,
-                                         highPenalty=0,
-                                         roundnessPenalty=0,
-                                         areaAdaptRate=0.1,
-                                         roundnessAdaptRate=0.1,
-                                         fusion=T,
-                                         seed=123)
+                     },
+                     slothMap = {
+                       methodParameters<-list(areaQuantile=c(0,1),
+                                              roundnessQuantile=c(0,1),
+                                              areaExpansion=c(1,1),
+                                              roundnessExpansion = c(1,1),
+                                              spikes=8,
+                                              radiusExpansion = 1.5,
+                                              coverage = 0.5,
+                                              seedOutScore = 3,
+                                              cycleWindow = 1000,
+                                              discoverTreshold = 1e-3,
+                                              adaptative = T,
+                                              drasticExpansion = 0.1,
+                                              lowPenalty=0,
+                                              highPenalty=0,
+                                              roundnessPenalty=0,
+                                              areaAdaptRate=0.1,
+                                              roundnessAdaptRate=0.1,
+                                              fusion=T,
+                                              seed=123)
 
-                }
+                     },
+                     lazyCatMap = {
+                       methodParameters<-list()
+
+                     }
               )
-              }
+            }
 
 
             newDirectives<-new('IMC_SegmentationDirectives',
@@ -915,7 +919,30 @@ setMethod('segment',signature = ('environment'),
 
                        }
                      }
-                   })
+                   },
+
+                   lazyCatMap = {
+
+                     rstToSegment<-sapply(names(x$currentAnalysis$classification),function(nms){
+                       if (!any(labelLayer %in% names(x$currentAnalysis$classification[[nms]]))) stop(RUNIMC:::mError('Check classification layer name provided'))
+                       return(x$currentAnalysis$classification[[nms]][[labelLayer]])
+                     },USE.NAMES = T,simplify = F)
+
+                     polygonsList<-list()
+                     for (rst in names(rstToSegment)){
+                       for (i in labelLayer){
+
+                         cat(paste(rst,i,'\n',sep=":::"))
+
+                         TEMP<-list(lazyCatMap(fn_srt = rstToSegment[[rst]][[i]]))
+                         polygonsList[[rst]][[i]]<-list()
+                         polygonsList[[rst]][[i]]<-TEMP[[1]]
+
+                       }
+                     }
+                   }
+
+            )
 
 
             polygonsList<-new('IMC_SegmentationList',polygonsList)
@@ -1070,26 +1097,26 @@ setMethod('testSegment',signature = ('environment'),
                      timerStart<-Sys.time()
 
                      TEMP<-list(slothMap(fn_srt = rstToSegment,
-                                       fn_Nspikes=mthdPrmtrs$spikes,
-                                       fn_radius = round(sqrt(groupAreaRange[[2]]*mthdPrmtrs$radiusExpansion/pi)),
-                                       fn_coverage = mthdPrmtrs$coverage,
-                                       fn_minArea = groupAreaRange[[1]],
-                                       fn_maxArea = groupAreaRange[[2]],
-                                       fn_minRoundness = groupRoundnessRange[[1]],
-                                       fn_maxRoundness = groupRoundnessRange[[2]],
-                                       fn_seedOutScore = mthdPrmtrs$seedOutScore,
-                                       fn_cycleWindow = mthdPrmtrs$cycleWindow,
-                                       fn_discoverTreshold = mthdPrmtrs$discoverTreshold,
-                                       fn_adaptative = mthdPrmtrs$adaptative,
-                                       fn_drastic = groupAreaRange[[1]]*mthdPrmtrs$drastic,
-                                       fn_lowPenalty = mthdPrmtrs$lowPenalty,
-                                       fn_highPenalty = mthdPrmtrs$highPenalty,
-                                       fn_roundnessPenalty = mthdPrmtrs$roundnessPenalty,
-                                       fn_areaAdaptRate = mthdPrmtrs$areaAdaptRate,
-                                       fn_roundnessAdaptRate = mthdPrmtrs$roundnessAdaptRate,
-                                       fn_fusion = mthdPrmtrs$fusion,
-                                       fn_areaMean = group_area_mean,
-                                       fn_seed = mthdPrmtrs$seed))
+                                         fn_Nspikes=mthdPrmtrs$spikes,
+                                         fn_radius = round(sqrt(groupAreaRange[[2]]*mthdPrmtrs$radiusExpansion/pi)),
+                                         fn_coverage = mthdPrmtrs$coverage,
+                                         fn_minArea = groupAreaRange[[1]],
+                                         fn_maxArea = groupAreaRange[[2]],
+                                         fn_minRoundness = groupRoundnessRange[[1]],
+                                         fn_maxRoundness = groupRoundnessRange[[2]],
+                                         fn_seedOutScore = mthdPrmtrs$seedOutScore,
+                                         fn_cycleWindow = mthdPrmtrs$cycleWindow,
+                                         fn_discoverTreshold = mthdPrmtrs$discoverTreshold,
+                                         fn_adaptative = mthdPrmtrs$adaptative,
+                                         fn_drastic = groupAreaRange[[1]]*mthdPrmtrs$drastic,
+                                         fn_lowPenalty = mthdPrmtrs$lowPenalty,
+                                         fn_highPenalty = mthdPrmtrs$highPenalty,
+                                         fn_roundnessPenalty = mthdPrmtrs$roundnessPenalty,
+                                         fn_areaAdaptRate = mthdPrmtrs$areaAdaptRate,
+                                         fn_roundnessAdaptRate = mthdPrmtrs$roundnessAdaptRate,
+                                         fn_fusion = mthdPrmtrs$fusion,
+                                         fn_areaMean = group_area_mean,
+                                         fn_seed = mthdPrmtrs$seed))
 
                      timerStop<-Sys.time()
 
