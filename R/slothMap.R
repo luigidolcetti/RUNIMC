@@ -2,27 +2,28 @@
 #'
 #'
 #' @export
-slothMap<-function (fn_srt,
-                    fn_radius=10,
-                    fn_Nspikes=4,
-                    fn_minArea=10,
-                    fn_maxArea=100,
-                    fn_minRoundness=0.6,
-                    fn_maxRoundness=0.8,
-                    fn_coverage=0.3,
-                    fn_seedOutScore=10,
-                    fn_cycleWindow=1000,
-                    fn_discoverTreshold=10e-3,
-                    fn_adaptative=T,
-                    fn_drastic=0,
-                    fn_lowPenalty=2,
-                    fn_highPenalty=1,
-                    fn_roundnessPenalty=1,
-                    fn_areaAdaptRate=0,
-                    fn_roundnessAdaptRate=0,
-                    fn_fusion=T,
-                    fn_areaMean=50,
-                    fn_seed=1234){
+slothMap_test<-function (fn_srt,
+                         fn_radius=10,
+                         fn_Nspikes=4,
+                         fn_minArea=10,
+                         fn_maxArea=100,
+                         fn_minRoundness=0.6,
+                         fn_maxRoundness=0.8,
+                         fn_coverage=0.3,
+                         fn_seedOutScore=10,
+                         fn_cycleWindow=1000,
+                         fn_discoverTreshold=10e-3,
+                         fn_adaptative=T,
+                         fn_drastic=0,
+                         fn_lowPenalty=2,
+                         fn_highPenalty=1,
+                         fn_roundnessPenalty=1,
+                         fn_areaAdaptRate=0,
+                         fn_roundnessAdaptRate=0,
+                         fn_fusion=T,
+                         fn_areaMean=50,
+                         fn_seed=1234){
+
 
   TimingFunction<-data.frame(Nseeds=0,Npoly=0,Ntime=Sys.time())
 
@@ -226,7 +227,7 @@ slothMap<-function (fn_srt,
 
     polyFSC<-sf::st_sfc(polyList)
     polyIntersection<-sf::st_intersects(polyFSC)
-    browser()
+
     out<-rep(0,length(polyIntersection))
     adjacentTable<-lapply(polyIntersection,function(x){
       outOut<-out
@@ -237,91 +238,167 @@ slothMap<-function (fn_srt,
     adjacentTable<-do.call(rbind,adjacentTable)
     colnames(adjacentTable)<-1:ncol(adjacentTable)
     rownames(adjacentTable)<-1:nrow(adjacentTable)
-    nt<-network::network(adjacentTable,directed = F,loops = F)
+    # nt<-network::network(adjacentTable,directed = F,loops = F)
     nt<-igraph::graph_from_adjacency_matrix(adjmatrix = adjacentTable,mode = 'undirected',diag = F)
+    nt_edgeList<-igraph::as_edgelist(nt,names=T)
+    polyDistance<-apply(nt_edgeList,1,function(x){
+      sf::st_distance(sf::st_centroid(polyList[[as.numeric(x[1])]]),
+                      sf::st_centroid(polyList[[as.numeric(x[2])]]),
+                      which = 'Euclidean')
+    })
+    igraph::E(nt)$weight<-polyDistance
+
     nt_components<-igraph::components(nt)
-    nt_subgrapg<-igraph::induced_subgraph(nt,names(nt_components$membership)[nt_components$membership==1])
-    nt_edges<-igraph::as_edgelist(nt_subgrapg)
-    nt_edgesFilter<-apply(nt_edges,1,function(x){
-      deltaAlone<-sum((areaList[[as.numeric(x[1])]]-fn_areaMean)^2,(areaList[[as.numeric(x[2])]]-fn_areaMean)^2)
-      deltaSum<-((areaList[[as.numeric(x[1])]]+areaList[[as.numeric(x[2])]])-fn_areaMean)^2
-      if (deltaSum<deltaAlone) return(x) else return(NULL)
+    nt_subgraphIndexVector<-igraph::membership(nt_components)
+    nt_subgraphIndices<-unique(nt_subgraphIndexVector)
+    nt_subgraph<-lapply(nt_subgraphIndices,function(i){
+      out<-igraph::induced_subgraph(nt,names(nt_subgraphIndexVector[nt_subgraphIndexVector==i]))
+      return(out)
     })
+    nt_length<-lapply(nt_subgraph,igraph::gsize)
+    nt_maxLength<-max(unlist(nt_length))
 
-    nt_vertex<-unique(as.vector(nt_edges))
-    nt_permutations<-t(expand.grid(rep(list(c(T,F)),nrow(nt_edges))))
-
-    new_deltaPermutations<-pbapply::pbapply(nt_permutations,2,function(prmt){
-      new_edges<-nt_edges[prmt,,drop=F]
-      new_vertex<-nt_vertex[!(nt_vertex %in% unique(as.vector(new_edges)))]
-      new_emptyEdges<-t(sapply(new_vertex,function(x){c(x,NA)},USE.NAMES = F,simplify = T))
-      new_subgraph<-igraph::graph_from_edgelist(new_edges, directed = F)
-      new_subgraph<-igraph::add_vertices(new_subgraph,length(new_vertex),name=new_vertex)
-      new_components<-igraph::components(new_subgraph)
-      new_groups<-sapply(unique(new_components$membership),function(x){
-        polygonsInGroup<-names(new_components$membership[new_components$membership==x])
+    while(nt_maxLength>3){
+      TEMP<-lapply(nt_subgraph,function(sbg){
+        nt_sbgLength<-igraph::gsize(sbg)
+        if (nt_sbgLength>3){
+          newCommunity<-igraph::edge.betweenness.community(sbg)
+          newMembers<-igraph::membership(newCommunity)
+          newMembersIndex<-unique(newMembers)
+          newSubgraph<-lapply(newMembersIndex,function(i){
+            newCommunityVertex<-names(newMembers[newMembers==i])
+            newSubSub<-igraph::induced_subgraph(nt,newCommunityVertex)
+            return(newSubSub)
+          })
+        } else (newSubgraph<-sbg)
       })
-      new_area<-lapply(new_groups,function(x){
-        sum(unlist(areaList[as.numeric(x)]))
-      })
-
-      new_cumulativeDelta<-sum((unlist(new_area)-fn_areaMean)^2)
-      return(list(area=new_cumulativeDelta,graph=new_subgraph))
-
-    })
-
-    mm<-lapply(new_deltaPermutations,function(x)x$area)
-    which(mm==min(unlist(mm)))
-    plot(new_deltaPermutations[[128]]$graph)
-
-
-    plot(nt)
-    whichAT<-apply(adjacentTable,1,sum)
-    adjacentTable_reduced<-adjacentTable[whichAT>1,]
-
-    areaSum<-apply(adjacentTable_reduced,2,function(x){
-      browser()
-      areaS<-unlist(areaList[as.logical(x)],recursive = T)
-      areaSum<-sum(areaS)
-      deltaSingle<-sum((fn_areaMean-areaS)^2)
-      deltaSum<-(fn_areaMean-areaSum)^2
-      return(c(deltaSingle,deltaSum))
-    })
-
-    deviationList<-lapply(areaList,function(x) {(fn_areaMean-x)^2})
-    deviationTotal<-do.call(sum,deviationList)
-
-
-    polyCondensation<-1
-    newPolyList<-list()
-    newPolyIndex<-1
-    while (nrow(polyIntersection)>0 & any(polyCondensation>0)){
-
-      polyCondensation<-sapply(polyIntersection,function(clmp){
-        clmpArea<-  sapply(clmp,function(x){
-          (sf::st_area(polyFSC[[x]])-fn_areaMean)^2
-        },USE.NAMES = F,simplify = T)
-        clmpAreaDeviation<-sum(clmpArea)
-        clmpUnion<-nngeo::st_remove_holes(sf::st_union(polyFSC[clmp]))
-        clmpUnionArea<-sf::st_area(clmpUnion)
-        clmpUnionAreaDeviation<-(clmpUnionArea-fn_areaMean)^2
-        if (clmpAreaDeviation<clmpUnionAreaDeviation) return(-clmpAreaDeviation) else return (clmpUnionAreaDeviation)
-      },USE.NAMES = F,simplify = T)
-      winnerClump<-which(polyCondensation[polyCondensation>0]==min(polyCondensation[polyCondensation>0]))
-      if (length(winnerClump)==0) break() else winnerClump<-winnerClump[1]
-      newPolygon<-nngeo::st_remove_holes(sf::st_union(polyFSC[polyIntersection[[winnerClump]]]))
-      polyFSC<-polyFSC[-polyIntersection[[winnerClump]]]
-      if (!sf::st_is_empty(newPolygon)) {
-        newPolyList[[newPolyIndex]]<-newPolygon[[1]]
-        newPolyIndex<-newPolyIndex+1
+      newListSubgraph<-list()
+      newLSIndex<-1
+      for (i in 1:length(TEMP)){
+        if(class(TEMP[[i]])=='list'){
+          for (ii in 1:length(TEMP[[i]])){
+            newListSubgraph[[newLSIndex]]<-TEMP[[i]][[ii]]
+            newLSIndex<-newLSIndex+1
+          }} else{
+            newListSubgraph[[newLSIndex]]<-TEMP[[i]]
+            newLSIndex<-newLSIndex+1
+          }
       }
-      polyIntersection<-sf::st_intersects(polyFSC)
+      nt_subgraph<-newListSubgraph
+      nt_length<-lapply(nt_subgraph,igraph::gsize)
+      newMaxLength<-max(unlist(nt_length))
+      if (newMaxLength==nt_maxLength) {nt_maxLength<-0} else {nt_maxLength<-newMaxLength}
     }
 
-    newPolyList<-unlist(newPolyList,recursive = F)
-    remainingPolyList<-unlist(polyFSC,recursive = F)
+    newPolyList<-lapply(nt_subgraph,function(nts){
 
-    newPolyList<-append(newPolyList,remainingPolyList)
+      nt_edges<-igraph::as_edgelist(nts)
+      if (nrow(nt_edges)>0){
+
+        nt_vertex<-unique(as.vector(nt_edges))
+        nt_permutations<-t(expand.grid(rep(list(c(T,F)),nrow(nt_edges))))
+
+        new_deltaPermutations<-pbapply::pbapply(nt_permutations,2,function(prmt){
+
+          new_edges<-nt_edges[prmt,,drop=F]
+          new_vertex<-nt_vertex[!(nt_vertex %in% unique(as.vector(new_edges)))]
+          new_emptyEdges<-t(sapply(new_vertex,function(x){c(x,NA)},USE.NAMES = F,simplify = T))
+          new_subgraph<-igraph::graph_from_edgelist(new_edges, directed = F)
+          new_subgraph<-igraph::add_vertices(new_subgraph,length(new_vertex),name=new_vertex)
+          new_components<-igraph::components(new_subgraph)
+          new_groups<-sapply(unique(new_components$membership),function(x){
+            polygonsInGroup<-names(new_components$membership[new_components$membership==x])
+          },USE.NAMES = T,simplify = F)
+          new_area<-lapply(new_groups,function(x){
+            sum(unlist(areaList[as.numeric(x)]))
+          })
+
+          new_cumulativeDelta<-sum((unlist(new_area)-fn_areaMean)^2)
+          return(list(area=new_cumulativeDelta,graph=new_subgraph))
+
+        })
+
+        mm<-lapply(new_deltaPermutations,function(x)x$area)
+        mm<-which(mm==min(unlist(mm)))[1]
+        winnerPermutation<-new_deltaPermutations[[mm]]$graph
+
+        # winnerGraph<-new_deltaPermutations[[winnerPermutation]]$graph
+
+        winnerComponents<-igraph::components(winnerPermutation)
+        winnerPolygons<-sapply(unique(winnerComponents$membership),function(x){
+          polygonsInGroup<-names(winnerComponents$membership[winnerComponents$membership==x])
+          unionPolygon<-sf::st_union(sf::st_sfc(polyList[as.numeric(polygonsInGroup)]))
+          unionPolygon<-nngeo::st_remove_holes(unionPolygon)
+          return(unionPolygon)})
+
+        return (winnerPolygons)
+      } else (return(polyList[[as.numeric(igraph::V(nts)$name)]]))
+
+    })
+
+
+
+    TEMP_newPolyList<-list()
+    newLSIndex<-1
+    for (i in 1:length(newPolyList)){
+      if(all(class(newPolyList[[i]])=='list')){
+        for (ii in 1:length(newPolyList[[i]])){
+          TEMP_newPolyList[[newLSIndex]]<-newPolyList[[i]][[ii]]
+          newLSIndex<-newLSIndex+1
+        }} else{
+          TEMP_newPolyList[[newLSIndex]]<-newPolyList[[i]]
+          newLSIndex<-newLSIndex+1
+        }
+    }
+
+    newPolyList<-TEMP_newPolyList
+#
+#     whichAT<-apply(adjacentTable,1,sum)
+#     adjacentTable_reduced<-adjacentTable[whichAT>1,]
+#
+#     areaSum<-apply(adjacentTable_reduced,2,function(x){
+#
+#       areaS<-unlist(areaList[as.logical(x)],recursive = T)
+#       areaSum<-sum(areaS)
+#       deltaSingle<-sum((fn_areaMean-areaS)^2)
+#       deltaSum<-(fn_areaMean-areaSum)^2
+#       return(c(deltaSingle,deltaSum))
+#     })
+#
+#     deviationList<-lapply(areaList,function(x) {(fn_areaMean-x)^2})
+#     deviationTotal<-do.call(sum,deviationList)
+#
+#
+#     polyCondensation<-1
+#     newPolyList<-list()
+#     newPolyIndex<-1
+#     while (nrow(polyIntersection)>0 & any(polyCondensation>0)){
+#
+#       polyCondensation<-sapply(polyIntersection,function(clmp){
+#         clmpArea<-  sapply(clmp,function(x){
+#           (sf::st_area(polyFSC[[x]])-fn_areaMean)^2
+#         },USE.NAMES = F,simplify = T)
+#         clmpAreaDeviation<-sum(clmpArea)
+#         clmpUnion<-nngeo::st_remove_holes(sf::st_union(polyFSC[clmp]))
+#         clmpUnionArea<-sf::st_area(clmpUnion)
+#         clmpUnionAreaDeviation<-(clmpUnionArea-fn_areaMean)^2
+#         if (clmpAreaDeviation<clmpUnionAreaDeviation) return(-clmpAreaDeviation) else return (clmpUnionAreaDeviation)
+#       },USE.NAMES = F,simplify = T)
+#       winnerClump<-which(polyCondensation[polyCondensation>0]==min(polyCondensation[polyCondensation>0]))
+#       if (length(winnerClump)==0) break() else winnerClump<-winnerClump[1]
+#       newPolygon<-nngeo::st_remove_holes(sf::st_union(polyFSC[polyIntersection[[winnerClump]]]))
+#       polyFSC<-polyFSC[-polyIntersection[[winnerClump]]]
+#       if (!sf::st_is_empty(newPolygon)) {
+#         newPolyList[[newPolyIndex]]<-newPolygon[[1]]
+#         newPolyIndex<-newPolyIndex+1
+#       }
+#       polyIntersection<-sf::st_intersects(polyFSC)
+#     }
+
+    newPolyList<-unlist(newPolyList,recursive = F)
+    # remainingPolyList<-unlist(polyFSC,recursive = F)
+
+    # newPolyList<-append(newPolyList,remainingPolyList)
 
     # plot(nngeo::st_remove_holes(sf::st_union( polyFSC[c(1,38)])))
   } else { newPolyList<-unlist(sf::st_sfc(polyList),recursive = F)}
