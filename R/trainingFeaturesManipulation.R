@@ -235,7 +235,11 @@ setMethod('tf_perimeterStatistics',signature(x='environment'),
 #####-------------------------------------------------------
 
 .labelList<-function(fn_trainingFeatures){
-  levels(fn_trainingFeatures$geometry$label)
+  if (class(fn_trainingFeatures$geometry$label)=='factor'){
+  out<-levels(fn_trainingFeatures$geometry$label)} else {
+    out<-unique(fn_trainingFeatures$geometry$label)
+  }
+  return(out)
 }
 
 if (!isGeneric("tf_labelList")) {

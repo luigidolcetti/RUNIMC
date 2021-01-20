@@ -18,5 +18,5 @@
 
     sep='\n'))
 
-cat('\n  some bulshit here  ')
+cat('\n  some bullshit here.... now spelling is correct \n')
 }

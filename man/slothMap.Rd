@@ -17,15 +17,11 @@ slothMap(
   fn_cycleWindow = 1000,
   fn_discoverTreshold = 0.01,
   fn_adaptative = T,
-  fn_drastic = 0,
-  fn_lowPenalty = 2,
-  fn_highPenalty = 1,
-  fn_roundnessPenalty = 1,
   fn_areaAdaptRate = 0,
   fn_roundnessAdaptRate = 0,
   fn_fusion = T,
-  fn_areaMean = 50,
-  fn_seed = 1234
+  fn_targetArea = 50,
+  fn_maxNetworkSize = 4
 )
 }
 \description{

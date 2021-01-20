@@ -2,28 +2,30 @@
 #'
 #'
 #' @export
-slothMap_test<-function (fn_srt,
-                         fn_radius=10,
-                         fn_Nspikes=4,
-                         fn_minArea=10,
-                         fn_maxArea=100,
-                         fn_minRoundness=0.6,
-                         fn_maxRoundness=0.8,
-                         fn_coverage=0.3,
-                         fn_seedOutScore=10,
-                         fn_cycleWindow=1000,
-                         fn_discoverTreshold=10e-3,
-                         fn_adaptative=T,
-                         fn_drastic=0,
-                         fn_lowPenalty=2,
-                         fn_highPenalty=1,
-                         fn_roundnessPenalty=1,
-                         fn_areaAdaptRate=0,
-                         fn_roundnessAdaptRate=0,
-                         fn_fusion=T,
-                         fn_areaMean=50,
-                         fn_seed=1234){
+slothMap<-function (fn_srt,
+                    fn_radius=10,
+                    fn_Nspikes=4,
+                    fn_minArea=10,
+                    fn_maxArea=100,
+                    fn_minRoundness=0.6,
+                    fn_maxRoundness=0.8,
+                    fn_coverage=0.3,
+                    fn_seedOutScore=10,
+                    fn_cycleWindow=1000,
+                    fn_discoverTreshold=10e-3,
+                    fn_adaptative=T,
+                    fn_areaAdaptRate=0,
+                    fn_roundnessAdaptRate=0,
+                    fn_fusion=T,
+                    fn_targetArea=50,
+                    fn_maxNetworkSize=4,
+                    fn_returnKinetic = F,
+                    fn_returnRasters = F){
 
+
+  if (is.character(fn_targetArea)){
+    if (!any(fn_targetArea == c('predicted_mean','predicted_median','predicted_mode','predicted_max','predicted_middle'))) stop(RUNIMC:::mError(('fn_targetArea should be a single numeric or "predicted_mean", "predicted_median, "predicted_mode", "predicted_max", "predicted_middle"')))
+  }
 
   TimingFunction<-data.frame(Nseeds=0,Npoly=0,Ntime=Sys.time())
 
@@ -54,18 +56,19 @@ slothMap_test<-function (fn_srt,
 
 
 
-  polyIndex=1
-  polyList<-list()
-  areaList<-list()
+
+  polyList<-vector(mode = 'list',length = nrow(bunchOfSeeds))
+  areaList<-vector(mode = 'list',length = nrow(bunchOfSeeds))
 
   rMsk<-RUNIMC:::radialMask(fn_radius,fn_Nspikes)
   sinMatrix<-rMsk$sinMatrix
   cosMatrix<-rMsk$cosMatrix
   intersectionMatrix<-rMsk$intersectionMatrix
 
+  polyIndex=0
   cycleIndex=1
   oldCycleIndex=1
-  oldPolyIndex=1
+  oldPolyIndex=0
   oldSeedIndex=0
   seedPointer=1
   activeSeed<-c()
@@ -167,18 +170,20 @@ slothMap_test<-function (fn_srt,
       polyArea<-sf::st_area(sf::st_sfc(sfPolygon))
       polyPerimeter<-lwgeom::st_perimeter(sf::st_sfc(sfPolygon))
       polyRoundness<-4*pi*polyArea/(polyPerimeter^2)
-      coverageDF <- (exactextractr::exact_extract(fn_srt,sf::st_sfc(sfPolygon),include_xy=T))[[1]]
-      coverageDF<-coverageDF[coverageDF$coverage_fraction>=fn_coverage,]
-      coordDF<-raster::cellFromXY(fn_srt,as.matrix(coverageDF[,c(2,3)]))
+      # coverageDF <- (exactextractr::exact_extract(fn_srt,sf::st_sfc(sfPolygon),include_xy=T))[[1]]
+      # coverageDF<-coverageDF[coverageDF$coverage_fraction>=fn_coverage,]
+      # coordDF<-raster::cellFromXY(fn_srt,as.matrix(coverageDF[,c(2,3)]))
 
-      TimingFunction<-rbind(TimingFunction,data.frame(Nseeds=nrow(bunchOfSeeds),Npoly=polyIndex,Ntime=Sys.time()))
+      if (fn_returnKinetic) TimingFunction<-rbind(TimingFunction,data.frame(Nseeds=nrow(bunchOfSeeds),Npoly=polyIndex,Ntime=Sys.time()))
       if (polyArea>=fn_minArea & polyArea<=fn_maxArea & polyRoundness>=fn_minRoundness & polyRoundness<=fn_maxRoundness){
+        coverageDF <- (exactextractr::exact_extract(fn_srt,sf::st_sfc(sfPolygon),include_xy=T))[[1]]
+        coverageDF<-coverageDF[coverageDF$coverage_fraction>=fn_coverage,]
+        coordDF<-raster::cellFromXY(fn_srt,as.matrix(coverageDF[,c(2,3)]))
         bunchOfSeeds$active[bunchOfSeeds$seed %in% coordDF]<-0
+        polyIndex=polyIndex+1
         fn_srt[coordDF]<-(-polyIndex)
-        # polyList[[polyIndex]]<-polyG
         polyList[[polyIndex]]<-sfPolygon
         areaList[[polyIndex]]<-polyArea
-        polyIndex=polyIndex+1
       }
     }
 
@@ -189,9 +194,9 @@ slothMap_test<-function (fn_srt,
       if (DPI<fn_discoverTreshold & fn_adaptative==F) {break()}
       if (DPI<fn_discoverTreshold &
           fn_adaptative==T &
-          fn_seedOutScore>1) {fn_seedOutScore=fn_seedOutScore-1}
-      if (DPI<fn_discoverTreshold &
-          fn_adaptative==T ){
+          fn_seedOutScore>1) {
+
+        fn_seedOutScore=fn_seedOutScore-1
         fn_minArea<-fn_minArea-(fn_minArea*fn_areaAdaptRate)
         fn_maxArea<-fn_maxArea+(fn_maxArea*fn_areaAdaptRate)
         fn_minRoundness<-fn_minRoundness-(fn_minRoundness*fn_roundnessAdaptRate)
@@ -221,32 +226,58 @@ slothMap_test<-function (fn_srt,
              formatC(fn_maxRoundness,flag=' ',digits=3),
              '\n'))
 
+  polyList<-polyList[1:polyIndex]
+  areaList<-areaList[1:polyIndex]
+
 
 
   if (fn_fusion){
 
     polyFSC<-sf::st_sfc(polyList)
-    polyIntersection<-sf::st_intersects(polyFSC)
+    polyIntersection<-sf::st_intersects(polyFSC,sparse=F)
 
-    out<-rep(0,length(polyIntersection))
-    adjacentTable<-lapply(polyIntersection,function(x){
-      outOut<-out
-      outOut[x]<-1
-      return(outOut)
-    })
+    if (is.character(fn_targetArea)){
+      fn_targetArea
+      switch(fn_targetArea,
+             predicted_mean = {
+               fn_targetArea<-mean(unlist(areaList))
+             },
+             predicted_median = {
+               fn_targetArea<-median(unlist(areaList))
+             },
+             predicted_mode = {
+               brks<-0:ceiling(unlist(areaList))
+               frqT<-hist(x = unlist(areaList),breaks = brks)
+               fn_targetArea<-median(frqT$breaks[which(frqT$counts==max(frqT$counts))])
+             },
+             predicted_max = {
+               fn_targetArea<-max(unlist(areaList))
+             },
+             predicted_middle = {
+               fn_targetArea<-(max(unlist(areaList))-min(unlist(areaList)))/2
+             })
+    }
 
-    adjacentTable<-do.call(rbind,adjacentTable)
-    colnames(adjacentTable)<-1:ncol(adjacentTable)
-    rownames(adjacentTable)<-1:nrow(adjacentTable)
+    # out<-rep(0,length(polyIntersection))
+    # adjacentTable<-lapply(polyIntersection,function(x){
+    #   outOut<-out
+    #   outOut[x]<-1
+    #   return(outOut)
+    # })
+
+    # adjacentTable<-do.call(rbind,adjacentTable)
+    # colnames(adjacentTable)<-1:ncol(adjacentTable)
+    # rownames(adjacentTable)<-1:nrow(adjacentTable)
     # nt<-network::network(adjacentTable,directed = F,loops = F)
-    nt<-igraph::graph_from_adjacency_matrix(adjmatrix = adjacentTable,mode = 'undirected',diag = F)
+    nt<-igraph::graph_from_adjacency_matrix(adjmatrix = polyIntersection,mode = 'undirected',diag = F)
+    igraph::V(nt)$name<-as.character(1:nrow(polyIntersection))
     nt_edgeList<-igraph::as_edgelist(nt,names=T)
-    polyDistance<-apply(nt_edgeList,1,function(x){
-      sf::st_distance(sf::st_centroid(polyList[[as.numeric(x[1])]]),
-                      sf::st_centroid(polyList[[as.numeric(x[2])]]),
-                      which = 'Euclidean')
-    })
-    igraph::E(nt)$weight<-polyDistance
+    # polyDistance<-apply(nt_edgeList,1,function(x){
+    #   sf::st_distance(sf::st_centroid(polyList[[as.numeric(x[1])]]),
+    #                   sf::st_centroid(polyList[[as.numeric(x[2])]]),
+    #                   which = 'Euclidean')
+    # })
+    # igraph::E(nt)$weight<-polyDistance
 
     nt_components<-igraph::components(nt)
     nt_subgraphIndexVector<-igraph::membership(nt_components)
@@ -258,10 +289,10 @@ slothMap_test<-function (fn_srt,
     nt_length<-lapply(nt_subgraph,igraph::gsize)
     nt_maxLength<-max(unlist(nt_length))
 
-    while(nt_maxLength>3){
+    while(nt_maxLength>fn_maxNetworkSize){
       TEMP<-lapply(nt_subgraph,function(sbg){
         nt_sbgLength<-igraph::gsize(sbg)
-        if (nt_sbgLength>3){
+        if (nt_sbgLength>fn_maxNetworkSize){
           newCommunity<-igraph::edge.betweenness.community(sbg)
           newMembers<-igraph::membership(newCommunity)
           newMembersIndex<-unique(newMembers)
@@ -313,7 +344,7 @@ slothMap_test<-function (fn_srt,
             sum(unlist(areaList[as.numeric(x)]))
           })
 
-          new_cumulativeDelta<-sum((unlist(new_area)-fn_areaMean)^2)
+          new_cumulativeDelta<-sum((unlist(new_area)-fn_targetArea)^2)
           return(list(area=new_cumulativeDelta,graph=new_subgraph))
 
         })
@@ -343,67 +374,37 @@ slothMap_test<-function (fn_srt,
     for (i in 1:length(newPolyList)){
       if(all(class(newPolyList[[i]])=='list')){
         for (ii in 1:length(newPolyList[[i]])){
-          TEMP_newPolyList[[newLSIndex]]<-newPolyList[[i]][[ii]]
-          newLSIndex<-newLSIndex+1
+          if(any(class(newPolyList[[i]][[ii]])=='MULTYPOLYGON')){
+            for (iii in 1:length(newPolyList[[i]][[ii]]))
+              TEMP_newPolyList[[newLSIndex]]<-sf::st_polygon(newPolyList[[i]][[ii]][[iii]])
+            newLSIndex<-newLSIndex+1
+          } else {
+            TEMP_newPolyList[[newLSIndex]]<-newPolyList[[i]][[ii]]
+            newLSIndex<-newLSIndex+1}
         }} else{
-          TEMP_newPolyList[[newLSIndex]]<-newPolyList[[i]]
-          newLSIndex<-newLSIndex+1
+          if(any(class(newPolyList[[i]])=='MULTYPOLYGON')){
+            for (ii in 1:length(newPolyList[[i]]))
+              TEMP_newPolyList[[newLSIndex]]<-sf::st_polygon(newPolyList[[i]][[ii]])
+            newLSIndex<-newLSIndex+1
+          } else{
+            TEMP_newPolyList[[newLSIndex]]<-newPolyList[[i]]
+            newLSIndex<-newLSIndex+1
+          }
         }
     }
 
     newPolyList<-TEMP_newPolyList
-#
-#     whichAT<-apply(adjacentTable,1,sum)
-#     adjacentTable_reduced<-adjacentTable[whichAT>1,]
-#
-#     areaSum<-apply(adjacentTable_reduced,2,function(x){
-#
-#       areaS<-unlist(areaList[as.logical(x)],recursive = T)
-#       areaSum<-sum(areaS)
-#       deltaSingle<-sum((fn_areaMean-areaS)^2)
-#       deltaSum<-(fn_areaMean-areaSum)^2
-#       return(c(deltaSingle,deltaSum))
-#     })
-#
-#     deviationList<-lapply(areaList,function(x) {(fn_areaMean-x)^2})
-#     deviationTotal<-do.call(sum,deviationList)
-#
-#
-#     polyCondensation<-1
-#     newPolyList<-list()
-#     newPolyIndex<-1
-#     while (nrow(polyIntersection)>0 & any(polyCondensation>0)){
-#
-#       polyCondensation<-sapply(polyIntersection,function(clmp){
-#         clmpArea<-  sapply(clmp,function(x){
-#           (sf::st_area(polyFSC[[x]])-fn_areaMean)^2
-#         },USE.NAMES = F,simplify = T)
-#         clmpAreaDeviation<-sum(clmpArea)
-#         clmpUnion<-nngeo::st_remove_holes(sf::st_union(polyFSC[clmp]))
-#         clmpUnionArea<-sf::st_area(clmpUnion)
-#         clmpUnionAreaDeviation<-(clmpUnionArea-fn_areaMean)^2
-#         if (clmpAreaDeviation<clmpUnionAreaDeviation) return(-clmpAreaDeviation) else return (clmpUnionAreaDeviation)
-#       },USE.NAMES = F,simplify = T)
-#       winnerClump<-which(polyCondensation[polyCondensation>0]==min(polyCondensation[polyCondensation>0]))
-#       if (length(winnerClump)==0) break() else winnerClump<-winnerClump[1]
-#       newPolygon<-nngeo::st_remove_holes(sf::st_union(polyFSC[polyIntersection[[winnerClump]]]))
-#       polyFSC<-polyFSC[-polyIntersection[[winnerClump]]]
-#       if (!sf::st_is_empty(newPolygon)) {
-#         newPolyList[[newPolyIndex]]<-newPolygon[[1]]
-#         newPolyIndex<-newPolyIndex+1
-#       }
-#       polyIntersection<-sf::st_intersects(polyFSC)
-#     }
 
     newPolyList<-unlist(newPolyList,recursive = F)
-    # remainingPolyList<-unlist(polyFSC,recursive = F)
 
-    # newPolyList<-append(newPolyList,remainingPolyList)
+    newPolyList<-lapply(newPolyList,function(x){
+      if (class(x)=='list') {return(x[[1]])} else (return(x))
+    })
 
-    # plot(nngeo::st_remove_holes(sf::st_union( polyFSC[c(1,38)])))
   } else { newPolyList<-unlist(sf::st_sfc(polyList),recursive = F)}
 
-  TimingFunction<-rbind(TimingFunction,data.frame(Nseeds=nrow(bunchOfSeeds),Npoly=polyIndex,Ntime=Sys.time()))
+  if (fn_returnKinetic) TimingFunction<-rbind(TimingFunction,data.frame(Nseeds=nrow(bunchOfSeeds),Npoly=polyIndex,Ntime=Sys.time()))
+  # if (!fn_returnRasters) fn_srt<-NULL
 
   segmentationOut<-new('IMC_Segmentation',polygons=newPolyList,performance=TimingFunction,raster=fn_srt)
   return(segmentationOut)

@@ -770,23 +770,18 @@ setMethod('addSegmentationDirectives',signature = ('environment'),
                      slothMap = {
                        methodParameters<-list(areaQuantile=c(0,1),
                                               roundnessQuantile=c(0,1),
-                                              areaExpansion=c(1,1),
-                                              roundnessExpansion = c(1,1),
                                               spikes=8,
-                                              radiusExpansion = 1.5,
-                                              coverage = 0.5,
-                                              seedOutScore = 3,
-                                              cycleWindow = 1000,
-                                              discoverTreshold = 1e-3,
-                                              adaptative = T,
-                                              drasticExpansion = 0.1,
-                                              lowPenalty=0,
-                                              highPenalty=0,
-                                              roundnessPenalty=0,
+                                              radiusExpansion=1.5,
+                                              coverage=0.3,
+                                              seedOutScore=10,
+                                              cycleWindow=1000,
+                                              discoverTreshold=1e-3,
+                                              adaptative=T,
                                               areaAdaptRate=0.1,
                                               roundnessAdaptRate=0.1,
                                               fusion=T,
-                                              seed=123)
+                                              targetArea='training_mean',
+                                              maxNetworkSize=8)
 
                      },
                      lazyCatMap = {
@@ -921,6 +916,75 @@ setMethod('segment',signature = ('environment'),
                      }
                    },
 
+                   slothMap = {
+
+
+                     rstToSegment<-sapply(names(x$currentAnalysis$classification),function(nms){
+                       if (!any(labelLayer %in% names(x$currentAnalysis$classification[[nms]]))) stop(RUNIMC:::mError('Check classification layer name provided'))
+                       return(x$currentAnalysis$classification[[nms]][[labelLayer]])
+                     },USE.NAMES = T,simplify = F)
+
+                     polygonsList<-list()
+                     for (rst in names(rstToSegment)){
+                       for (i in labelLayer){
+
+                         mrkr<-tf_labelList(x$currentAnalysis$trainingFeatures)
+                         mrkrIndex<-which(sapply(mrkr,function(x)grepl(x,i),USE.NAMES = F,simplify = T))
+
+
+                         cat(paste(rst,mrkr[mrkrIndex],'\n',sep=":::"))
+                         group_area<-x$currentAnalysis$trainingFeatures$geometry$area[x$currentAnalysis$trainingFeatures$geometry$label==mrkr[mrkrIndex]]
+                         group_roundness<-x$currentAnalysis$trainingFeatures$geometry$roundness[x$currentAnalysis$trainingFeatures$geometry$label==mrkr[mrkrIndex]]
+                         groupAreaRange<-quantile(group_area,mthdPrmtrs$areaQuantile)
+                         groupRoundnessRange<-quantile(group_roundness,mthdPrmtrs$roundnessQuantile)
+
+                         if (is.character(mthdPrmtrs$targetArea)){
+                           switch(mthdPrmtrs$targetArea,
+                                  training_mean = {
+                                    targetArea<-mean(unlist(group_area))
+                                  },
+                                  training_median = {
+                                    targetArea<-median(unlist(group_area))
+                                  },
+                                  training_mode = {
+                                    brks<-0:ceiling(unlist(group_area))
+                                    frqT<-hist(x = unlist(group_area),breaks = brks)
+                                    targetArea<-median(frqT$breaks[which(frqT$counts==max(frqT$counts))])
+                                  },
+                                  training_max = {
+                                    targetArea<-max(unlist(group_area))
+                                  },
+                                  training_middle = {
+                                    targetArea<-(max(unlist(group_area))-min(unlist(group_area)))/2
+                                  },
+                                  {targetArea<-mthdPrmtrs$targetArea})
+                         } else {targetArea<-mthdPrmtrs$targetArea}
+
+
+                         TEMP<-list(slothMap(fn_srt = rstToSegment[[rst]][[i]],
+                                             fn_Nspikes=mthdPrmtrs$spikes,
+                                             fn_radius = round(sqrt(groupAreaRange[[2]]*mthdPrmtrs$radiusExpansion/pi)),
+                                             fn_coverage = mthdPrmtrs$coverage,
+                                             fn_minArea = groupAreaRange[[1]],
+                                             fn_maxArea = groupAreaRange[[2]],
+                                             fn_minRoundness = groupRoundnessRange[[1]],
+                                             fn_maxRoundness = groupRoundnessRange[[2]],
+                                             fn_seedOutScore = mthdPrmtrs$seedOutScore,
+                                             fn_cycleWindow = mthdPrmtrs$cycleWindow,
+                                             fn_discoverTreshold = mthdPrmtrs$discoverTreshold,
+                                             fn_adaptative = mthdPrmtrs$adaptative,
+                                             fn_areaAdaptRate = mthdPrmtrs$areaAdaptRate,
+                                             fn_roundnessAdaptRate = mthdPrmtrs$roundnessAdaptRate,
+                                             fn_fusion = mthdPrmtrs$fusion,
+                                             fn_maxNetworkSize = mthdPrmtrs$maxNetworkSize,
+                                             fn_targetArea = targetArea))
+                         polygonsList[[rst]][[i]]<-list()
+                         polygonsList[[rst]][[i]]<-TEMP[[1]]
+
+                       }
+                     }
+                   },
+
                    lazyCatMap = {
 
                      rstToSegment<-sapply(names(x$currentAnalysis$classification),function(nms){
@@ -966,6 +1030,8 @@ if (!isGeneric("testSegment")) {
 #' @export
 setMethod('testSegment',signature = ('environment'),
           function(x,labelLayer='label',label=NULL,uid=NULL,limits=NULL,...){
+
+
 
             if (is.null(x$currentAnalysis$segmentationDirectives)) stop(mError('Before segmenting directives must be specified'))
             if (is.null(labelLayer)) stop(mError('specify the classification layer to segment'))
@@ -1089,11 +1155,31 @@ setMethod('testSegment',signature = ('environment'),
 
                      cat(paste(uid,mrkr[mrkrIndex],'\n',sep=":::"))
                      group_area<-x$currentAnalysis$trainingFeatures$geometry$area[x$currentAnalysis$trainingFeatures$geometry$label==mrkr[mrkrIndex]]
-                     group_area_mean<-mean(group_area)
                      group_roundness<-x$currentAnalysis$trainingFeatures$geometry$roundness[x$currentAnalysis$trainingFeatures$geometry$label==mrkr[mrkrIndex]]
-                     groupAreaRange<-quantile(group_area,mthdPrmtrs$areaQuantile)*mthdPrmtrs$areaExpansion
-                     groupRoundnessRange<-quantile(group_roundness,mthdPrmtrs$roundnessQuantile)*mthdPrmtrs$roundnessExpansion
+                     groupAreaRange<-quantile(group_area,mthdPrmtrs$areaQuantile)
+                     groupRoundnessRange<-quantile(group_roundness,mthdPrmtrs$roundnessQuantile)
 
+                     if (is.character(mthdPrmtrs$targetArea)){
+                       switch(mthdPrmtrs$targetArea,
+                              training_mean = {
+                                targetArea<-mean(unlist(group_area))
+                              },
+                              training_median = {
+                                targetArea<-median(unlist(group_area))
+                              },
+                              training_mode = {
+                                brks<-0:ceiling(unlist(group_area))
+                                frqT<-hist(x = unlist(group_area),breaks = brks)
+                                targetArea<-median(frqT$breaks[which(frqT$counts==max(frqT$counts))])
+                              },
+                              training_max = {
+                                targetArea<-max(unlist(group_area))
+                              },
+                              training_middle = {
+                                targetArea<-(max(unlist(group_area))-min(unlist(group_area)))/2
+                              },
+                              {targetArea<-mthdPrmtrs$targetArea})
+                     } else {targetArea<-mthdPrmtrs$targetArea}
                      timerStart<-Sys.time()
 
                      TEMP<-list(slothMap(fn_srt = rstToSegment,
@@ -1108,15 +1194,11 @@ setMethod('testSegment',signature = ('environment'),
                                          fn_cycleWindow = mthdPrmtrs$cycleWindow,
                                          fn_discoverTreshold = mthdPrmtrs$discoverTreshold,
                                          fn_adaptative = mthdPrmtrs$adaptative,
-                                         fn_drastic = groupAreaRange[[1]]*mthdPrmtrs$drastic,
-                                         fn_lowPenalty = mthdPrmtrs$lowPenalty,
-                                         fn_highPenalty = mthdPrmtrs$highPenalty,
-                                         fn_roundnessPenalty = mthdPrmtrs$roundnessPenalty,
                                          fn_areaAdaptRate = mthdPrmtrs$areaAdaptRate,
                                          fn_roundnessAdaptRate = mthdPrmtrs$roundnessAdaptRate,
                                          fn_fusion = mthdPrmtrs$fusion,
-                                         fn_areaMean = group_area_mean,
-                                         fn_seed = mthdPrmtrs$seed))
+                                         fn_maxNetworkSize = mthdPrmtrs$maxNetworkSize,
+                                         fn_targetArea = targetArea))
 
                      timerStop<-Sys.time()
 
