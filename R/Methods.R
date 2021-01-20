@@ -1037,13 +1037,20 @@ setMethod('testSegment',signature = ('environment'),
             if (is.null(labelLayer)) stop(mError('specify the classification layer to segment'))
             if (is.null(label)) stop(mError('specify the classification label to segment'))
             if (is.null(uid)) stop(mError('specify sample(uid) to segment'))
-            if (is.null(limits)) stop(mError('limits not specified, the entire raster will be used'))
+
+
 
             avlblUids<-names(x$currentAnalysis$classification)
             if (!any(uid %in% avlblUids)) {stop(paste0("couldn't find ",uid,". Available samples(uid) are: ",paste0(avlblUids,collapse='/n')))}
 
             avlblLabelLayers<-names(x$currentAnalysis$classification[[uid]])
             if (!any(labelLayer %in% avlblLabelLayers)) {stop(paste0("couldn't find ",labelLayer,". Available labelLayers are: ",paste0(avlblLabelLayers,collapse=', ')))}
+
+            if (is.null(limits)){
+              message(mWarning('limits not specified, the entire raster will be used'))
+              limits<-raster::extent(x$currentAnalysis$classification[[uid]][[labelLayer]])}
+
+
 
             mthd<-x$currentAnalysis$segmentationDirectives@method
             mthdPrmtrs<-x$currentAnalysis$segmentationDirectives@methodParameters
