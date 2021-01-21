@@ -21,7 +21,10 @@ slothMap(
   fn_roundnessAdaptRate = 0,
   fn_fusion = T,
   fn_targetArea = 50,
-  fn_maxNetworkSize = 4
+  fn_maxNetworkSize = 4,
+  fn_inflateDeflate = 0.1,
+  fn_returnKinetic = F,
+  fn_returnRasters = F
 )
 }
 \description{

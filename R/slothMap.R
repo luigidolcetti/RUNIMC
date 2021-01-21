@@ -19,6 +19,7 @@ slothMap<-function (fn_srt,
                     fn_fusion=T,
                     fn_targetArea=50,
                     fn_maxNetworkSize=4,
+                    fn_inflateDeflate=0.1,
                     fn_returnKinetic = F,
                     fn_returnRasters = F){
 
@@ -29,7 +30,6 @@ slothMap<-function (fn_srt,
 
   TimingFunction<-data.frame(Nseeds=0,Npoly=0,Ntime=Sys.time())
 
-  # medianArea<-((fn_maxArea-fn_minArea)/2)+fn_minArea
   xmn<-fn_srt@extent[1]
   xmx<-fn_srt@extent[2]
   ymn<-fn_srt@extent[3]
@@ -72,11 +72,9 @@ slothMap<-function (fn_srt,
   oldSeedIndex=0
   seedPointer=1
   activeSeed<-c()
-  #
-  while(sum(bunchOfSeeds$active)>0){
-    #
 
-    #
+  while(sum(bunchOfSeeds$active)>0){
+
     if (length(activeSeed)==0){
       repeat{
         if (bunchOfSeeds$active[seedPointer]==1){
@@ -170,9 +168,6 @@ slothMap<-function (fn_srt,
       polyArea<-sf::st_area(sf::st_sfc(sfPolygon))
       polyPerimeter<-lwgeom::st_perimeter(sf::st_sfc(sfPolygon))
       polyRoundness<-4*pi*polyArea/(polyPerimeter^2)
-      # coverageDF <- (exactextractr::exact_extract(fn_srt,sf::st_sfc(sfPolygon),include_xy=T))[[1]]
-      # coverageDF<-coverageDF[coverageDF$coverage_fraction>=fn_coverage,]
-      # coordDF<-raster::cellFromXY(fn_srt,as.matrix(coverageDF[,c(2,3)]))
 
       if (fn_returnKinetic) TimingFunction<-rbind(TimingFunction,data.frame(Nseeds=nrow(bunchOfSeeds),Npoly=polyIndex,Ntime=Sys.time()))
       if (polyArea>=fn_minArea & polyArea<=fn_maxArea & polyRoundness>=fn_minRoundness & polyRoundness<=fn_maxRoundness){
@@ -191,11 +186,10 @@ slothMap<-function (fn_srt,
 
     if ((cycleIndex-oldCycleIndex)==fn_cycleWindow){
       DPI<-(polyIndex-oldPolyIndex)/(cycleIndex-oldCycleIndex)
-      if (DPI<fn_discoverTreshold & fn_adaptative==F) {break()}
-      if (DPI<fn_discoverTreshold &
-          fn_adaptative==T &
-          fn_seedOutScore>1) {
 
+      if (DPI<fn_discoverTreshold & fn_adaptative==F) {break()}
+
+      if (DPI<fn_discoverTreshold & fn_adaptative==T & fn_seedOutScore>1) {
         fn_seedOutScore=fn_seedOutScore-1
         fn_minArea<-fn_minArea-(fn_minArea*fn_areaAdaptRate)
         fn_maxArea<-fn_maxArea+(fn_maxArea*fn_areaAdaptRate)
@@ -208,6 +202,7 @@ slothMap<-function (fn_srt,
     bunchOfSeeds$active[bunchOfSeeds$score>fn_seedOutScore]<-0
     cycleIndex=cycleIndex+1
   }
+
   cat(paste0(lyr,' / ',
              'N of seeds: ',formatC(sum(bunchOfSeeds$active),flag='0',digits = 9),
              ' / N of polygons: ',formatC(polyIndex,flag='0',digits = 9),
@@ -228,7 +223,6 @@ slothMap<-function (fn_srt,
 
   polyList<-polyList[1:polyIndex]
   areaList<-areaList[1:polyIndex]
-
 
 
   if (fn_fusion){
@@ -258,27 +252,9 @@ slothMap<-function (fn_srt,
              })
     }
 
-    # out<-rep(0,length(polyIntersection))
-    # adjacentTable<-lapply(polyIntersection,function(x){
-    #   outOut<-out
-    #   outOut[x]<-1
-    #   return(outOut)
-    # })
-
-    # adjacentTable<-do.call(rbind,adjacentTable)
-    # colnames(adjacentTable)<-1:ncol(adjacentTable)
-    # rownames(adjacentTable)<-1:nrow(adjacentTable)
-    # nt<-network::network(adjacentTable,directed = F,loops = F)
     nt<-igraph::graph_from_adjacency_matrix(adjmatrix = polyIntersection,mode = 'undirected',diag = F)
     igraph::V(nt)$name<-as.character(1:nrow(polyIntersection))
     nt_edgeList<-igraph::as_edgelist(nt,names=T)
-    # polyDistance<-apply(nt_edgeList,1,function(x){
-    #   sf::st_distance(sf::st_centroid(polyList[[as.numeric(x[1])]]),
-    #                   sf::st_centroid(polyList[[as.numeric(x[2])]]),
-    #                   which = 'Euclidean')
-    # })
-    # igraph::E(nt)$weight<-polyDistance
-
     nt_components<-igraph::components(nt)
     nt_subgraphIndexVector<-igraph::membership(nt_components)
     nt_subgraphIndices<-unique(nt_subgraphIndexVector)
@@ -352,13 +328,12 @@ slothMap<-function (fn_srt,
         mm<-lapply(new_deltaPermutations,function(x)x$area)
         mm<-which(mm==min(unlist(mm)))[1]
         winnerPermutation<-new_deltaPermutations[[mm]]$graph
-
-        # winnerGraph<-new_deltaPermutations[[winnerPermutation]]$graph
-
         winnerComponents<-igraph::components(winnerPermutation)
         winnerPolygons<-sapply(unique(winnerComponents$membership),function(x){
           polygonsInGroup<-names(winnerComponents$membership[winnerComponents$membership==x])
           unionPolygon<-sf::st_union(sf::st_sfc(polyList[as.numeric(polygonsInGroup)]))
+          unionPolygon<-sf::st_buffer(unionPolygon,fn_inflateDeflate)
+          unionPolygon<-sf::st_buffer(unionPolygon,-fn_inflateDeflate)
           unionPolygon<-nngeo::st_remove_holes(unionPolygon)
           return(unionPolygon)})
 
@@ -366,8 +341,6 @@ slothMap<-function (fn_srt,
       } else (return(polyList[[as.numeric(igraph::V(nts)$name)]]))
 
     })
-
-
 
     TEMP_newPolyList<-list()
     newLSIndex<-1
@@ -404,7 +377,7 @@ slothMap<-function (fn_srt,
   } else { newPolyList<-unlist(sf::st_sfc(polyList),recursive = F)}
 
   if (fn_returnKinetic) TimingFunction<-rbind(TimingFunction,data.frame(Nseeds=nrow(bunchOfSeeds),Npoly=polyIndex,Ntime=Sys.time()))
-  # if (!fn_returnRasters) fn_srt<-NULL
+  if (!fn_returnRasters) fn_srt<-raster::raster(matrix(0))
 
   segmentationOut<-new('IMC_Segmentation',polygons=newPolyList,performance=TimingFunction,raster=fn_srt)
   return(segmentationOut)

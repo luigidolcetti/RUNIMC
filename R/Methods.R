@@ -781,7 +781,10 @@ setMethod('addSegmentationDirectives',signature = ('environment'),
                                               roundnessAdaptRate=0.1,
                                               fusion=T,
                                               targetArea='training_mean',
-                                              maxNetworkSize=8)
+                                              maxNetworkSize=8,
+                                              inflateDeflate=0.1,
+                                              returnKinetic=T,
+                                              returnRasters=T)
 
                      },
                      lazyCatMap = {
@@ -977,7 +980,11 @@ setMethod('segment',signature = ('environment'),
                                              fn_roundnessAdaptRate = mthdPrmtrs$roundnessAdaptRate,
                                              fn_fusion = mthdPrmtrs$fusion,
                                              fn_maxNetworkSize = mthdPrmtrs$maxNetworkSize,
-                                             fn_targetArea = targetArea))
+                                             fn_targetArea = targetArea,
+                                             fn_inflateDeflate = mthdPrmtrs$inflateDeflate,
+                                             fn_returnKinetic = mthdPrmtrs$returnKinetic,
+                                             fn_returnRasters = mthdPrmtrs$returnRasters))
+
                          polygonsList[[rst]][[i]]<-list()
                          polygonsList[[rst]][[i]]<-TEMP[[1]]
 
@@ -1205,7 +1212,10 @@ setMethod('testSegment',signature = ('environment'),
                                          fn_roundnessAdaptRate = mthdPrmtrs$roundnessAdaptRate,
                                          fn_fusion = mthdPrmtrs$fusion,
                                          fn_maxNetworkSize = mthdPrmtrs$maxNetworkSize,
-                                         fn_targetArea = targetArea))
+                                         fn_targetArea = targetArea,
+                                         fn_inflateDeflate = mthdPrmtrs$inflateDeflate,
+                                         fn_returnKinetic = T,
+                                         fn_returnRasters = T))
 
                      timerStop<-Sys.time()
 
@@ -1224,7 +1234,6 @@ setMethod('testSegment',signature = ('environment'),
             condensedPoligonList<-extractPolygons(polygonsList)
             condensedPoligonList<-extractMeanPixel(fn_polygons = condensedPoligonList,
                                                    fn_raster = x$raster)
-
 
 
             logicRaster<-polygonsList[[uid]][[newMarker]]@raster<0
