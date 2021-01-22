@@ -3,12 +3,13 @@
 
 ui <- shinydashboard::dashboardPage(
 
-  shinydashboard::dashboardHeader(title = "RUNIMC",
-                  shinydashboard::dropdownMenu(type = "task", badgeStatus = "success",
-                               shinydashboard::taskItem(value = 20, color = "green",
-                                        "load Stack"),
-                               shinydashboard::taskItem(value = 20, color = "aqua",
-                                        "load polygons"))),
+  shinydashboard::dashboardHeader(title = "RUNIMC"
+                  # shinydashboard::dropdownMenu(type = "task", badgeStatus = "success",
+                  #              shinydashboard::taskItem(value = 20, color = "green",
+                  #                       "load Stack"),
+                  #              shinydashboard::taskItem(value = 20, color = "aqua",
+                  #                       "load polygons"))
+                  ),
   shinydashboard::dashboardSidebar(
     shinydashboard::sidebarMenu(
       shinydashboard::menuItem("File", tabName = "File"),
@@ -55,7 +56,7 @@ ui <- shinydashboard::dashboardPage(
               shiny::fluidRow(
                 shinyjs::useShinyjs(),
                 keys::useKeys(),
-                keys::keysInput("keys", hotKey),
+                keys::keysInput("keys", shinyServiceEnv$hotKey),
                 shinydashboard::box(
                   shiny::plotOutput("plotG",
                              click='plotG_click',
@@ -87,39 +88,39 @@ ui <- shinydashboard::dashboardPage(
                               max = 1,
                               value = c(0,1),step = 0.001),
                   shiny::sliderInput("xTrls","X position",
-                              min = rstStack[[1]]@extent[1],
-                              max = rstStack[[1]]@extent[2],
-                              value = round((rstStack[[1]]@extent[2]-rstStack[[1]]@extent[1])/2)),
+                              min = shinyServiceEnv$rstStack[[1]]@extent[1],
+                              max = shinyServiceEnv$rstStack[[1]]@extent[2],
+                              value = round((shinyServiceEnv$rstStack[[1]]@extent[2]-shinyServiceEnv$rstStack[[1]]@extent[1])/2)),
                   shiny::sliderInput("yTrls","Y position",
-                              min = rstStack[[1]]@extent[3],
-                              max = rstStack[[1]]@extent[4],
-                              value = round((rstStack[[1]]@extent[4]-rstStack[[1]]@extent[3])/2)),
+                              min = shinyServiceEnv$rstStack[[1]]@extent[3],
+                              max = shinyServiceEnv$rstStack[[1]]@extent[4],
+                              value = round((shinyServiceEnv$rstStack[[1]]@extent[4]-shinyServiceEnv$rstStack[[1]]@extent[3])/2)),
                   shiny::sliderInput("zTrls","Zoom",
                               min = 1,
                               max = {
-                                TEMP<-min(rstStack[[1]]@extent[2],rstStack[[1]]@extent[4])
+                                TEMP<-min(shinyServiceEnv$rstStack[[1]]@extent[2],shinyServiceEnv$rstStack[[1]]@extent[4])
                                 if (TEMP<100) {TEMP} else {100}},
                               value = {
-                                TEMP<-min(rstStack[[1]]@extent[2],rstStack[[1]]@extent[4])
+                                TEMP<-min(shinyServiceEnv$rstStack[[1]]@extent[2],shinyServiceEnv$rstStack[[1]]@extent[4])
                                 if (TEMP<100) {TEMP/2} else {50}}),
                   width = 5
                 ),
                 shinydashboard::box(
                   shiny::selectInput("lTrls0","Layer 0",
-                              choices = nmsRst,
-                              selected = nmsRst[[1]]),
+                              choices = shinyServiceEnv$nmsRst,
+                              selected = shinyServiceEnv$nmsRst[[1]]),
                   shiny::selectInput("lTrls1","Layer 1",
-                              choices = nmsRst,
-                              selected = nmsRst[[1]]),
+                              choices = shinyServiceEnv$nmsRst,
+                              selected = shinyServiceEnv$nmsRst[[1]]),
                   shiny::selectInput("lTrls2","Layer 2",
-                              choices = nmsRst,
-                              selected = nmsRst[[1]]),
+                              choices = shinyServiceEnv$nmsRst,
+                              selected = shinyServiceEnv$nmsRst[[1]]),
                   shiny::selectInput("lTrls3","Layer 3",
-                              choices = nmsRst,
-                              selected = nmsRst[[1]]),
+                              choices = shinyServiceEnv$nmsRst,
+                              selected = shinyServiceEnv$nmsRst[[1]]),
                   shiny::selectInput("lTrls4","Layer 4",
-                              choices = nmsRst,
-                              selected = nmsRst[[1]]),
+                              choices = shinyServiceEnv$nmsRst,
+                              selected = shinyServiceEnv$nmsRst[[1]]),
                   width = 2
                 )
               )

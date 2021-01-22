@@ -280,47 +280,47 @@ setMethod('showCurrentAnalysis',signature = ('environment'),
             x$currentAnalysis
           })
 
-#** channels ---------------------------------------------------
-if (!isGeneric("channels")) {
-  setGeneric("channels", function(x, ...)
-    standardGeneric("channels"))
-}
-
-#' @export
-setMethod('channels',signature = ('ANY'),
-          function(x,...){
-            x$channels
-          })
-
-#** rasterFromMarker ---------------------------------------------------
-if (!isGeneric("rasterFromMarker")) {
-  setGeneric("rasterFromMarker", function(x, marker,...)
-    standardGeneric("rasterFromMarker"))
-}
-
-#' @export
-setMethod('rasterFromMarker',signature = ('ANY'),
-          function(x, marker,...){
-            chnls<-x@channels$RcolumnNames[grep(marker,
-                                                x@channels$marker,
-                                                ignore.case = T)]
-            names(chnls)<-x@channels$marker[grep(marker,
-                                                 x@channels$marker,
-                                                 ignore.case = T)]
-            return(chnls)
-          })
-
-#** channelsAll ---------------------------------------------------
-if (!isGeneric("channelsAll")) {
-  setGeneric("channelsAll", function(x, ...)
-    standardGeneric("channelsAll"))
-}
-
-#' @export
-setMethod('channelsAll',signature = ('ANY'),
-          function(x,...){
-            x$channels$RcolumnNames[x$channels$loaded]
-          })
+# #** channels ---------------------------------------------------
+# if (!isGeneric("channels")) {
+#   setGeneric("channels", function(x, ...)
+#     standardGeneric("channels"))
+# }
+#
+#
+# setMethod('channels',signature = ('ANY'),
+#           function(x,...){
+#             x$channels
+#           })
+#
+# #** rasterFromMarker ---------------------------------------------------
+# if (!isGeneric("rasterFromMarker")) {
+#   setGeneric("rasterFromMarker", function(x, marker,...)
+#     standardGeneric("rasterFromMarker"))
+# }
+#
+#
+# setMethod('rasterFromMarker',signature = ('ANY'),
+#           function(x, marker,...){
+#             chnls<-x@channels$RcolumnNames[grep(marker,
+#                                                 x@channels$marker,
+#                                                 ignore.case = T)]
+#             names(chnls)<-x@channels$marker[grep(marker,
+#                                                  x@channels$marker,
+#                                                  ignore.case = T)]
+#             return(chnls)
+#           })
+#
+# #** channelsAll ---------------------------------------------------
+# if (!isGeneric("channelsAll")) {
+#   setGeneric("channelsAll", function(x, ...)
+#     standardGeneric("channelsAll"))
+# }
+#
+#
+# setMethod('channelsAll',signature = ('ANY'),
+#           function(x,...){
+#             x$channels$RcolumnNames[x$channels$loaded]
+#           })
 
 #** addFilter ---------------------------------------------------
 if (!isGeneric("addFilter")) {

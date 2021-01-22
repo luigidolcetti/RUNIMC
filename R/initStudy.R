@@ -1,20 +1,52 @@
-#'Some BullShit
+#'Study initialization
 #'
-#'
+#'initStudy provide functionality to initialize and crate the infrastructure to accommodate a new study
+#' @param fn_studyName character, name of the study
+#' @param fn_rootFolder character, directory where to store all the files inherent to this study
+#' @param fn_rawDataFolder character, directory containing the raw data txt files
+#' @param fn_whichFiles numeric vector, which files should be loaded (alphabetical order as produced by list.files). if NULL (default) all files will be loaded
+#' @param fn_whichColumns character, can be either 'named' (default) or 'all'. Header of the txt table will be parsed in search of names of possible markers, providing 'named', only those columns that seem to contain a name are loaded
+#' @param fn_transpose logical, should the raster be transposed?
+#' @param fn_overwrite logical, if true and a study with the same name is present on the disk, files will be delete first. False, produce a milder effect producing a progressive overwrite
+#' @param fn_verbose logical, describe what is going on?
+#' @return An environment containing a new study and a hierarchy of files where specified
+#' @examples
+#' \dontrun{
+#' study<-initStudy('TEST_study',
+#' 'c:/Data/whereToStoreStudy,
+#' 'c:/Data/whereToGetRawData,
+#' NULL,
+#' 'named',
+#' F,
+#' F,
+#' T)
+#' }
 #' @export
 initStudy<-function(fn_studyName='IMCstudy',
                     fn_rootFolder=NULL,
                     fn_rawDataFolder=NULL,
+                    fn_whichFiles=NULL,
                     fn_whichColumns='named',
+                    fn_transpose=F,
                     fn_overWrite=F,
+                    fn_verbose=T,
                     ...){
 
-  studyFolder<-checkDir(fn_rootFolder,fn_studyName)
-  rasterFolder<-checkDir(studyFolder,'rasters')
-  stackFolder<-checkDir(studyFolder,'rasterStacks')
-  analysisFolder<-checkDir(studyFolder,'analysis')
+  if (is.null(fn_studyName)) stop(mError('provide a name for the study'),call. = F)
+  if (is.null(fn_rootFolder)) stop(mError('provide a folder where to store the study'),call. = F)
+  if (is.null(fn_rawDataFolder)) stop(mError('provide a folder containing raw data'),call. = F)
+  if (fn_overWrite){
+    targetFolder<-file.path(fn_rootFolder,fn_studyName)
+    if (dir.exists(targetFolder)) unlink(targetFolder,recursive = T,force = T)
+  }
 
-  rawDataFiles<-list.files(fn_rawDataFolder,full.names = T)
+  studyFolder<-checkDir(fn_rootFolder,fn_studyName,verbose=fn_verbose)
+  rasterFolder<-checkDir(studyFolder,'rasters',verbose=fn_verbose)
+  stackFolder<-checkDir(studyFolder,'rasterStacks',verbose=fn_verbose)
+  analysisFolder<-checkDir(studyFolder,'analysis',verbose=fn_verbose)
+
+  rawDataFiles<-list.files(fn_rawDataFolder,full.names = T,pattern = '*.txt',recursive = F)
+  if (!is.null(fn_whichFiles)) rawDataFiles<-rawDataFiles[fn_whichFiles]
 
   headersLine<-lapply(rawDataFiles,function(flnm){
     con <- file(flnm,"r")
@@ -72,6 +104,10 @@ initStudy<-function(fn_studyName='IMCstudy',
                                     fn_newNames =  Channels$RcolumnNames[Channels$loaded],
                                     fn_details =  list(study=fn_studyName),
                                     fn_channel = Channels,
+                                    fn_transpose = fn_transpose,
+                                    fn_norm = F,
+                                    fn_trsh = NULL,
+                                    fn_zeroOff = NULL,
                                     ...)
                 return(rst)})
 

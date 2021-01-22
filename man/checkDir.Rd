@@ -4,7 +4,7 @@
 \alias{checkDir}
 \title{Some BullShit}
 \usage{
-checkDir(parentalFolder, childFolder)
+checkDir(parentalFolder, childFolder, verbose = T)
 }
 \description{
 Some BullShit

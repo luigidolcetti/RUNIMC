@@ -2,17 +2,52 @@
 % Please edit documentation in R/initStudy.R
 \name{initStudy}
 \alias{initStudy}
-\title{Some BullShit}
+\title{Study initialization}
 \usage{
 initStudy(
   fn_studyName = "IMCstudy",
   fn_rootFolder = NULL,
   fn_rawDataFolder = NULL,
+  fn_whichFiles = NULL,
   fn_whichColumns = "named",
+  fn_transpose = F,
   fn_overWrite = F,
+  fn_verbose = T,
   ...
 )
 }
+\arguments{
+\item{fn_studyName}{character, name of the study}
+
+\item{fn_rootFolder}{character, directory where to store all the files inherent to this study}
+
+\item{fn_rawDataFolder}{character, directory containing the raw data txt files}
+
+\item{fn_whichFiles}{numeric vector, which files should be loaded (alphabetical order as produced by list.files). if NULL (default) all files will be loaded}
+
+\item{fn_whichColumns}{character, can be either 'named' (default) or 'all'. Header of the txt table will be parsed in search of names of possible markers, providing 'named', only those columns that seem to contain a name are loaded}
+
+\item{fn_transpose}{logical, should the raster be transposed?}
+
+\item{fn_verbose}{logical, describe what is going on?}
+
+\item{fn_overwrite}{logical, if true and a study with the same name is present on the disk, files will be delete first. False, produce a milder effect producing a progressive overwrite}
+}
+\value{
+An environment containing a new study and a hierarchy of files where specified
+}
 \description{
-Some BullShit
+initStudy provide functionality to initialize and crate the infrastructure to accommodate a new study
+}
+\examples{
+\dontrun{
+study<-initStudy('TEST_study',
+'c:/Data/whereToStoreStudy,
+'c:/Data/whereToGetRawData,
+NULL,
+'named',
+F,
+F,
+T)
+}
 }

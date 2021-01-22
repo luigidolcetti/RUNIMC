@@ -1,13 +1,13 @@
 #'Some BullShit
 #'
 #'
-checkDir<-function(parentalFolder,childFolder){
+checkDir<-function(parentalFolder,childFolder,verbose=T){
   folderList<-dir(parentalFolder)
   if (!(any (childFolder %in% folderList))){
     dir.create(paste0(parentalFolder,'/',childFolder))
-    message(mMessage(paste0('\n',childFolder, ' folder created in ',parentalFolder)))
+    if (verbose) {message(mMessage(paste0('\n',childFolder, ' folder created in ',parentalFolder)))}
     return(paste(parentalFolder,childFolder,sep='/'))
   }
-  message(mWarning(paste0('\n',childFolder, ' folder already exist in ',parentalFolder,', nothing to do')))
+  if (verbose) message(mWarning(paste0('\n',childFolder, ' folder already exist in ',parentalFolder,', nothing to do')))
   return(paste(parentalFolder,childFolder,sep='/'))
 }

@@ -11,6 +11,7 @@ plotsPoly(
   fn_ymin,
   fn_ymax,
   fn_plcn,
+  fn_plc,
   fn_plcRange,
   fn_xaxs,
   fn_yaxs,

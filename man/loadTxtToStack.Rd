@@ -2,26 +2,51 @@
 % Please edit documentation in R/loadTxtToStack.R
 \name{loadTxtToStack}
 \alias{loadTxtToStack}
-\title{Internal function to convert a txt file to a RasterStack usually executed during study initialisation.}
+\title{Internal function to convert a txt file to a RasterStack usually executed during the study initialisation.}
 \usage{
 loadTxtToStack(
-  fn_path,
-  fn_file,
+  fn_path = NULL,
+  fn_file = NULL,
   fn_rasterDBPath = NULL,
   fn_rasterStackPath = NULL,
   fn_cols = NULL,
   fn_newNames = NULL,
+  fn_transpose = F,
   fn_norm = F,
   fn_details = list(study = "NO_study", sample = "NO_sample", ROI = "NO_ROI", replicate
     = "NO_replicate", bioGroup = "No_bioGroup"),
   fn_channel = NULL,
   fn_trsh = 0.965,
-  fn_zeroOff = T
+  fn_zeroOff = T,
+  fn_verbose = T
 )
 }
 \arguments{
 \item{fn_path}{Root path for a bunch of .txt image files}
+
+\item{fn_file}{.txt file name containing raw data}
+
+\item{fn_rasterDBPath}{target folder where to store raster object}
+
+\item{fn_rasterStackPath}{target folder where to store rasterStack files}
+
+\item{fn_cols}{vector of column names to load}
+
+\item{fn_newNames}{vector of nemes to use as layer names}
+
+\item{fn_norm}{normalise raw data using quantile after stripping all 0-values}
+
+\item{fn_details}{list of experimental details, possible names are study = study name, sample, ROI, replicate, bioGroup. These information can be updated via study table methods}
+
+\item{fn_channel}{IMC_ChannelTable object}
+
+\item{fn_trsh}{quantile as the high treshold used for normalisation}
+
+\item{fn_zeroOff}{logical whether or not to strip 0-value in the process of normalisation}
+}
+\value{
+an IMC_RasterStack object
 }
 \description{
-Internal function to convert a txt file to a RasterStack usually executed during study initialisation.
+Internal function to convert a txt file to a RasterStack usually executed during the study initialisation.
 }

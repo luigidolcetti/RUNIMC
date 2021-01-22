@@ -2,14 +2,9 @@
 server <- function(input, output, session) {
 
   session$onSessionEnded(function(){
-    if (exists('rstStack')) rm(rstStack,envir = .GlobalEnv)
-    if (exists('nmsRst')) rm(nmsRst,envir = .GlobalEnv)
-    if (exists('plc')) rm(plc,envir = .GlobalEnv)
-    if (exists('plcn')) rm(plcn,envir = .GlobalEnv)
-    if (exists('pWidth')) rm(pWidth,envir = .GlobalEnv)
-    if (exists('pHeight')) rm(pHeight,envir = .GlobalEnv)
-    if (exists('hotKey')) rm(hotKey,envir = .GlobalEnv)
-    if (exists('NAcol')) rm(NAcol,envir = .GlobalEnv)
+
+    if (exists("shinyServiceEnv", mode="environment",where = .GlobalEnv)) rm(shinyServiceEnv,pos = .GlobalEnv)
+
   })
 
   ###### reactive values ######
@@ -43,7 +38,7 @@ server <- function(input, output, session) {
 
   RSTMARC<-shiny::reactiveValues(x=0,y=0)
 
-  ZBRAKES<-shiny::reactiveVal(rep(0,1,1/(plcn-1)))
+  ZBRAKES<-shiny::reactiveVal(rep(0,1,1/(shinyServiceEnv$plcn-1)))
 
   LBLTBLV <- shiny::reactiveValues(table = data.frame(label=c('NUC','JNC','BKG'),
                                                note=c('TEST','TEST','TEST'),
@@ -130,7 +125,7 @@ server <- function(input, output, session) {
 
   shiny::observeEvent(input$lblTbl_cell_edit,{
     info = input$lblTbl_cell_edit
-    str(info)
+    # str(info)
     i = info$row
     j = info$col
     v = info$value
@@ -169,7 +164,7 @@ server <- function(input, output, session) {
   shiny::observeEvent(input$sTrls,{
     ZBRAKES(seq(input$sTrls[1],
                 input$sTrls[2],
-                1/(plcn-1)))
+                1/(shinyServiceEnv$plcn-1)))
 
   })
 
@@ -204,18 +199,19 @@ server <- function(input, output, session) {
     {
       input$sTrls
       par(oma=c(0,0,0,0),mar=c(3,3,1,1))
-      RUNIMC:::plotsPoly(fn_rst = rstStack[[input$lTrls0]],
+      RUNIMC:::plotsPoly(fn_rst = shinyServiceEnv$rstStack[[input$lTrls0]],
                  fn_xmin = input$xTrls-input$zTrls,
                  fn_xmax = input$xTrls+input$zTrls,
                  fn_ymin = input$yTrls-input$zTrls,
                  fn_ymax = input$yTrls+input$zTrls,
-                 fn_plcn = plcn,
+                 fn_plcn = shinyServiceEnv$plcn,
+                 fn_plc = shinyServiceEnv$plc,
                  fn_plcRange = ZBRAKES(),
                  fn_xaxs = 'i',
                  fn_yaxs = 'i',
                  fn_xaxt = 's',
                  fn_yaxt = 's',
-                 fn_colNA = NAcol,
+                 fn_colNA = shinyServiceEnv$NAcol,
                  fn_Bx = VERTEXBUFFER$x,
                  fn_By = VERTEXBUFFER$y,
                  fn_bgc = GEOM$bufferColor,
@@ -233,72 +229,76 @@ server <- function(input, output, session) {
            heights = c(2, 2),
            widths = c(2, 2))
 
-    RUNIMC:::plotsPoly(fn_rst = rstStack[[input$lTrls1]],
+    RUNIMC:::plotsPoly(fn_rst = shinyServiceEnv$rstStack[[input$lTrls1]],
                fn_xmin = input$xTrls-input$zTrls,
                fn_xmax = input$xTrls+input$zTrls,
                fn_ymin = input$yTrls-input$zTrls,
                fn_ymax = input$yTrls+input$zTrls,
-               fn_plcn = plcn,
+               fn_plcn = shinyServiceEnv$plcn,
+               fn_plc = shinyServiceEnv$plc,
                fn_plcRange = ZBRAKES(),
                fn_xaxs = 'i',
                fn_yaxs = 'i',
                fn_xaxt = 'n',
                fn_yaxt = 'n',
-               fn_colNA = NAcol,
+               fn_colNA = shinyServiceEnv$NAcol,
                fn_Bx = VERTEXBUFFER$x,
                fn_By = VERTEXBUFFER$y,
                fn_bgc = GEOM$bufferColor,
                fn_geom = GEOM$toShow,
                fn_geomB = GEOM$toBorder,
                fn_title = input$lTrls1)
-    RUNIMC:::plotsPoly(fn_rst = rstStack[[input$lTrls2]],
+    RUNIMC:::plotsPoly(fn_rst = shinyServiceEnv$rstStack[[input$lTrls2]],
                fn_xmin = input$xTrls-input$zTrls,
                fn_xmax = input$xTrls+input$zTrls,
                fn_ymin = input$yTrls-input$zTrls,
                fn_ymax = input$yTrls+input$zTrls,
-               fn_plcn = plcn,
+               fn_plcn = shinyServiceEnv$plcn,
+               fn_plc = shinyServiceEnv$plc,
                fn_plcRange = ZBRAKES(),
                fn_xaxs = 'i',
                fn_yaxs = 'i',
                fn_xaxt = 'n',
                fn_yaxt = 'n',
-               fn_colNA = NAcol,
+               fn_colNA = shinyServiceEnv$NAcol,
                fn_Bx = VERTEXBUFFER$x,
                fn_By = VERTEXBUFFER$y,
                fn_bgc = GEOM$bufferColor,
                fn_geom = GEOM$toShow,
                fn_geomB = GEOM$toBorder,
                fn_title = input$lTrls2)
-    RUNIMC:::plotsPoly(fn_rst = rstStack[[input$lTrls3]],
+    RUNIMC:::plotsPoly(fn_rst = shinyServiceEnv$rstStack[[input$lTrls3]],
                fn_xmin = input$xTrls-input$zTrls,
                fn_xmax = input$xTrls+input$zTrls,
                fn_ymin = input$yTrls-input$zTrls,
                fn_ymax = input$yTrls+input$zTrls,
-               fn_plcn = plcn,
+               fn_plcn = shinyServiceEnv$plcn,
+               fn_plc = shinyServiceEnv$plc,
                fn_plcRange = ZBRAKES(),
                fn_xaxs = 'i',
                fn_yaxs = 'i',
                fn_xaxt = 'n',
                fn_yaxt = 'n',
-               fn_colNA = NAcol,
+               fn_colNA = shinyServiceEnv$NAcol,
                fn_Bx = VERTEXBUFFER$x,
                fn_By = VERTEXBUFFER$y,
                fn_bgc = GEOM$bufferColor,
                fn_geom = GEOM$toShow,
                fn_geomB = GEOM$toBorder,
                fn_title = input$lTrls3)
-    RUNIMC:::plotsPoly(fn_rst = rstStack[[input$lTrls4]],
+    RUNIMC:::plotsPoly(fn_rst = shinyServiceEnv$rstStack[[input$lTrls4]],
                fn_xmin = input$xTrls-input$zTrls,
                fn_xmax = input$xTrls+input$zTrls,
                fn_ymin = input$yTrls-input$zTrls,
                fn_ymax = input$yTrls+input$zTrls,
-               fn_plcn = plcn,
+               fn_plcn = shinyServiceEnv$plcn,
+               fn_plc = shinyServiceEnv$plc,
                fn_plcRange = ZBRAKES(),
                fn_xaxs = 'i',
                fn_yaxs = 'i',
                fn_xaxt = 'n',
                fn_yaxt = 'n',
-               fn_colNA = NAcol,
+               fn_colNA = shinyServiceEnv$NAcol,
                fn_Bx = VERTEXBUFFER$x,
                fn_By = VERTEXBUFFER$y,
                fn_bgc = GEOM$bufferColor,
@@ -311,15 +311,18 @@ server <- function(input, output, session) {
   output$plotT<-shiny::renderPlot({
     input$sTrls
     par(oma=c(0,0,0,0),mar=c(1,1,1,1))
-    raster::plot(rstStack[[input$lTrls0]],
-         col=plc(plcn),
+    raster::plot(shinyServiceEnv$rstStack[[input$lTrls0]],
+         col=shinyServiceEnv$plc(shinyServiceEnv$plcn),
          breaks= ZBRAKES(),
          asp=1,
          xaxs="i",
          yaxs="i",
          yaxt='n',
          legend=F,
-         colNA=NAcol)
+         colNA=shinyServiceEnv$NAcol)
+    plot(GEOM$toShow,
+         border=GEOM$toBorder,
+         add=T)
     title(input$lTrls0,adj=0,line=0.3)
     abline(h=c(input$yTrls-input$zTrls,
                input$yTrls+input$zTrls),
@@ -369,7 +372,7 @@ server <- function(input, output, session) {
 
         lblSelect<-input$cvrLabel
         clSelect<-LBLTBLV$table$color[LBLTBLV$table$label==lblSelect]
-        GEOM$buffer<-sf::st_sf(uid=rstStack@uid,
+        GEOM$buffer<-sf::st_sf(uid=shinyServiceEnv$rstStack@uid,
                            label=lblSelect,
                            color=clSelect,
                            GEOMETRY = sf::st_sfc(Vpoly))
@@ -408,34 +411,34 @@ server <- function(input, output, session) {
   shiny::observeEvent(input$plotT_click,{
 
     shiny::updateSliderInput(session,"xTrls",NULL,
-                             min = rstStack[[1]]@extent[1],
-                             max = rstStack[[1]]@extent[2],
+                             min = shinyServiceEnv$rstStack[[1]]@extent[1],
+                             max = shinyServiceEnv$rstStack[[1]]@extent[2],
                              value = round(input$plotT_click$x))
     shiny::updateSliderInput(session,"yTrls",NULL,
-                             min = rstStack[[1]]@extent[3],
-                             max = rstStack[[1]]@extent[4],
+                             min = shinyServiceEnv$rstStack[[1]]@extent[3],
+                             max = shinyServiceEnv$rstStack[[1]]@extent[4],
                              value = round(input$plotT_click$y))
   })
 
   ###### uopload Raster#####
   shiny::observeEvent(input$fileRaster,{
 
-    rstStack<<-IMCstackOpen(input$fileRaster$datapath)
+    shinyServiceEnv$rstStack<-IMCstackOpen(input$fileRaster$datapath)
 
-    nmsRst<-names(rstStack)
-    for (lyr in nmsRst){
-      rstStack[[lyr]]<<-quantNorm(rstStack[[lyr]],0.996)
+    shinyServiceEnv$nmsRst<-names(shinyServiceEnv$rstStack)
+    for (lyr in shinyServiceEnv$nmsRst){
+      shinyServiceEnv$rstStack[[lyr]]<-quantNorm(shinyServiceEnv$rstStack[[lyr]],0.996)
     }
 
-    fnm<-rstStack@IMC_text_file
+    fnm<-shinyServiceEnv$rstStack@IMC_text_file
     fnm<-strsplit(fnm,'/')
     fnm<-fnm[[1]][length(fnm[[1]])]
-    UPLOADFILENAME(paste0('file:',fnm,'\n uid: ',rstStack@uid))
+    UPLOADFILENAME(paste0('file:',fnm,'\n uid: ',shinyServiceEnv$rstStack@uid))
     DOWNLOADFILENAME(fnm)
 
-    textDetails<-paste0('uid: ',rstStack@uid,'\n',
-                        'file: ',rstStack@IMC_text_file,'\n',
-                        'layers: ',paste(nmsRst,collapse = ', '))
+    textDetails<-paste0('uid: ',shinyServiceEnv$rstStack@uid,'\n',
+                        'file: ',shinyServiceEnv$rstStack@IMC_text_file,'\n',
+                        'layers: ',paste(shinyServiceEnv$nmsRst,collapse = ', '))
     output$fileUpload<-shiny::renderText(textDetails)
 
     rm(fnm)
@@ -445,37 +448,37 @@ server <- function(input, output, session) {
 
 
       shiny::updateSliderInput(session,"xTrls",NULL,
-                        min = rstStack[[1]]@extent[1],
-                        max = rstStack[[1]]@extent[2],
-                        value = round((rstStack[[1]]@extent[2]-rstStack[[1]]@extent[1])/2))
+                        min = shinyServiceEnv$rstStack[[1]]@extent[1],
+                        max = shinyServiceEnv$rstStack[[1]]@extent[2],
+                        value = round((shinyServiceEnv$rstStack[[1]]@extent[2]-shinyServiceEnv$rstStack[[1]]@extent[1])/2))
       shiny::updateSliderInput(session,"yTrls",NULL,
-                        min = rstStack[[1]]@extent[3],
-                        max = rstStack[[1]]@extent[4],
-                        value = round((rstStack[[1]]@extent[4]-rstStack[[1]]@extent[3])/2))
+                        min = shinyServiceEnv$rstStack[[1]]@extent[3],
+                        max = shinyServiceEnv$rstStack[[1]]@extent[4],
+                        value = round((shinyServiceEnv$rstStack[[1]]@extent[4]-shinyServiceEnv$rstStack[[1]]@extent[3])/2))
       shiny::updateSliderInput(session,"zTrls",NULL,
                         min = 1,
                         max = {
-                          TEMP<-min(rstStack[[1]]@extent[2],rstStack[[1]]@extent[4])
+                          TEMP<-min(shinyServiceEnv$rstStack[[1]]@extent[2],shinyServiceEnv$rstStack[[1]]@extent[4])
                           if (TEMP<100) {TEMP} else {100}},
                         value = {
-                          TEMP<-min(rstStack[[1]]@extent[2],rstStack[[1]]@extent[4])
+                          TEMP<-min(shinyServiceEnv$rstStack[[1]]@extent[2],shinyServiceEnv$rstStack[[1]]@extent[4])
                           if (TEMP<100) {TEMP/2} else {50}})
 
       shiny::updateSelectInput(session,"lTrls0",NULL,
-                        choices = nmsRst,
-                        selected = nmsRst[[1]])
+                        choices = shinyServiceEnv$nmsRst,
+                        selected = shinyServiceEnv$nmsRst[[1]])
       shiny::updateSelectInput(session,"lTrls1",NULL,
-                        choices = nmsRst,
-                        selected = nmsRst[[1]])
+                        choices = shinyServiceEnv$nmsRst,
+                        selected = shinyServiceEnv$nmsRst[[1]])
       shiny::updateSelectInput(session,"lTrls2",NULL,
-                        choices = nmsRst,
-                        selected = nmsRst[[1]])
+                        choices = shinyServiceEnv$nmsRst,
+                        selected = shinyServiceEnv$nmsRst[[1]])
       shiny::updateSelectInput(session,"lTrls3",NULL,
-                        choices = nmsRst,
-                        selected = nmsRst[[1]])
+                        choices = shinyServiceEnv$nmsRst,
+                        selected = shinyServiceEnv$nmsRst[[1]])
       shiny::updateSelectInput(session,"lTrls4",NULL,
-                        choices = nmsRst,
-                        selected = nmsRst[[1]])
+                        choices = shinyServiceEnv$nmsRst,
+                        selected = shinyServiceEnv$nmsRst[[1]])
     })
   })
 
@@ -505,9 +508,9 @@ server <- function(input, output, session) {
     filename = function(){
 
 
-      paste0(rstStack@IMC_text_file,".sqlite")},
+      paste0(shinyServiceEnv$rstStack@IMC_text_file,".sqlite")},
     content = function(file) {
-      sf::st_write(GEOM$dataBase,file,append=F)
+      sf::st_write(GEOM$dataBase,file,append=F,quite=T)
 
     }
   )
@@ -590,12 +593,12 @@ server <- function(input, output, session) {
   })
 
   shiny::observeEvent(input$refreshPlots,{
-    TEMP_rst<-list(rstStack)
+    TEMP_rst<-list(shinyServiceEnv$rstStack)
     names(TEMP_rst)<-unique(GEOM$dataBase$uid)
     pixelValue<-extractFeatures(TEMP_rst,GEOM$dataBase,fn_coverage = c(1,0.5),fn_coverage_label = c("X"))
     rm(TEMP_rst)
 
-    pixelValue<-tidyr::pivot_longer(pixelValue$value,names_to='layer',values_to='value',cols=names(rstStack))
+    pixelValue<-tidyr::pivot_longer(pixelValue$value,names_to='layer',values_to='value',cols=names(shinyServiceEnv$rstStack))
 
     pall<-cbind(paste0('X_',LBLTBLV$table$label),LBLTBLV$table$color)
 
