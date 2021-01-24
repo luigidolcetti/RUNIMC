@@ -163,122 +163,117 @@ setMethod('initialize','IMC_AnalysisList',
 
 #* Study.specific_methods ---------------------------------------------------
 #** newAnalysis ---------------------------------------------------
-if (!isGeneric("newAnalysis")) {
-  setGeneric("newAnalysis", function(x,analysisName=NULL,...)
-    standardGeneric("newAnalysis"))
-}
-
-#' @export
-setMethod('newAnalysis',signature = ('environment'),
-          function(x,analysisName=NULL,...){
-
-
-            if (is.null(analysisName)) {stop(mError('\nPlease, provide a name for this analysis'))}
-
-            analysisNameRevised<-make.names(analysisName)
-
-            if (analysisName!=analysisNameRevised) {message(mWarning(paste0('\nAnalysis name: "',fn_analysisName,'" has been chnaged to "',fn_analysisNameRevised,'"')))}
-
-            if (any(analysisName %in% x$analysis)) {stop(mError(paste0('\n"',analysisName,'" already exist')))}
-
-            # x$currentAnalysis<-new('IMC_Analysis',parent=x)
-            x$currentAnalysis<-new.env(parent=x)
-            x$currentAnalysis<-initObjectAttr(x$currentAnalysis)
-            x$currentAnalysis$name<-analysisName
-            x$currentAnalysis$folder<-checkDir(paste(x$rootFolder,x$name,'analysis',sep='/'),x$currentAnalysis$name)
-
-            checkDir(x$currentAnalysis$folder,'rasters')
-            checkDir(x$currentAnalysis$folder,'rasterStacks')
-            checkDir(x$currentAnalysis$folder,'training')
-            checkDir(x$currentAnalysis$folder,'training/polygons')
-            checkDir(x$currentAnalysis$folder,'test')
-            checkDir(x$currentAnalysis$folder,'test/polygons')
-            checkDir(x$currentAnalysis$folder,'test/classification')
-
-            x$currentAnalysis$filters<-NULL
-            x$currentAnalysis$derivedRasters<-NULL
-            x$currentAnalysis$extractionDirectives<-NULL
-            x$currentAnalysis$trainingFeatures <-NULL
-            x$currentAnalysis$classificationDirectives <-NULL
-            x$currentAnalysis$classifier <-NULL
-            x$currentAnalysis$classification <-NULL
-            x$currentAnalysis$interpretationMatrix<-NULL
-            x$currentAnalysis$segmentationDirectives <-NULL
-            x$currentAnalysis$segmentation <-NULL
-            x$currentAnalysis$exprs <-NULL
-
-
-            newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
-            attr(x,'mdtnTimeStmp')<-newTimeStmp
-            if (is.null(x$analysis)){
-              x$analysis<-x$currentAnalysis$name} else {
-                x$analysis<-append(x$analysis,x$currentAnalysis$name)
-              }
-          })
-
-#** dismissAnalisys ---------------------------------------------------
-if (!isGeneric("dismissAnalysis")) {
-  setGeneric("dismissAnalysis", function(x,analysis=NULL,...)
-    standardGeneric("dismissAnalysis"))
-}
-
-#' @export
-setMethod('dismissAnalysis',signature = ('environment'),
-          function(x,analysis=NULL,...){
-
-            dsmsFolder<-checkDir(file.path(x$rootFolder,x$name,'analysis'),'dismissed')
-            if (is.null(x$analysis)) stop(mError('There are no analysis to dismiss'))
-            if (analysis==x$currentAnalysis$name) analysis<-NULL
-            if (is.null(analysis)) {
-              message(mWarning('No analysis name specified, current analysis will be dismissed, continue?'))
-              answr<-readline()
-              if (!grepl("y",answr,ignore.case = T)) stop(mWarning('Dismissal aborted'))
-              analysis<-x$currentAnalysis$name
-              x$analysis<-x$analysis[x$analysis!=analysis]
-              file.copy(from = x$currentAnalysis$folder,to = dsmsFolder,overwrite = T,recursive = T)
-              unlink(x$currentAnalysis$folder,recursive = T,force = T)
-              x$currentAnalysis<-NULL
-              message(mMessage(paste0(analysis, ' dismissed')))
-              return(0)
-            }
-            lstAnl<-listAnalysis(x)
-            if (!any(analysis %in% lstAnl)) stop(mError("Specified analysis doesn't exist in this study"))
-            file.copy(from = file.path(x$rootFolder,x$name,'analysis',analysis),to = dsmsFolder,overwrite = T,recursive = T)
-            unlink(file.path(x$rootFolder,x$name,'analysis',analysis),recursive = T,force = T)
-            x$analysis<-x$analysis[x$analysis!=analysis]
-            return(mMessage(paste0(analysis, ' dismissed')))
-          })
-
-#' @export
-setMethod('dismissAnalysis',signature = c('missing'),
-          function(x,analysis=NULL,...){
-            stop(mError('Specify study'))
-          })
-
-#** listAnalisys ---------------------------------------------------
-if (!isGeneric("listAnalysis")) {
-  setGeneric("listAnalysis", function(x,...)
-    standardGeneric("listAnalysis"))
-}
-
-#' @export
-setMethod('listAnalysis',signature = ('environment'),
-          function(x,...){
-            x$analysis
-          })
-
-#** showCurrentAnalysis ---------------------------------------------------
-
-if (!isGeneric("showCurrentAnalysis")) {
-  setGeneric("showCurrentAnalysis", function(x,...)
-    standardGeneric("showCurrentAnalysis"))
-}
-
-#' @export
-setMethod('showCurrentAnalysis',signature = ('environment'),
-          function(x,...){
-            x$currentAnalysis
-          })
+# if (!isGeneric("newAnalysis")) {
+#   setGeneric("newAnalysis", function(x,analysisName=NULL,...)
+#     standardGeneric("newAnalysis"))
+# }
+#
+# setMethod('newAnalysis',signature = ('environment'),
+#           function(x,analysisName=NULL,...){
+#
+#
+#             if (is.null(analysisName)) {stop(mError('\nPlease, provide a name for this analysis'))}
+#
+#             analysisNameRevised<-make.names(analysisName)
+#
+#             if (analysisName!=analysisNameRevised) {message(mWarning(paste0('\nAnalysis name: "',fn_analysisName,'" has been chnaged to "',fn_analysisNameRevised,'"')))}
+#
+#             if (any(analysisName %in% x$analysis)) {stop(mError(paste0('\n"',analysisName,'" already exist')))}
+#
+#             # x$currentAnalysis<-new('IMC_Analysis',parent=x)
+#             x$currentAnalysis<-new.env(parent=x)
+#             x$currentAnalysis<-initObjectAttr(x$currentAnalysis)
+#             x$currentAnalysis$name<-analysisName
+#             x$currentAnalysis$folder<-checkDir(paste(x$rootFolder,x$name,'analysis',sep='/'),x$currentAnalysis$name)
+#
+#             checkDir(x$currentAnalysis$folder,'rasters')
+#             checkDir(x$currentAnalysis$folder,'rasterStacks')
+#             checkDir(x$currentAnalysis$folder,'training')
+#             checkDir(x$currentAnalysis$folder,'training/polygons')
+#             checkDir(x$currentAnalysis$folder,'test')
+#             checkDir(x$currentAnalysis$folder,'test/polygons')
+#             checkDir(x$currentAnalysis$folder,'test/classification')
+#
+#             x$currentAnalysis$filters<-NULL
+#             x$currentAnalysis$derivedRasters<-NULL
+#             x$currentAnalysis$extractionDirectives<-NULL
+#             x$currentAnalysis$trainingFeatures <-NULL
+#             x$currentAnalysis$classificationDirectives <-NULL
+#             x$currentAnalysis$classifier <-NULL
+#             x$currentAnalysis$classification <-NULL
+#             x$currentAnalysis$interpretationMatrix<-NULL
+#             x$currentAnalysis$segmentationDirectives <-NULL
+#             x$currentAnalysis$segmentation <-NULL
+#             x$currentAnalysis$exprs <-NULL
+#
+#
+#             newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
+#             attr(x,'mdtnTimeStmp')<-newTimeStmp
+#             if (is.null(x$analysis)){
+#               x$analysis<-x$currentAnalysis$name} else {
+#                 x$analysis<-append(x$analysis,x$currentAnalysis$name)
+#               }
+#           })
+#
+# #** dismissAnalisys ---------------------------------------------------
+# if (!isGeneric("dismissAnalysis")) {
+#   setGeneric("dismissAnalysis", function(x,analysis=NULL,...)
+#     standardGeneric("dismissAnalysis"))
+# }
+#
+# setMethod('dismissAnalysis',signature = ('environment'),
+#           function(x,analysis=NULL,...){
+#
+#             dsmsFolder<-checkDir(file.path(x$rootFolder,x$name,'analysis'),'dismissed')
+#             if (is.null(x$analysis)) stop(mError('There are no analysis to dismiss'))
+#             if (analysis==x$currentAnalysis$name) analysis<-NULL
+#             if (is.null(analysis)) {
+#               message(mWarning('No analysis name specified, current analysis will be dismissed, continue?'))
+#               answr<-readline()
+#               if (!grepl("y",answr,ignore.case = T)) stop(mWarning('Dismissal aborted'))
+#               analysis<-x$currentAnalysis$name
+#               x$analysis<-x$analysis[x$analysis!=analysis]
+#               file.copy(from = x$currentAnalysis$folder,to = dsmsFolder,overwrite = T,recursive = T)
+#               unlink(x$currentAnalysis$folder,recursive = T,force = T)
+#               x$currentAnalysis<-NULL
+#               message(mMessage(paste0(analysis, ' dismissed')))
+#               return(0)
+#             }
+#             lstAnl<-listAnalysis(x)
+#             if (!any(analysis %in% lstAnl)) stop(mError("Specified analysis doesn't exist in this study"))
+#             file.copy(from = file.path(x$rootFolder,x$name,'analysis',analysis),to = dsmsFolder,overwrite = T,recursive = T)
+#             unlink(file.path(x$rootFolder,x$name,'analysis',analysis),recursive = T,force = T)
+#             x$analysis<-x$analysis[x$analysis!=analysis]
+#             return(mMessage(paste0(analysis, ' dismissed')))
+#           })
+#
+# setMethod('dismissAnalysis',signature = c('missing'),
+#           function(x,analysis=NULL,...){
+#             stop(mError('Specify study'))
+#           })
+#
+# #** listAnalisys ---------------------------------------------------
+# if (!isGeneric("listAnalysis")) {
+#   setGeneric("listAnalysis", function(x,...)
+#     standardGeneric("listAnalysis"))
+# }
+#
+# setMethod('listAnalysis',signature = ('environment'),
+#           function(x,...){
+#             x$analysis
+#           })
+#
+# #** showCurrentAnalysis ---------------------------------------------------
+#
+# if (!isGeneric("showCurrentAnalysis")) {
+#   setGeneric("showCurrentAnalysis", function(x,...)
+#     standardGeneric("showCurrentAnalysis"))
+# }
+#
+# setMethod('showCurrentAnalysis',signature = ('environment'),
+#           function(x,...){
+#             x$currentAnalysis
+#           })
 
 # #** channels ---------------------------------------------------
 # if (!isGeneric("channels")) {
@@ -2414,6 +2409,7 @@ if (!isGeneric("concentricClassification")) {
   setGeneric("concentricClassification", function(x,
                                                   classificationLyr=NULL,
                                                   label=NULL,
+                                                  type = NULL,
                                                   area=NULL,
                                                   prefix='topoMap_',
                                                   raster=NULL,
@@ -2432,6 +2428,7 @@ setMethod('concentricClassification',signature(x='IMC_Classification'),
           function(x,
                    classificationLyr=NULL,
                    label=NULL,
+                   type = NULL,
                    area=NULL,
                    prefix='topoMap_',
                    raster=NULL,
@@ -2469,6 +2466,7 @@ setMethod('concentricClassification',signature(x='environment'),
           function(x,
                    classificationLyr=NULL,
                    label=NULL,
+                   type = NULL,
                    area=NULL,
                    prefix='topoMap_',
                    raster=NULL,
@@ -2490,22 +2488,43 @@ setMethod('concentricClassification',signature(x='environment'),
               if (!is.null(x$currentAnalysis$derivedRasters)) derivedRaster<-x$currentAnalysis$derivedRasters
             }
             if (is.null(features)){
-              if (!is.null(x$currentAnalysis$classificationDirectives@methodParameters$predictiveFeatures)) features<-x$currentAnalysis$classificationDirectives@methodParameters$predictiveFeatures
+              if (!is.null(x$currentAnalysis$classificationDirectives@methodParameters$predictiveFeatures)){
+                features<-x$currentAnalysis$classificationDirectives@methodParameters$predictiveFeatures
+            } else {stop(mError('cannot find features names'))}}
+            if (is.null(type)){
+              stop(mErro('specify type, either "training" or "test"'))
             }
 
-            newClassification<-topoMap(fn_rstStack=x$currentAnalysis$classification,
-                                       fn_layerLabel=classificationLyr,
-                                       fn_label=label,
-                                       fn_area=area,
-                                       fn_prefix=prefix,
-                                       fn_raster=raster,
-                                       fn_derivedRaster=derivedRaster,
-                                       fn_features=features,
-                                       fn_maxClumps=maxClumps,
-                                       fn_clumpDirection=clumpDirection,
-                                       fn_mtry=mtry,
-                                       fn_ntree=ntree,
-                                       fn_trace=trace)
+            switch(type,
+                    test={
+                      newClassification<-topoMap(fn_rstStack=x$currentAnalysis$classification,
+                                                 fn_layerLabel=classificationLyr,
+                                                 fn_label=label,
+                                                 fn_area=area,
+                                                 fn_prefix=prefix,
+                                                 fn_raster=raster,
+                                                 fn_derivedRaster=derivedRaster,
+                                                 fn_features=features,
+                                                 fn_maxClumps=maxClumps,
+                                                 fn_clumpDirection=clumpDirection,
+                                                 fn_mtry=mtry,
+                                                 fn_ntree=ntree,
+                                                 fn_trace=trace)
+                    },
+                    training = {
+                      newClassification<-topoMap_tf(fn_rstStack=x$currentAnalysis$classification,
+                                                    fn_layerLabel=classificationLyr,
+                                                    fn_label=label,
+                                                    fn_prefix=prefix,
+                                                    fn_raster=raster,
+                                                    fn_derivedRaster=derivedRaster,
+                                                    fn_trainingFeatures = x$currentAnalysis$trainingFeatures,
+                                                    fn_features=features,
+                                                    fn_mtry=mtry,
+                                                    fn_ntree=ntree,
+                                                    fn_trace=trace)
+                    }
+                    )
 
             newClassification<-new('IMC_Classification',newClassification)
 

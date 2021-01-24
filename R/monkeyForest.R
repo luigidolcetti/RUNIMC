@@ -51,11 +51,16 @@ monkeyForest<-function(fn_rst,
                                          nrow = fn_rowN,
                                          byrow = T)
 
+
     newRaster<-raster::raster(prediction_for_table_numeric,
-                              xmn=0,
-                              xmx=ncol(prediction_for_table_numeric),
-                              ymn=0,
-                              ymx=nrow(prediction_for_table_numeric),
+                              # xmn=0,
+                              # xmx=ncol(prediction_for_table_numeric),
+                              # ymn=0,
+                              # ymx=nrow(prediction_for_table_numeric),
+                              xmn=raster::extent(fn_rst)[1],
+                              xmx=raster::extent(fn_rst)[2],
+                              ymn=raster::extent(fn_rst)[3],
+                              ymx=raster::extent(fn_rst)[4],
                               crs=sp::CRS(as.character(NA)))
 
     names(newRaster)<-Xcol

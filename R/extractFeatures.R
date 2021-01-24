@@ -25,15 +25,20 @@ extractFeatures<-function(fn_raster,
                                stringsAsFactors = F)
 
 
-  featuresList<-exactextractr::exact_extract(fn_raster[[TEMP_UID]],fn_st_sfc)
+  featuresList<-exactextractr::exact_extract(fn_raster[[TEMP_UID]],fn_st_sfc,include_xy=T)
   labels<-fn_st_sfc$label
   polygonid<-1:nrow(fn_st_sfc)
   extraFeaturesList<-lapply(polygonid,function(pid){
+    estimatedCentroid<-apply(featuresList[[pid]][,c('x','y')],2,mean)
+    distanceFromCentroid<-raster::pointDistance(p1 = featuresList[[pid]][,c('x','y')],
+                                               p2 = estimatedCentroid,
+                                               lonlat = F)
     data.frame(uid=TEMP_UID,
                pixel.id = 1:nrow(featuresList[[pid]]),
                polygon.id = pid,
                parLabel = labels[pid],
                label = NA,
+               DFC = distanceFromCentroid,
                stringsAsFactors = F)})
   extraFeaturesList<-do.call(rbind.data.frame,c(extraFeaturesList,stringsAsFactors=F))
   featuresList<-do.call(rbind,featuresList)

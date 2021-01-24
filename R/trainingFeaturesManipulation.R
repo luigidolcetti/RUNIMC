@@ -275,6 +275,54 @@ setMethod('tf_labelList',signature(x='environment'),
           })
 
 
+#####-------------------------------------------------------
+
+.featuresList<-function(fn_trainingFeatures_value){
+  nonFeaturesColumns<-c('uid',
+                        'pixel.id',
+                        'polygon.id',
+                        'parLabel',
+                        'label',
+                        'DFC',
+                        'x',
+                        'y',
+                        'coverage_fraction')
+  out<-colnames(fn_trainingFeatures_value[,!(colnames(fn_trainingFeatures_value) %in% nonFeaturesColumns)])
+  return(out)
+}
+
+if (!isGeneric("tf_featureList")) {
+  setGeneric("tf_featureList", function(x,...)
+    standardGeneric("tf_featureList"))
+}
+
+#'
+#'
+#' @export
+setMethod('tf_featureList',signature(x='IMC_TrainingFeatures'),
+          function(x){
+            .featuresList(x$value)
+          })
+#'
+#'
+#' @export
+setMethod('tf_featureList',signature(x='environment'),
+          function(x){
+
+            if (!is.null(x$currentAnalysis$trainingFeatures$value)){
+              out<-.featuresList(x$currentAnalysis$trainingFeatures$value)
+              return(out)
+
+            } else {
+
+              if (!is.null(x$trainingFeatures$value)){
+                out<-.featuresList(x$trainingFeatures$value)
+                return(out)} else {
+                  stop(RUNIMC:::mError("couldn't find any training featurs"))
+                }
+            }
+          })
+
 
 
 

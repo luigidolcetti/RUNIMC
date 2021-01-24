@@ -1,6 +1,33 @@
+#' Import tiff Mask
 #'
+#' Import a classification map from a different source
 #'
-#'@export
+#' @param fn_fileList character vector, a list of tiff files to be imported
+#' @param fn_transpose logical, transpose matrix? It should be if the raw data has been transposed as well
+#' @param fn_layerName character, new name for the layer
+#' @param x environment, a study
+#' @param fileFolder root folder containing at least a folder (which name is gone to be used as layer name), containing one tiff mask for each sample
+#' @param orderAgain numeric vector, which mask match which raw data file. Consider that list.files produce a list of files in sttrict alphabetical order
+#' @param transposeImage logical, parameter passed to fn_transpose
+#' @param layerName character, parameter passed to fn_layerName
+#' @param saveToDisk logical, save rater to disk? absolutely for large data sets
+#' @param ... not implemented
+#' @return an object of class IMC_classification
+#' @seealso
+#' @examples
+#'
+#' \dontrun{
+#' importTiffMask(x = TEST,
+#' fileFolder='c:/somewhere...',
+#' orderAgain =c(1,3,2),
+#' transposeImage = F,
+#' layerName = 'Import',
+#' saveToDisk = T ))
+#' }
+#' @details .importTiffMask: internal
+#' @export
+#' @docType methods
+#' @rdname ImportTiffMask
 .importTiffMask<-function(fn_fileList = NULL,
                           fn_transpose = T,
                           fn_layerName = 'Tiff_imported'){
@@ -16,16 +43,13 @@
 }
 
 
-
-if (!isGeneric("importTiffMask")) {
+#' @details importTiffMask: method to import tiff masks
+#' @export
+#' @docType methods
+#' @rdname ImportTiffMask
   setGeneric("importTiffMask", function(x,fileFolder=NULL,orderAgain=NULL,transposeImage=T,layerName='Tiff_imported',saveToDisk=T, ...)
     standardGeneric("importTiffMask"))
-}
 
-
-#'
-#'
-#' @export
 setMethod('importTiffMask',signature = ('environment'),
           function(x,fileFolder=NULL,orderAgain=NULL,transposeImage=T,layerName='Tiff_imported',saveToDisk=T, ...){
 
@@ -55,12 +79,14 @@ setMethod('importTiffMask',signature = ('environment'),
               for (i in 1:length(newClassification)){
                 comparisonRst<-raster::compareRaster(newClassification[[i]],
                                                      x$raster[[i]],
-                                                     extent = T,
+                                                     extent = F,
                                                      rowcol = T,
                                                      crs = T,
                                                      stopiffalse = F,
                                                      res = T)
                 if (!comparisonRst){stop(RUNIMC:::mError('raster and masks do not match'))}
+
+                raster::extent(newClassification[[i]])<-raster::extent(x$raster[[i]])
 
                 newClassificationList[[uids[i]]][[newLabel]]<-list()
                 newClassificationList[[uids[i]]][[newLabel]]<-newClassification[[i]]
@@ -132,13 +158,5 @@ setMethod('importTiffMask',signature = ('environment'),
               attr(x$currentAnalysis$classification,'artnTimeStmp')<-newTimeStmp
               attr(x$currentAnalysis$classification,'fileArchive')<-file.path(x$currentAnalysis$folder,'test/classification/rasterStacks')
             }
-
-
-
-
-
-
-
-
           })
 
