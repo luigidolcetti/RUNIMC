@@ -1,15 +1,20 @@
-#'Study initialization
+#' Study initialization
 #'
-#'initStudy provide functionality to initialize and crate the infrastructure to accommodate a new study
-#' @param fn_studyName character, name of the study
-#' @param fn_rootFolder character, directory where to store all the files inherent to this study
-#' @param fn_rawDataFolder character, directory containing the raw data txt files
-#' @param fn_whichFiles numeric vector, which files should be loaded (alphabetical order as produced by list.files). if NULL (default) all files will be loaded
-#' @param fn_whichColumns character, can be either 'named' (default) or 'all'. Header of the txt table will be parsed in search of names of possible markers, providing 'named', only those columns that seem to contain a name are loaded
+#' [initStudy()] provide functionality to initialize and create the infrastructure to accommodate a new study.
+#'
+#' @param fn_studyName character, name of the study.
+#' @param fn_rootFolder character, directory where to store all the files inherent to this study.
+#' @param fn_rawDataFolder character, directory containing the raw data txt files.
+#' @param fn_whichFiles numeric vector, which files should be loaded (alphabetical order as produced by list.files).
+#'   If NULL (default) all files will be loaded.
+#' @param fn_whichColumns character, can be either 'named' (default) or 'all'.
+#'   Header of the txt table will be parsed in search of names of possible markers, providing 'named',
+#'   only those columns that seem to contain a name are loaded.
 #' @param fn_transpose logical, should the raster be transposed?
-#' @param fn_overwrite logical, if true and a study with the same name is present on the disk, files will be delete first. False, produce a milder effect producing a progressive overwrite
+#' @param fn_overwrite logical, if true and a study with the same name is present on the disk, files will be delete first.
+#'   False, produce a milder effect producing a progressive overwrite.
 #' @param fn_verbose logical, describe what is going on?
-#' @return An environment containing a new study and a hierarchy of files where specified
+#' @return An environment containing a new study and a hierarchy of files where specified.
 #' @examples
 #' \dontrun{
 #' study<-initStudy('TEST_study',
@@ -35,6 +40,13 @@ initStudy<-function(fn_studyName='IMCstudy',
   if (is.null(fn_studyName)) stop(mError('provide a name for the study'),call. = F)
   if (is.null(fn_rootFolder)) stop(mError('provide a folder where to store the study'),call. = F)
   if (is.null(fn_rawDataFolder)) stop(mError('provide a folder containing raw data'),call. = F)
+  if (is.null(fn_whichColumns)){
+    fn_whichColumns<-T
+  } else {
+    if (!any(fn_whichColumns %in% c('named','all'))) {
+      stop(mError('fn_which column must be either "named" or "all"'),call. = F)
+    }
+  }
   if (fn_overWrite){
     targetFolder<-file.path(fn_rootFolder,fn_studyName)
     if (dir.exists(targetFolder)) unlink(targetFolder,recursive = T,force = T)
@@ -57,7 +69,7 @@ initStudy<-function(fn_studyName='IMCstudy',
 
   masterHeader<-unique(headersLine)[[1]]
 
-  if (length(unique(headersLine))>1) {stop("Headers from different files do not match")}
+  if (length(unique(headersLine))>1) {stop(mError("Headers from different files do not match"),call. = F)}
 
   masterHeader<-strsplit(masterHeader,'\t',fixed=T)[[1]]
   if (fn_whichColumns=='all') ldld<-T
@@ -92,6 +104,7 @@ initStudy<-function(fn_studyName='IMCstudy',
   ### load rasters
 
   rawDataFiles<-list.files(fn_rawDataFolder)
+  if (!is.null(fn_whichFiles)) rawDataFiles<-rawDataFiles[fn_whichFiles]
 
   rst<-lapply(rawDataFiles,
               function(tblFile){

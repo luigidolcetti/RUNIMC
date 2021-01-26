@@ -1,28 +1,22 @@
-#' Analysis
+#' Create a new Analysis
 #'
-#' Each study can have only one current analysis (myStudy$currentAnalysis) allocated in the environment
-#' container currentAnalysis.
-#' When creating a new analysis this take place of the currentent analysis (whenever it exists),
-#' however an old analysis that has been archived can be retrieved as well.
+#' An IMC analysis is composed of few objects contained in the environment
+#'   **currentAnalysis** and a corresponding sub-folder of the study folder.
+#'   [newAnalysis()] create an empty analysis structure both in the specified
+#'   study environment and on disk, essentially overwriting the analysis object
+#'   but keeping the file structure, so a previous analysis can always be loaded
+#'   as current via the [retrieve()] method.
 #'
-#'
-#' @param x environment, a study
-#' @param analysisName character, a name for a new analysis
-#' @param analysis character, name of the analysis to operate on
-#' @param ... not implemented
-#' @return an object of class environment within the specified study
-#' @seealso
+#' @param x environment, a study.
+#' @param analysisName character, name of the new analysis. This name needs to be
+#'   a valid R name and a valid name for a directory. The same name cannot be used
+#'   twice within the same study.
+#' @return a new analysis environment in MyStudy$currentAnalysis.
 #' @examples
 #' \dontrun{
-#' newAnalysis(x = MyStudy)
-#' an_listAnalysis (x = MyStudy)
-#' an_currentAnalysis (x = MyStudy)
-#' an_dismissAnalysis (x = MyStudy) # dismiss current analysis
-#' an_dismissAnalysis (x = Mystudy, analysis = 'example_analysis')
+#' newAnalysis(MyStudy, 'MyFirstAnalysis')
 #' }
 #' @export
-#' @docType methods
-#' @rdname Analysis-methods
 setGeneric("newAnalysis", function(x,analysisName=NULL,...)
   standardGeneric("newAnalysis"))
 
@@ -74,10 +68,22 @@ setMethod('newAnalysis',signature = ('environment'),
           })
 
 #** dismissAnalisys ---------------------------------------------------
-#' @details an_dismissAnalysis: delete an analysis and the associated files
+#' Dismiss an analysis
+#'
+#' Dismissing an analysis means removing the current or a previous
+#'   analysis from the specified study. Associated files are not
+#'   permanently removed but copied to a **dismissed** subfolder in
+#'   the analysis folder of the specified study.
+#'
+#' @param x environment, a study.
+#' @param analysis character, name of the analysis to dismiss.
+#'   If NULL the **currentAnalysis** will be dismissed.
+#' @return NULL.
+#' @examples
+#' \dontrun{
+#' dismissAnalysis(MyStudy, 'MyUnwantedAnalysis')
+#' }
 #' @export
-#' @docType methods
-#' @rdname Analysis-methods
 setGeneric("an_dismissAnalysis", function(x,analysis=NULL,...)
   standardGeneric("an_dismissAnalysis"))
 
@@ -114,10 +120,18 @@ setMethod('an_dismissAnalysis',signature = c('missing'),
           })
 
 #** listAnalisys ---------------------------------------------------
-#' @details an_listAnalysis: list the analysis created in the specified study
+#' List all the analysis
+#'
+#' List the analysis that have been created and not dismissed
+#'   for the specified study.
+#'
+#' @param x environment, a study.
+#' @return character vector.
+#' @examples
+#' \dontrun{
+#' listAnalysis(MyStudy)
+#' }
 #' @export
-#' @docType methods
-#' @rdname Analysis-methods
 setGeneric("an_listAnalysis", function(x,...)
   standardGeneric("an_listAnalysis"))
 
@@ -127,11 +141,20 @@ setMethod('an_listAnalysis',signature = ('environment'),
 
           })
 
-#** showCurrentAnalysis ---------------------------------------------------
-#' @details an_showCurrentAnalysis: show a summary of the currentAnalysis
+#** an_showCurrentAnalysis ---------------------------------------------------
+#' Show the current analysis
+#'
+#' Current analysis is an environment containing multiple objects.
+#' [an_showCurrentAnalysis()] lists the objects contained in the currentAnalysis
+#' environment and assess whether each object is **initialized** or **empty**.
+#'
+#' @param x environment, a study.
+#' @return print to the console a list of the current analysis objects ant their states.
+#' @examples
+#' \dontrun{
+#' an_showCurrentAnalysis(MyStudy)
+#' }
 #' @export
-#' @docType methods
-#' @rdname Analysis-methods
 setGeneric("an_showCurrentAnalysis", function(x,...)
   standardGeneric("an_showCurrentAnalysis"))
 

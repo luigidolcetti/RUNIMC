@@ -1,43 +1,46 @@
 #' Channel Table content
 #'
-#'
 #' Retrive or update content of the channel table. Some content such as R-names
-#' are read only to prevent corruption of study cross references.
+#'   are read only to prevent corruption of study cross references.
 #'
-#' @return an object of class IMC_ChannelTable or a character vector (named if different from R-columns)
+#' @param x environment, a study.
+#' @param ... not implemented.
+#' @return an object of class IMC_ChannelTable.
 #' @seealso
 #' @examples
 #' \dontrun{
-#' default_study<-channelTable(x = MyStudy, loaded = NA)
-#' default_study<-channelTable(x = MyStudy, loaded = T)
-#' ch_channel(x = myStudy)<-('MySample1','MySample2','MySample3')
+#' default_study<-channelTable(x = MyStudy)
 #' }
 #' @export
-#' @docType methods
-#' @rdname ChannelTable-methods
-setGeneric("channelTable", function(x,...)
+setGeneric("channelTable", function(x,
+                                    ...)
   standardGeneric("channelTable"))
 
-#' @details ChannelTable: retrive the entire study table, there is no assignment method
-#' @docType methods
-#' @aliases ChannelTable,environment-method
-#' @rdname ChannelTable-methods
 setMethod('channelTable',signature = ('environment'),
           function(x,...){
             return(x$channels)})
 
 #####ch_Rnames####
 
-#' @details ch_Rnames: retrive R compatible names, loaded (T), unloaded (F), all (NA)
+#' Channel Table content
+#'
+#' retrive R compatible channel name. These names are used as layer names
+#'   for the raw data rasters.
+#'
+#' @param x environment, a study.
+#' @param loaded logical, which channel? loaded(T), unloaded(F), all(NA).
+#' @param ... not implemented.
+#' @return character vector of names.
+#' @examples
+#' \dontrun{
+#' default_study<-ch_Rnames(x = MyStudy, loaded = T)
+#' }
 #' @export
-#' @docType methods
-#' @rdname ChannelTable-methods
-setGeneric("ch_Rnames", function(x,loaded=T, ...)
+setGeneric("ch_Rnames", function(x,
+                                 loaded=T,
+                                 ...)
   standardGeneric("ch_Rnames"))
 
-#' @docType methods
-#' @aliases ch_Rnames,environment
-#' @rdname ChannelTable-methods
 setMethod('ch_Rnames',signature = ('environment'),
           function(x,loaded=T,...){
             if (is.na(loaded)) {
@@ -49,16 +52,25 @@ setMethod('ch_Rnames',signature = ('environment'),
 
 #####ch_Onames####
 
-#' @details ch_Onames: retrive the original names in raw data TXT file, loaded (T), unloaded (F), all (NA)
+#' Channel Table content
+#'
+#' retrive original channel names as they appear as column names in the original
+#'   raw data .txt file.
+#'
+#' @param x environment, a study.
+#' @param loaded logical, which channel? loaded(T), unloaded(F), all(NA).
+#' @param ... not implemented.
+#' @return named character vector of names.
+#' @examples
+#' \dontrun{
+#' default_study<-ch_Onames(x = MyStudy, loaded = T)
+#' }
 #' @export
-#' @docType methods
-#' @rdname ChannelTable-methods
-setGeneric("ch_Onames", function(x,loaded=T, ...)
+setGeneric("ch_Onames", function(x,
+                                 loaded=T,
+                                 ...)
   standardGeneric("ch_Onames"))
 
-#' @docType methods
-#' @aliases ch_Onames,environment
-#' @rdname ChannelTable-methods
 setMethod('ch_Onames',signature = ('environment'),
           function(x,loaded=T,...){
             if (is.na(loaded)) {
@@ -75,16 +87,24 @@ setMethod('ch_Onames',signature = ('environment'),
 
 #####ch_markers####
 
-#' @details ch_markers: retrive the original names in raw data TXT file, loaded (T), unloaded (F), all (NA)
+#' Channel Table content
+#'
+#' retrieve the parsed name of the markers.
+#'
+#' @param x environment, a study.
+#' @param loaded logical, which channel? loaded(T), unloaded(F), all(NA).
+#' @param ... not implemented.
+#' @return named character vector of names.
+#' @examples
+#' \dontrun{
+#' default_study<-ch_markers(x = MyStudy, loaded = T)
+#' }
 #' @export
-#' @docType methods
-#' @rdname ChannelTable-methods
-setGeneric("ch_markers", function(x,loaded=T, ...)
+setGeneric("ch_markers", function(x,
+                                  loaded=T,
+                                  ...)
   standardGeneric("ch_markers"))
 
-#' @docType methods
-#' @aliases ch_markers,environment
-#' @rdname ChannelTable-methods
 setMethod('ch_markers',signature = ('environment'),
           function(x,loaded=T,...){
             if (is.na(loaded)) {
@@ -101,16 +121,26 @@ setMethod('ch_markers',signature = ('environment'),
 
 
 #####ch_RnameFromMarker####
-#' @details ch_RnameFromMarker: retrive the R compatible name (usually use as layer name for raster objects) from the marker name
+
+#' Channel Table content
+#'
+#' retrieve the R compatible name of the channel corresponding to the specified
+#'   marker.
+#'
+#' @param x environment, a study.
+#' @param marker character, marker name.
+#' @param ... not implemented.
+#' @return named character.
+#' @examples
+#' \dontrun{
+#' default_study<-ch_RnameFromMarker(x = MyStudy, marker = 'CD4')
+#' }
 #' @export
-#' @docType methods
-#' @rdname ChannelTable-methods
-setGeneric("ch_RnameFromMarker", function(x, marker,...)
+setGeneric("ch_RnameFromMarker", function(x,
+                                          marker,
+                                          ...)
   standardGeneric("ch_RnameFromMarker"))
 
-#' @docType methods
-#' @aliases ch_RnameFromMarker,environment
-#' @rdname ChannelTable-methods
 setMethod('ch_RnameFromMarker',signature = ('environment'),
           function(x, marker,...){
             chnls<-x$channels$RcolumnNames[grep(marker,

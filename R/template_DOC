@@ -1,0 +1,10 @@
+#' Title
+#'
+#' Description.
+#'
+#' @param x environment, a study.
+#' @return what.
+#' @examples
+#' \dontrun{
+#' }
+#' @export

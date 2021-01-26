@@ -1,19 +1,14 @@
 #' Import tiff Mask
 #'
-#' Import a classification map from a different source
+#' Import a classification map from a different source [.importTiffMask()] is the
+#'   internal function for [importTiffMask()] method.
 #'
 #' @param fn_fileList character vector, a list of tiff files to be imported
 #' @param fn_transpose logical, transpose matrix? It should be if the raw data has been transposed as well
 #' @param fn_layerName character, new name for the layer
-#' @param x environment, a study
-#' @param fileFolder root folder containing at least a folder (which name is gone to be used as layer name), containing one tiff mask for each sample
-#' @param orderAgain numeric vector, which mask match which raw data file. Consider that list.files produce a list of files in sttrict alphabetical order
-#' @param transposeImage logical, parameter passed to fn_transpose
-#' @param layerName character, parameter passed to fn_layerName
-#' @param saveToDisk logical, save rater to disk? absolutely for large data sets
-#' @param ... not implemented
+#'
 #' @return an object of class IMC_classification
-#' @seealso
+#'
 #' @examples
 #'
 #' \dontrun{
@@ -24,10 +19,8 @@
 #' layerName = 'Import',
 #' saveToDisk = T ))
 #' }
-#' @details .importTiffMask: internal
+#'
 #' @export
-#' @docType methods
-#' @rdname ImportTiffMask
 .importTiffMask<-function(fn_fileList = NULL,
                           fn_transpose = T,
                           fn_layerName = 'Tiff_imported'){
@@ -43,11 +36,34 @@
 }
 
 
-#' @details importTiffMask: method to import tiff masks
+#' Import tiff Mask
+#'
+#' Import a classification map from a different source.
+#' Uses the internal [.importTiffMask()].
+#'
+#' @param x environment, a study
+#' @param fileFolder root folder containing at least a folder (which name is gone to be used as layer name), containing one tiff mask for each sample
+#' @param orderAgain numeric vector, which mask match which raw data file. Consider that list.files produce a list of files in sttrict alphabetical order
+#' @param transposeImage logical, parameter passed to fn_transpose
+#' @param layerName character, parameter passed to fn_layerName
+#' @param saveToDisk logical, save rater to disk? absolutely for large data sets
+#' @param ... not implemented
+#'
+#' @return an object of class IMC_classification
+#'
+#' @examples
+#'
+#' \dontrun{
+#' importTiffMask(x = TEST,
+#' fileFolder='c:/somewhere...',
+#' orderAgain =c(1,3,2),
+#' transposeImage = F,
+#' layerName = 'Import',
+#' saveToDisk = T ))
+#' }
+#'
 #' @export
-#' @docType methods
-#' @rdname ImportTiffMask
-  setGeneric("importTiffMask", function(x,fileFolder=NULL,orderAgain=NULL,transposeImage=T,layerName='Tiff_imported',saveToDisk=T, ...)
+setGeneric("importTiffMask", function(x,fileFolder=NULL,orderAgain=NULL,transposeImage=T,layerName='Tiff_imported',saveToDisk=T, ...)
     standardGeneric("importTiffMask"))
 
 setMethod('importTiffMask',signature = ('environment'),

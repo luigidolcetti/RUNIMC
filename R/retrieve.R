@@ -1,57 +1,26 @@
-# retrieve<-function(fn_study=NULL,
-#                    fn_analysis=NULL,
-#                    fn_what=NULL,
-#                    fn_path=NULL,
-#                    fn_file=NULL){
-#
-#   if (!is.null(fn_study) & !is.null(fn_path) & !is.null(fn_file)) message(RUNIMC:::mWarning('Value in this study will be replaced'))
-#   if (!is.null(fn_study) & is.null(fn_what)) message(RUNIMC:::mWarning('All the values in this study will be retrieved'))
-#   # if (!is.null(fn_study) & !is.null(fn_path) & !is.null(fn_file)) stop(RUNIMC:::mError('Please either specify a study and optionally the information to retrieve or a specific path and file'))
-#   if (!is.null(fn_path) & is.null(fn_file)) stop(RUNIMC:::mError('Please, specify a file to retrieve'))
-#   if (is.null(fn_path) & !is.null(fn_file)) stop(RUNIMC:::mError('Please, specify a path where to search for this file'))
-#
-#   if (!is.null(fn_path)){
-#     if (!dir.exists(fn_path)) stop(RUNIMC:::mError(paste0('Unable to find: ',fn_path)))}
-#
-#
-#   if (!is.null(fn_analysis) & !is.null(fn_study)){
-#     if (!any(fn_study %in% fn_study$analysis)) stop(RUNIMC:::mError(paste0('Unable to find ',fn_analysis,' analysis in this study')))
-#   }
-#   if (is.null(fn_path) & !is.null(fn_study) & !is.null(fn_analysis)){
-#     fn_path<-file.path(fn_study$rootFolder,fn_study$name,'analysis',fn_analysis)
-#   }
-#
-#   if (!is.null(fn_file)) {
-#     fileExtension<-unlist(strsplit(fn_file,'\\.'))
-#     if (!length(fileExtension)>1) {stop(RUNIMC:::mError('File without extension cannot decide were to store this information'))}
-#     fileExtension<-fileExtension[length(fileExtension)]
-#     if (!any(fileExtension %in% c('IMC_ChannelTable',
-#                                   'IMC_StudyTable',
-#                                   'xml',
-#                                   'IMC_ClassificationDirectives',
-#                                   'IMC_Classifier',
-#                                   'sqlite',
-#                                   'IMC_FilterFrame',
-#                                   'IMC_InterpretationMatrix',
-#                                   'IMC_SegmentationDirectives',
-#                                   'IMC_SegmentationList',
-#                                   'IMC_ExtractionDirectives',
-#                                   'IMC_Classification'))) {stop(RUNIMC:::mError('Unknown file extension'))}
-#     fullPath<-file.path(fn_path,fn_file)
-#     switch(fileExtension,
-#            IMC_ChannelTable={
-#              retrieve.channelTable(fn_study,fn_analysis,fn_what,fn_path,fn_file)
-#              if (is.null(fn_study)) return(fileContent) else fn_study$channels<-fileContent},
-#            IMC_StudyTable={
-#              retrieve.channelTable(fn_study,fn_analysis,fn_what,fn_path,fn_file)
-#              if (is.null(fn_study)) return(fileContent) else fn_study$channels<-fileContent},
-#
-#
-#     )
-#
-#   }
-#
-# }
+#' Retrieve
+#'
+#' retrieve is used to load from disk an entire study, an Analysis or a part of it
+#'
+#' @param fn_file character, file path of the study or part of it to be loaded from disk
+#' @seealso
+#' @examples
+#' \dontrun{
+#' MyStudy<-retrieve(x = "c:/Documents/MyStudy.xml")
+#' MyStudy$currentAnalysis<-retrieve(x= 'c:/Documents/MySudy/Analysis/Analysis1.xml')
+#' }
+#' @details retrieve use file extension to determine how to load the specified file
+#' @export
+#' @docType methods
+#' @rdname Retrieve-methods
+setGeneric("retrieve", function(fn_file=NULL,...)
+  standardGeneric("retrieve"))
+
+#' @export
+setMethod('retrieve',signature = ('character'),
+          function(fn_file=NULL,...){
+            retrieve.generic(fn_file)
+          })
 
 
 retrieve.channelTable<-function(fn_file=NULL,
@@ -362,7 +331,7 @@ retrieve.RsCollection<-function(fn_file=NULL,
 }
 
 retrieve.Classification<-function(fn_file=NULL,
-                                fn_timeStamp=T){
+                                  fn_timeStamp=T){
   rstList<-list.files(fn_file,full.names = T)
   fileContent<-lapply(rstList,function(x){
     rst<-RUNIMC:::IMCstackOpen(x)
@@ -415,38 +384,38 @@ retrieve.xml<-function(fn_file=NULL,
     newStudy$whichColumns<-as.character(XML::xmlValue(childrenNode$whichColumns))
     newStudy$analysis<-unlist(strsplit(x = XML::xmlValue(childrenNode$analysis),split = ',',fixed = T),recursive = T)
     #studyTable
-    targetFile<-XML::xmlValue(childrenNode$studyTable,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$studyTable)
     if (file.exists(targetFile)){
       newStudy$studyTable<-retrieve(fn_file = targetFile)
       attr(newStudy$studyTable,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$studyTable,'crtnTimeStmp')
       attr(newStudy$studyTable,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$studyTable,'mdtnTimeStmp')
       attr(newStudy$studyTable,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$studyTable,'artnTimeStmp')
-      attr(newStudy$studyTable,'fileArchive')<-XML::xmlGetAttr(childrenNode$studyTable,'fileArchive')} else {newStudy$studyTable<-NULL}
+      attr(newStudy$studyTable,'fileArchive')<-targetFile} else {newStudy$studyTable<-NULL}
     #channelTable
-    targetFile<-XML::xmlValue(childrenNode$channels,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$channels)
     if (file.exists(targetFile)){
       newStudy$channels<-retrieve(fn_file = targetFile)
       attr(newStudy$channels,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$channels,'crtnTimeStmp')
       attr(newStudy$channels,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$channels,'mdtnTimeStmp')
       attr(newStudy$channels,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$channels,'artnTimeStmp')
-      attr(newStudy$channels,'fileArchive')<-XML::xmlGetAttr(childrenNode$channels,'fileArchive')} else {newStudy$channels<-NULL}
+      attr(newStudy$channels,'fileArchive')<-targetFile} else {newStudy$channels<-NULL}
     #rasters
-    targetFile<-XML::xmlValue(childrenNode$raster,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$raster)
     if (dir.exists(targetFile)){
       newStudy$raster<-retrieve(fn_file = targetFile)
       attr(newStudy$raster,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$raster,'crtnTimeStmp')
       attr(newStudy$raster,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$raster,'mdtnTimeStmp')
       attr(newStudy$raster,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$raster,'artnTimeStmp')
-      attr(newStudy$raster,'fileArchive')<-XML::xmlGetAttr(childrenNode$raster,'fileArchive')} else {newStudy$raster<-NULL}
+      attr(newStudy$raster,'fileArchive')<-targetFile} else {newStudy$raster<-NULL}
     #currentAnalysis
 
-    targetFile<-XML::xmlValue(childrenNode$currentAnalysis,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$currentAnalysis)
     if (file.exists(targetFile)){
       newStudy$currentAnalysis<-retrieve(fn_file = targetFile)
       attr(newStudy$currentAnalysis,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$currentAnalysis,'crtnTimeStmp')
       attr(newStudy$currentAnalysis,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$currentAnalysis,'mdtnTimeStmp')
       attr(newStudy$currentAnalysis,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$currentAnalysis,'artnTimeStmp')
-      attr(newStudy$currentAnalysis,'fileArchive')<-XML::xmlGetAttr(childrenNode$currentAnalysis,'fileArchive')} else {newStudy$currentAnalysis<-NULL}
+      attr(newStudy$currentAnalysis,'fileArchive')<-targetFile} else {newStudy$currentAnalysis<-NULL}
 
 
     # if (!is.null(newStudy$currentAnalysis$classification)){
@@ -472,95 +441,95 @@ retrieve.xml<-function(fn_file=NULL,
     newAnal$name<-as.character(XML::xmlValue(childrenNode$name))
 
     #classification
-    targetFile<-XML::xmlValue(childrenNode$classification,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$classification)
     if (file.exists(targetFile)){
       newAnal$classification<-retrieve(fn_file = targetFile)
 
       attr(newAnal$classification,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$classification,'crtnTimeStmp')
       attr(newAnal$classification,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$classification,'mdtnTimeStmp')
       attr(newAnal$classification,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$classification,'artnTimeStmp')
-      attr(newAnal$classification,'fileArchive')<-XML::xmlGetAttr(childrenNode$classification,'fileArchive')} else {newAnal$classification<-NULL}
+      attr(newAnal$classification,'fileArchive')<-targetFile} else {newAnal$classification<-NULL}
     #classificationDirectives
-    targetFile<-XML::xmlValue(childrenNode$classificationDirectives,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$classificationDirectives)
     if (file.exists(targetFile)){
       newAnal$classificationDirectives <-retrieve(fn_file = targetFile)
       attr(newAnal$classificationDirectives,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$classificationDirectives,'crtnTimeStmp')
       attr(newAnal$classificationDirectives,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$classificationDirectives,'mdtnTimeStmp')
       attr(newAnal$classificationDirectives,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$classificationDirectives,'artnTimeStmp')
-      attr(newAnal$classificationDirectives,'fileArchive')<-XML::xmlGetAttr(childrenNode$classificationDirectives,'fileArchive')} else {newAnal$classificationDirectives<-NULL}
+      attr(newAnal$classificationDirectives,'fileArchive')<-targetFile} else {newAnal$classificationDirectives<-NULL}
     #classifier
-    targetFile<-XML::xmlValue(childrenNode$classifier,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$classifier)
     if (file.exists(targetFile)){
       newAnal$classifier<-retrieve(fn_file = targetFile)
       attr(newAnal$classifier,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$classifier,'crtnTimeStmp')
       attr(newAnal$classifier,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$classifier,'mdtnTimeStmp')
       attr(newAnal$classifier,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$classifier,'artnTimeStmp')
-      attr(newAnal$classifier,'fileArchive')<-XML::xmlGetAttr(childrenNode$classifier,'fileArchive')} else {newAnal$classifier<-NULL}
+      attr(newAnal$classifier,'fileArchive')<-targetFile} else {newAnal$classifier<-NULL}
     #exprs
-    targetFile<-XML::xmlValue(childrenNode$exprs,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$exprs)
     if (file.exists(targetFile)){
 
       newAnal$exprs<-retrieve(fn_file = targetFile)
       attr(newAnal$exprs,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$exprs,'crtnTimeStmp')
       attr(newAnal$exprs,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$exprs,'mdtnTimeStmp')
       attr(newAnal$exprs,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$exprs,'artnTimeStmp')
-      attr(newAnal$exprs,'fileArchive')<-XML::xmlGetAttr(childrenNode$exprs,'fileArchive')} else {newAnal$exprs<-NULL}
+      attr(newAnal$exprs,'fileArchive')<-targetFile} else {newAnal$exprs<-NULL}
     #extractionDirectives
-    targetFile<-XML::xmlValue(childrenNode$extractionDirectives,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$extractionDirectives)
     if (file.exists(targetFile)){
       newAnal$extractionDirectives<-retrieve(fn_file = targetFile)
       attr(newAnal$extractionDirectives,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$extractionDirectives,'crtnTimeStmp')
       attr(newAnal$extractionDirectives,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$extractionDirectives,'mdtnTimeStmp')
       attr(newAnal$extractionDirectives,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$extractionDirectives,'artnTimeStmp')
-      attr(newAnal$extractionDirectives,'fileArchive')<-XML::xmlGetAttr(childrenNode$extractionDirectives,'fileArchive')} else {newAnal$extractionDirectives<-NULL}
+      attr(newAnal$extractionDirectives,'fileArchive')<-targetFile} else {newAnal$extractionDirectives<-NULL}
     #filters
-    targetFile<-XML::xmlValue(childrenNode$filters,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$filters)
     if (file.exists(targetFile)){
       newAnal$filters<-retrieve(fn_file = targetFile)
       attr(newAnal$filters,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$filters,'crtnTimeStmp')
       attr(newAnal$filters,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$filters,'mdtnTimeStmp')
       attr(newAnal$filters,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$filters,'artnTimeStmp')
-      attr(newAnal$filters,'fileArchive')<-XML::xmlGetAttr(childrenNode$filters,'fileArchive')} else {newAnal$filters<-NULL}
+      attr(newAnal$filters,'fileArchive')<-targetFile} else {newAnal$filters<-NULL}
     #interpretationMatrix
-    targetFile<-XML::xmlValue(childrenNode$interpretationMatrix,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$interpretationMatrix)
     if (file.exists(targetFile)){
       newAnal$interpretationMatrix<-retrieve(fn_file = targetFile)
       attr(newAnal$interpretationMatrix,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$interpretationMatrix,'crtnTimeStmp')
       attr(newAnal$interpretationMatrix,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$interpretationMatrix,'mdtnTimeStmp')
       attr(newAnal$interpretationMatrix,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$interpretationMatrix,'artnTimeStmp')
-      attr(newAnal$interpretationMatrix,'fileArchive')<-XML::xmlGetAttr(childrenNode$interpretationMatrix,'fileArchive')} else {newAnal$interpretationMatrix<-NULL}
+      attr(newAnal$interpretationMatrix,'fileArchive')<-targetFile} else {newAnal$interpretationMatrix<-NULL}
     #segmentation
-    targetFile<-XML::xmlValue(childrenNode$segmentation,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$segmentation)
     if (file.exists(targetFile)){
       newAnal$segmentation<-retrieve(fn_file = targetFile)
       attr(newAnal$segmentation,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$segmentation,'crtnTimeStmp')
       attr(newAnal$segmentation,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$segmentation,'mdtnTimeStmp')
       attr(newAnal$segmentation,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$segmentation,'artnTimeStmp')
-      attr(newAnal$segmentation,'fileArchive')<-XML::xmlGetAttr(childrenNode$segmentation,'fileArchive')} else {newAnal$segmentation<-NULL}
+      attr(newAnal$segmentation,'fileArchive')<-targetFile} else {newAnal$segmentation<-NULL}
     #segmentationDirectives
-    targetFile<-XML::xmlValue(childrenNode$segmentationDirectives,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$segmentationDirectives)
     if (file.exists(targetFile)){
       newAnal$segmentationDirectives<-retrieve(fn_file = targetFile)
       attr(newAnal$segmentationDirectives,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$segmentationDirectives,'crtnTimeStmp')
       attr(newAnal$segmentationDirectives,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$segmentationDirectives,'mdtnTimeStmp')
       attr(newAnal$segmentationDirectives,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$segmentationDirectives,'artnTimeStmp')
-      attr(newAnal$segmentationDirectives,'fileArchive')<-XML::xmlGetAttr(childrenNode$segmentationDirectives,'fileArchive')} else {newAnal$segmentationDirectives<-NULL}
+      attr(newAnal$segmentationDirectives,'fileArchive')<-targetFile} else {newAnal$segmentationDirectives<-NULL}
     #trainingFeatures
-    targetFile<-XML::xmlValue(childrenNode$trainingFeatures,'fileArchive')
+    targetFile<-XML::xmlValue(childrenNode$trainingFeatures)
     if (file.exists(targetFile)){
       newAnal$trainingFeatures<-retrieve(fn_file = targetFile)
       attr(newAnal$trainingFeatures,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$trainingFeatures,'crtnTimeStmp')
       attr(newAnal$trainingFeatures,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$trainingFeatures,'mdtnTimeStmp')
       attr(newAnal$trainingFeatures,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$trainingFeatures,'artnTimeStmp')
-      attr(newAnal$trainingFeatures,'fileArchive')<-XML::xmlGetAttr(childrenNode$trainingFeatures,'fileArchive')} else {newAnal$trainingFeatures<-NULL}
+      attr(newAnal$trainingFeatures,'fileArchive')<-targetFile} else {newAnal$trainingFeatures<-NULL}
     #derivedRasters
-    targetFile<-XML::xmlValue(childrenNode$derivedRasters,'derivedRasters')
+    targetFile<-XML::xmlValue(childrenNode$derivedRasters)
     if (dir.exists(targetFile)){
       newAnal$derivedRasters<-retrieve(fn_file = targetFile)
       attr(newAnal$derivedRasters,'crtnTimeStmp')<-XML::xmlGetAttr(childrenNode$derivedRasters,'crtnTimeStmp')
       attr(newAnal$derivedRasters,'mdtnTimeStmp')<-XML::xmlGetAttr(childrenNode$derivedRasters,'mdtnTimeStmp')
       attr(newAnal$derivedRasters,'artnTimeStmp')<-XML::xmlGetAttr(childrenNode$derivedRasters,'artnTimeStmp')
-      attr(newAnal$derivedRasters,'fileArchive')<-XML::xmlGetAttr(childrenNode$derivedRasters,'fileArchive')} else {newAnal$derivedRasters<-NULL}
+      attr(newAnal$derivedRasters,'fileArchive')<-targetFile} else {newAnal$derivedRasters<-NULL}
 
 
     return(newAnal)
@@ -621,5 +590,5 @@ retrieve.generic<-function(fn_file,
            # IMC_Classification = {objectOut<-RUNIMC:::retrieve.classification(fn_file = fn_file,fn_timeStamp = T); return(objectOut)},
            xml = {objectOut<-RUNIMC:::retrieve.xml(fn_file = fn_file,fn_timeStamp = T); return(objectOut)})
   }
-return(objectOut)
+  return(objectOut)
 }

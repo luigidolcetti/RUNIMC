@@ -3,21 +3,22 @@
   aggregate(area~label,fn_trainingFeatures,quantile,c(fn_quantiles))
 }
 
-if (!isGeneric("tf_areaQuantile")) {
-  setGeneric("tf_areaQuantile", function(x,quantiles,...)
-    standardGeneric("tf_areaQuantile"))
-}
-
+#' Training features
 #'
+#' Calculates specified quantiles of area for each label.
 #'
+#' @param x environment, IMC_TrainingFeatures, a study or the object storing training features
+#' @param quantiles numeric, vector of quantiles to be calculated
+#' @return numeric matrix
 #' @export
+setGeneric("tf_areaQuantile", function(x,quantiles,...)
+  standardGeneric("tf_areaQuantile"))
+
 setMethod('tf_areaQuantile',signature(x='IMC_TrainingFeatures'),
           function(x,quantiles){
             .areaQuantile(x$geometry,quantiles)
           })
-#'
-#'
-#' @export
+
 setMethod('tf_areaQuantile',signature(x='environment'),
           function(x,quantiles){
 
@@ -42,21 +43,22 @@ setMethod('tf_areaQuantile',signature(x='environment'),
 
 }
 
-if (!isGeneric("tf_areaStatistics")) {
-  setGeneric("tf_areaStatistics", function(x,...)
-    standardGeneric("tf_areaStatistics"))
-}
-
+#' Training features
 #'
+#' Calculates area summary statistics for each label.
 #'
+#' @param x environment, IMC_TrainingFeatures, a study or the object storing training features
+#' @param quantiles numeric, vector of quantiles to be calculated
+#' @return numeric matrix
 #' @export
+setGeneric("tf_areaStatistics", function(x,...)
+  standardGeneric("tf_areaStatistics"))
+
 setMethod('tf_areaStatistics',signature(x='IMC_TrainingFeatures'),
           function(x){
             .areaStatistics(x$geometry)
           })
-#'
-#'
-#' @export
+
 setMethod('tf_areaStatistics',signature(x='environment'),
           function(x){
 
@@ -78,25 +80,26 @@ setMethod('tf_areaStatistics',signature(x='environment'),
 
 
 .roundnessQuantile<-function(fn_trainingFeatures,
-                        fn_quantiles){
+                             fn_quantiles){
   aggregate(roundness~label,fn_trainingFeatures,quantile,c(fn_quantiles))
 }
 
-if (!isGeneric("tf_roundnessQuantile")) {
-  setGeneric("tf_roundnessQuantile", function(x,quantiles,...)
-    standardGeneric("tf_roundnessQuantile"))
-}
-
+#' Training features
 #'
+#' Calculates specified quantiles of roundness for each label.
 #'
+#' @param x environment, IMC_TrainingFeatures, a study or the object storing training features
+#' @param quantiles numeric, vector of quantiles to be calculated
+#' @return numeric matrix
 #' @export
+setGeneric("tf_roundnessQuantile", function(x,quantiles,...)
+  standardGeneric("tf_roundnessQuantile"))
+
 setMethod('tf_roundnessQuantile',signature(x='IMC_TrainingFeatures'),
           function(x,quantiles){
             .roundnessQuantile(x$geometry,quantiles)
           })
-#'
-#'
-#' @export
+
 setMethod('tf_roundnessQuantile',signature(x='environment'),
           function(x,quantiles){
 
@@ -121,21 +124,22 @@ setMethod('tf_roundnessQuantile',signature(x='environment'),
 
 }
 
-if (!isGeneric("tf_roundnessStatistics")) {
-  setGeneric("tf_roundnessStatistics", function(x,...)
-    standardGeneric("tf_roundnessStatistics"))
-}
-
+#' Training features
 #'
+#' Calculates roundness summary statistics for each label.
 #'
+#' @param x environment, IMC_TrainingFeatures, a study or the object storing training features
+#' @param quantiles numeric, vector of quantiles to be calculated
+#' @return numeric matrix
 #' @export
+setGeneric("tf_roundnessStatistics", function(x,...)
+  standardGeneric("tf_roundnessStatistics"))
+
 setMethod('tf_roundnessStatistics',signature(x='IMC_TrainingFeatures'),
           function(x){
             .roundnessStatistics(x$geometry)
           })
-#'
-#'
-#' @export
+
 setMethod('tf_roundnessStatistics',signature(x='environment'),
           function(x){
 
@@ -161,21 +165,22 @@ setMethod('tf_roundnessStatistics',signature(x='environment'),
   aggregate(perimeter~label,fn_trainingFeatures,quantile,c(fn_quantiles))
 }
 
-if (!isGeneric("tf_perimeterQuantile")) {
-  setGeneric("tf_perimeterQuantile", function(x,quantiles,...)
-    standardGeneric("tf_perimeterQuantile"))
-}
-
+#' Training features
 #'
+#' Calculates specified quantiles of perimeter for each label.
 #'
+#' @param x environment, IMC_TrainingFeatures, a study or the object storing training features
+#' @param quantiles numeric, vector of quantiles to be calculated
+#' @return numeric matrix
 #' @export
+setGeneric("tf_perimeterQuantile", function(x,quantiles,...)
+  standardGeneric("tf_perimeterQuantile"))
+
 setMethod('tf_perimeterQuantile',signature(x='IMC_TrainingFeatures'),
           function(x,quantiles){
             .perimeterQuantile(x$geometry,quantiles)
           })
-#'
-#'
-#' @export
+
 setMethod('tf_perimeterQuantile',signature(x='environment'),
           function(x,quantiles){
 
@@ -200,21 +205,22 @@ setMethod('tf_perimeterQuantile',signature(x='environment'),
 
 }
 
-if (!isGeneric("tf_perimeterStatistics")) {
-  setGeneric("tf_perimeterStatistics", function(x,...)
-    standardGeneric("tf_perimeterStatistics"))
-}
-
+#' Training features
 #'
+#' Calculates perimeter summary statistics for each label.
 #'
+#' @param x environment, IMC_TrainingFeatures, a study or the object storing training features
+#' @param quantiles numeric, vector of quantiles to be calculated
+#' @return numeric matrix
 #' @export
+setGeneric("tf_perimeterStatistics", function(x,...)
+  standardGeneric("tf_perimeterStatistics"))
+
 setMethod('tf_perimeterStatistics',signature(x='IMC_TrainingFeatures'),
           function(x){
             .perimeterStatistics(x$geometry)
           })
-#'
-#'
-#' @export
+
 setMethod('tf_perimeterStatistics',signature(x='environment'),
           function(x){
 
@@ -236,27 +242,28 @@ setMethod('tf_perimeterStatistics',signature(x='environment'),
 
 .labelList<-function(fn_trainingFeatures){
   if (class(fn_trainingFeatures$geometry$label)=='factor'){
-  out<-levels(fn_trainingFeatures$geometry$label)} else {
-    out<-unique(fn_trainingFeatures$geometry$label)
-  }
+    out<-levels(fn_trainingFeatures$geometry$label)} else {
+      out<-unique(fn_trainingFeatures$geometry$label)
+    }
   return(out)
 }
 
-if (!isGeneric("tf_labelList")) {
-  setGeneric("tf_labelList", function(x,...)
-    standardGeneric("tf_labelList"))
-}
-
+#' Training features
 #'
+#' Lists labels present in the training features table
 #'
+#' @param x environment, IMC_TrainingFeatures, a study or the object storing training features
+#' @return numeric vector
 #' @export
+setGeneric("tf_labelList", function(x,...)
+  standardGeneric("tf_labelList"))
+
+
 setMethod('tf_labelList',signature(x='IMC_TrainingFeatures'),
           function(x){
             .labelList(x)
           })
-#'
-#'
-#' @export
+
 setMethod('tf_labelList',signature(x='environment'),
           function(x){
 
@@ -291,21 +298,21 @@ setMethod('tf_labelList',signature(x='environment'),
   return(out)
 }
 
-if (!isGeneric("tf_featureList")) {
-  setGeneric("tf_featureList", function(x,...)
-    standardGeneric("tf_featureList"))
-}
-
+#' Training features
 #'
+#' Lists features present in the training features table
 #'
+#' @param x environment, IMC_TrainingFeatures, a study or the object storing training features
+#' @return numeric vector
 #' @export
+setGeneric("tf_featureList", function(x,...)
+  standardGeneric("tf_featureList"))
+
 setMethod('tf_featureList',signature(x='IMC_TrainingFeatures'),
           function(x){
             .featuresList(x$value)
           })
-#'
-#'
-#' @export
+
 setMethod('tf_featureList',signature(x='environment'),
           function(x){
 

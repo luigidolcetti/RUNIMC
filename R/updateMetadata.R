@@ -1,21 +1,20 @@
-############################################################################
-#' @title updateMetadata
-#' @name updateMetadata
-#' @rdname updateMetadata-method
-#' @description Update metadata in raster collections such as the raw data or classification rasters.
+#' Update study metadata
+#'
+#' Update metadata in raster collections such as the raw data, additional raster created via filter application and classification rasters.
+#'
 #' @param x environment, representing a study
 #' @param saveToDisk logic, save updated rasterStaks and raster collection
-#' @return the method act in place on the correct object within the environment specified
+#'
+#' @return the method act in place on the correct object within the specified study environment
 #' @examples
 #' \dontrun{
 #' updateMetadata( x = MyStudy, saveToDisk = T)
 #' }
 #'
 #'@export
-if (!isGeneric("updateMetadata")) {
-  setGeneric("updateMetadata", function(x,saveToDisk,...)
-    standardGeneric("updateMetadata"))
-}
+setGeneric("updateMetadata", function(x,saveToDisk,...)
+  standardGeneric("updateMetadata"))
+
 
 setMethod('updateMetadata',signature = ('environment'),
           function(x,saveToDisk,...){

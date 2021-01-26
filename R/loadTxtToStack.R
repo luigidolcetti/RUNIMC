@@ -1,17 +1,22 @@
-#'Internal function to convert a txt file to a RasterStack usually executed during the study initialisation.
+#' From txt to rasterStack
 #'
-#' @param fn_path Root path for a bunch of .txt image files
-#' @param fn_file .txt file name containing raw data
-#' @param fn_rasterDBPath target folder where to store raster object
-#' @param fn_rasterStackPath target folder where to store rasterStack files
-#' @param fn_cols vector of column names to load
-#' @param fn_newNames vector of nemes to use as layer names
-#' @param fn_norm normalise raw data using quantile after stripping all 0-values
-#' @param fn_details list of experimental details, possible names are study = study name, sample, ROI, replicate, bioGroup. These information can be updated via study table methods
-#' @param fn_channel IMC_ChannelTable object
-#' @param fn_trsh quantile as the high treshold used for normalisation
-#' @param fn_zeroOff logical whether or not to strip 0-value in the process of normalisation
+#' [loadTxtToStack()] is an internal function, used by [initStudy()] to convert a txt file to a RasterStack.
+#'
+#' @param fn_path Root path for a bunch of .txt image files.
+#' @param fn_file .txt file name containing raw data.
+#' @param fn_rasterDBPath target folder where to store raster object.
+#' @param fn_rasterStackPath target folder where to store rasterStack files.
+#' @param fn_cols vector of column names to load.
+#' @param fn_newNames vector of nemes to use as layer names.
+#' @param fn_norm normalise raw data using quantile after stripping all 0-values.
+#' @param fn_details list of experimental details, possible names are study = study name, sample, ROI, replicate, bioGroup.
+#'   These information can be updated via [updateMetadata()].
+#' @param fn_channel IMC_ChannelTable object.
+#' @param fn_trsh quantile as the high treshold used for normalisation.
+#' @param fn_zeroOff logical whether or not to strip 0-value in the process of normalisation.
+#'
 #' @return an IMC_RasterStack object
+#'
 #' @export
 loadTxtToStack<-function(fn_path=NULL,
                          fn_file=NULL,

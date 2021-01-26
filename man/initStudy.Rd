@@ -17,27 +17,31 @@ initStudy(
 )
 }
 \arguments{
-\item{fn_studyName}{character, name of the study}
+\item{fn_studyName}{character, name of the study.}
 
-\item{fn_rootFolder}{character, directory where to store all the files inherent to this study}
+\item{fn_rootFolder}{character, directory where to store all the files inherent to this study.}
 
-\item{fn_rawDataFolder}{character, directory containing the raw data txt files}
+\item{fn_rawDataFolder}{character, directory containing the raw data txt files.}
 
-\item{fn_whichFiles}{numeric vector, which files should be loaded (alphabetical order as produced by list.files). if NULL (default) all files will be loaded}
+\item{fn_whichFiles}{numeric vector, which files should be loaded (alphabetical order as produced by list.files).
+If NULL (default) all files will be loaded.}
 
-\item{fn_whichColumns}{character, can be either 'named' (default) or 'all'. Header of the txt table will be parsed in search of names of possible markers, providing 'named', only those columns that seem to contain a name are loaded}
+\item{fn_whichColumns}{character, can be either 'named' (default) or 'all'.
+Header of the txt table will be parsed in search of names of possible markers, providing 'named',
+only those columns that seem to contain a name are loaded.}
 
 \item{fn_transpose}{logical, should the raster be transposed?}
 
 \item{fn_verbose}{logical, describe what is going on?}
 
-\item{fn_overwrite}{logical, if true and a study with the same name is present on the disk, files will be delete first. False, produce a milder effect producing a progressive overwrite}
+\item{fn_overwrite}{logical, if true and a study with the same name is present on the disk, files will be delete first.
+False, produce a milder effect producing a progressive overwrite.}
 }
 \value{
-An environment containing a new study and a hierarchy of files where specified
+An environment containing a new study and a hierarchy of files where specified.
 }
 \description{
-initStudy provide functionality to initialize and crate the infrastructure to accommodate a new study
+\code{\link[=initStudy]{initStudy()}} provide functionality to initialize and create the infrastructure to accommodate a new study.
 }
 \examples{
 \dontrun{

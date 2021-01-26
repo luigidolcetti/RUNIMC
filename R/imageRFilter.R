@@ -1,7 +1,19 @@
-#'Some BullShit
+#' Filters
 #'
+#' [imageRFilter()] is the wrapping function that apply [imager::vanvliet()],
+#'   [imager::deriche()] or [imager::blur_anisotropic()] to a rater.
 #'
-#' @export
+#' @param fn_rasterStack IMC_RasterStack to be processed.
+#' @param fn_filter character, filter to be applied. Available filters are
+#'   vanvliet, deriche or blur_anisotropic.
+#' @param fn_markerList character, vector name of layers to be processed.
+#' @param fn_filterParameterList list, parameter to be passed to the filter
+#'   function.
+#' @param fn_saveToDisk logical, save to disk? Always advaisable.
+#' @param fn_pathToFile character, path to a folder that will contain
+#'   the subfolder rasters and rasterStacks
+#' @return a new rasterstack with processed rasters
+#' @return what.
 imageRFilter<-function(fn_rasterStack,
                        fn_filter,
                        fn_markerList,
