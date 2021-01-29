@@ -25,6 +25,7 @@ setMethod('retrieve',signature = ('character'),
 
 retrieve.channelTable<-function(fn_file=NULL,
                                 fn_timeStamp=T){
+
   fileContent<-try(utils::read.table(fn_file,header = T,as.is = T,sep = '\t'))
   if (exists('fileContent')){
     if (!is.null(fileContent)){
@@ -46,6 +47,7 @@ retrieve.channelTable<-function(fn_file=NULL,
 
 retrieve.studyTable<-function(fn_file=NULL,
                               fn_timeStamp=T){
+
   fileContent<-try(utils::read.table(fn_file,header = T,as.is = T,sep = '\t'))
   if (exists('fileContent')){
     if (!is.null(fileContent)){
@@ -86,6 +88,7 @@ retrieve.studyTable<-function(fn_file=NULL,
 
 retrieve.classifier<-function(fn_file=NULL,
                               fn_timeStamp=T){
+
   fileContent<-try(readRDS(fn_file))
   if (exists('fileContent')){
     if (!is.null(fileContent)){
@@ -104,6 +107,7 @@ retrieve.classifier<-function(fn_file=NULL,
 
 retrieve.classificationDirectives<-function(fn_file=NULL,
                                             fn_timeStamp=T){
+
   fileContent<-try(readRDS(fn_file))
   if (exists('fileContent')){
     if (!is.null(fileContent)){
@@ -142,6 +146,7 @@ retrieve.expressionMatrix<-function(fn_file=NULL,
 
 retrieve.filterFrame<-function(fn_file=NULL,
                                fn_timeStamp=T){
+
   fileContent<-try(readRDS(fn_file))
   if (exists('fileContent')){
     if (!is.null(fileContent)){
@@ -161,6 +166,7 @@ retrieve.filterFrame<-function(fn_file=NULL,
 retrieve.interpretationMatrix<-function(fn_file=NULL,
                                         fn_timeStamp=T){
 
+
   fileContent<-try(readRDS(fn_file))
   if (exists('fileContent')){
     if (!is.null(fileContent)){
@@ -179,6 +185,7 @@ retrieve.interpretationMatrix<-function(fn_file=NULL,
 
 retrieve.filterFrame<-function(fn_file=NULL,
                                fn_timeStamp=T){
+
   fileContent<-try(readRDS(fn_file))
   if (exists('fileContent')){
     if (!is.null(fileContent)){
@@ -197,6 +204,7 @@ retrieve.filterFrame<-function(fn_file=NULL,
 
 retrieve.segmentationDirectives<-function(fn_file=NULL,
                                           fn_timeStamp=T){
+
   fileContent<-try(readRDS(fn_file))
   if (exists('fileContent')){
     if (!is.null(fileContent)){
@@ -215,6 +223,7 @@ retrieve.segmentationDirectives<-function(fn_file=NULL,
 
 retrieve.segmentationList<-function(fn_file=NULL,
                                     fn_timeStamp=T){
+
   fileContent<-try(readRDS(fn_file))
   if (exists('fileContent')){
     if (!is.null(fileContent)){
@@ -233,6 +242,7 @@ retrieve.segmentationList<-function(fn_file=NULL,
 
 retrieve.extractionDirectives<-function(fn_file=NULL,
                                         fn_timeStamp=T){
+
   fileContent<-try(readRDS(fn_file))
   if (exists('fileContent')){
     if (!is.null(fileContent)){
@@ -282,8 +292,8 @@ retrieve.extractionDirectives<-function(fn_file=NULL,
 retrieve.trainingFeatures<-function(fn_file=NULL,
                                     fn_timeStamp=T){
 
-  fileGeometry<-try(utils::read.table(file.path(fn_file,'geometry.txt'),header = T,as.is = T,sep = '\t'))
-  fileValue<-try(utils::read.table(file.path(fn_file,'value.txt'),header = T,as.is = T,sep = '\t'))
+  fileGeometry<-try(utils::read.table(file.path(fn_file,'geometry.txt'),header = T,sep = '\t'))
+  fileValue<-try(utils::read.table(file.path(fn_file,'value.txt'),header = T,sep = '\t'))
 
   if (exists('fileGeometry') & exists('fileValue')){
     if (!is.null(fileGeometry) & !is.null(fileValue)){
@@ -306,6 +316,7 @@ retrieve.trainingFeatures<-function(fn_file=NULL,
 
 retrieve.RsCollection<-function(fn_file=NULL,
                                 fn_timeStamp=T){
+
   rstList<-list.files(fn_file,full.names = T)
   fileContent<-lapply(rstList,function(x){
     rst<-RUNIMC:::IMCstackOpen(x)
@@ -332,6 +343,7 @@ retrieve.RsCollection<-function(fn_file=NULL,
 
 retrieve.Classification<-function(fn_file=NULL,
                                   fn_timeStamp=T){
+
   rstList<-list.files(fn_file,full.names = T)
   fileContent<-lapply(rstList,function(x){
     rst<-RUNIMC:::IMCstackOpen(x)
@@ -554,7 +566,7 @@ retrieve.generic<-function(fn_file,
     if (!any(fileExtension %in% c('IMC_ChannelTable',
                                   'IMC_StudyTable',
                                   'xml',
-                                  'IMC_ClassificationDirectives',
+                                  'IMC_ClassificationDirectivesList',
                                   'IMC_Classifier',
                                   'sqlite',
                                   'IMC_FilterFrame',
@@ -578,7 +590,7 @@ retrieve.generic<-function(fn_file,
     switch(fileExtension,
            IMC_ChannelTable = {objectOut<-RUNIMC:::retrieve.channelTable(fn_file = fn_file,fn_timeStamp = T); return(objectOut)},
            IMC_StudyTable = {objectOut<-RUNIMC:::retrieve.studyTable(fn_file = fn_file,fn_timeStamp = T); return(objectOut)},
-           IMC_ClassificationDirectives = {objectOut<-RUNIMC:::retrieve.classificationDirectives(fn_file = fn_file,fn_timeStamp = T); return(objectOut)},
+           IMC_ClassificationDirectivesList = {objectOut<-RUNIMC:::retrieve.classificationDirectives(fn_file = fn_file,fn_timeStamp = T); return(objectOut)},
            IMC_Classifier = {objectOut<-RUNIMC:::retrieve.classifier(fn_file = fn_file,fn_timeStamp = T); return(objectOut)},
            sqlite = {objectOut<-RUNIMC:::retrieve.expressionMatrix(fn_file = fn_file,fn_timeStamp = T); return(objectOut)},
            IMC_FilterFrame = {objectOut<-RUNIMC:::retrieve.filterFrame(fn_file = fn_file,fn_timeStamp = T); return(objectOut)},

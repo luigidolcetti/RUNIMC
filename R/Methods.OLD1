@@ -51,15 +51,13 @@ setMethod('initialize','IMC_InterpretationMatrix',
             Object<-initObjectAttr(Object)
             return(Object)})
 
-#** initialize.Classifier ---------------------------------------------------
-setMethod('initialize','IMC_Classifier',
-          function(.Object,val, ...) {
-            Object <- callNextMethod(.Object, ...)
-            if(!is.null(val)){
-              Object@.Data <- val
-            }
-            Object<-initObjectAttr(Object)
-            return(Object)})
+# #** initialize.Classifier ---------------------------------------------------
+# setMethod('initialize','IMC_Classifier',
+#           function(.Object, ...) {
+#             Object <- callNextMethod(.Object, ...)
+#
+#             Object<-initObjectAttr(Object)
+#             return(Object)})
 
 #** initialize.Segmentation ---------------------------------------------------
 setMethod('initialize','IMC_Segmentation',
@@ -102,13 +100,6 @@ setMethod('initialize','IMC_TrainingFeatures',
 
 #** initialize.classificationDirectives ---------------------------------------------------
 setMethod('initialize','IMC_ClassificationDirectives',
-          function(.Object, ...) {
-            Object <- callNextMethod(.Object, ...)
-            Object<-initObjectAttr(Object)
-            return(Object)})
-
-#** initialize.TrainingFeatures ---------------------------------------------------
-setMethod('initialize','IMC_ClassificationDirectivesList',
           function(.Object, ...) {
             Object <- callNextMethod(.Object, ...)
             Object<-initObjectAttr(Object)
@@ -579,55 +570,15 @@ setMethod('addClassificationDirectives',signature = ('environment'),
           function(x,method=NULL,methodParameters=NULL,...){
 
 
-            if (is.null(method)) stop(mError('provide a method'),call. = F)
-            if (is.null(methodParameters)) message(mWarning(paste0('no parameters for ',method, ' provided. Default will be used') ))
+            if (is.null(method)) stop(mError('provide a method'))
+            if (is.null(methodParameters)) stop(mError(paste0('provide parameters for ',method) ))
 
-            switch(method,
-                   randomForest = {
-                     if (is.null(methodParameters)){
-                       methodParameters<-methodParametersClassification[[method]]
-                       methodParameters$responseVariable = 'label'
-                       methodParameters$predictiveFeatures = tf_featureList(x)
-                     } else {
-                       namesDefault = names (methodParametersClassification[[method]])
-                       namesProvided = names (methodParameters)
-                       if (!all(namesProvided %in% namesDefault)) {
-                         message(mWarning('some of the parameters do not match and will be ignored'))
-                         methodParameters<-methodParameters[namesProvided %in% namesDefault]
-                       }
-                       methodParameters<-append(methodParameters,methodParametersClassification[[method]][!(namesDefault %in% namesProvided)])
-                     }
-                     # methodParameters<-methodParameters[unlist(lapply(methodParameters,function(x) !is.null(x)))]
-                   },
-                   randomOnions = {
-                     if (is.null(methodParameters)){
-                       methodParameters<-methodParametersClassification[[method]]
-                       methodParameters$responseVariable = 'DFC'
-                       methodParameters$predictiveFeatures = tf_featureList(x)
-                       methodParameters$labels = tf_labelList(x)
-                     } else {
-                       namesDefault = names (methodParametersClassification[[method]])
-                       namesProvided = names (methodParameters)
-                       if (!all(namesProvided %in% namesDefault)) {
-                         message(mWarning('some of the parameters do not match and will be ignored'))
-                         methodParameters<-methodParameters[namesProvided %in% namesDefault]
-                       }
-                       methodParameters<-append(methodParameters,methodParametersClassification[[method]][!(namesDefault %in% namesProvided)])
-                     }
-                     # methodParameters<-methodParameters[unlist(lapply(methodParameters,function(x) !is.null(x)))]
-                   },
-                   stop(mError('unkwon method'),call. = F))
 
             newDirectives<-new('IMC_ClassificationDirectives',
                                method=method,
                                methodParameters=methodParameters)
 
-
-            if (is.null(x$currentAnalysis$classificationDirectives)){
-              x$currentAnalysis$classificationDirectives<-new('IMC_ClassificationDirectivesList')
-            }
-
-            x$currentAnalysis$classificationDirectives[[method]]<-newDirectives
+            x$currentAnalysis$classificationDirectives<-newDirectives
 
             newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
             attr(x,'mdtnTimeStmp')<-newTimeStmp
@@ -636,87 +587,60 @@ setMethod('addClassificationDirectives',signature = ('environment'),
 
 #** makeClassificationModel ---------------------------------------------------
 if (!isGeneric("makeClassificationModel")) {
-  setGeneric("makeClassificationModel", function(x,method=NULL,seed=1234, ...)
+  setGeneric("makeClassificationModel", function(x,seed=1234, ...)
     standardGeneric("makeClassificationModel"))
 }
 
 #' @export
 setMethod('makeClassificationModel',signature = ('environment'),
-          function(x,method=NULL,seed=1234,...){
+          function(x,seed=1234,...){
+
+
 
             if (is.null(x$currentAnalysis$classificationDirectives)) stop(mError('Before making a classification model directives must be specified'))
-            if (length(x$currentAnalysis$classificationDirectives)>1 &
-                is.null(method)) stop(mError('specify what method to apply'))
-            if (length(x$currentAnalysis$classificationDirectives)==1 &
-                is.null(method)) method<-
-                x$currentAnalysis$classificationDirectives[[1]]@method
-
-            switch(method,
+            switch(x$currentAnalysis$classificationDirectives@method,
 
                    randomForest = {
+
                      set.seed=seed
-                     rVar<-x$currentAnalysis$classificationDirectives[[method]]@methodParameters$responseVariable
-                     pFtr<-x$currentAnalysis$classificationDirectives[[method]]@methodParameters$predictiveFeatures
-                     cPrm<-x$currentAnalysis$classificationDirectives[[method]]@methodParameters[!(names(x$currentAnalysis$classificationDirectives[[method]]@methodParameters) %in%c('responseVariable','predictiveFeatures'))]
-                     cPrm<-cPrm[unlist(lapply(cPrm,function(x) !is.null(x)))]
+                     rVar<-x$currentAnalysis$classificationDirectives@methodParameters$responseVariable
+                     pFtr<-x$currentAnalysis$classificationDirectives@methodParameters$predictiveFeatures
+                     cPrm<-x$currentAnalysis$classificationDirectives@methodParameters[!(names(x$currentAnalysis$classificationDirectives@methodParameters) %in%c('responseVariable','predictiveFeatures'))]
                      fFormula<-eval(parse(text=paste0(rVar,'~',paste(pFtr,collapse = '+'))))
                      rFcall<-c(list(formula = fFormula,
                                     data = x$currentAnalysis$trainingFeatures$value),
                                cPrm)
                      rf_classifier <- do.call(randomForest::randomForest,rFcall)
 
-                   },
-                   randomOnions = {
+                     rf_classifier<-as(rf_classifier,'IMC_Classifier')
+                     rf_classifier<-initObjectAttr(rf_classifier)
+                     x$currentAnalysis$classifier<-rf_classifier
 
-                     Lvar<-x$currentAnalysis$classificationDirectives[[method]]@methodParameters$labels
-                     rVar<-x$currentAnalysis$classificationDirectives[[method]]@methodParameters$responseVariable
-                     pFtr<-x$currentAnalysis$classificationDirectives[[method]]@methodParameters$predictiveFeatures
-                     cPrm<-x$currentAnalysis$classificationDirectives[[method]]@methodParameters[!(names(x$currentAnalysis$classificationDirectives[[method]]@methodParameters) %in%c('responseVariable','predictiveFeatures','labels','classificationLyr','prefix'))]
-                     cPrm<-cPrm[unlist(lapply(cPrm,function(x) !is.null(x)))]
-                     fFormula<-eval(parse(text=paste0(rVar,'~',paste(pFtr,collapse = '+'))))
-                     rf_classifier<-sapply(Lvar,function(lbl){
-                       cat('Random Forest...:::',lbl,':::\n')
-                       rFcall<-c(list(formula = fFormula,
-                                      data = x$currentAnalysis$trainingFeatures$value[x$currentAnalysis$trainingFeatures$value$parLabel==Lvar,]),
-                                 cPrm)
-                       rf<-do.call(randomForest::randomForest,rFcall)
-                       return(rf)
-                     },USE.NAMES = T,simplify = F)
-                   },
-                   stop(mError('unknown method')))
-
-            if (is.null(x$currentAnalysis$classifier)){
-              x$currentAnalysis$classifier<-new('IMC_Classifier',
-                                                val = list(rf_classifier))
-              names(x$currentAnalysis$classifier)<-method
-            } else {
-              x$currentAnalysis$classifier[[method]]<-rf_classifier
-            }
-
-            newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
-            attr(x,'mdtnTimeStmp')<-newTimeStmp
-            attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
+                     newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
+                     attr(x,'mdtnTimeStmp')<-newTimeStmp
+                     attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
+                   }
+            )
           })
 
 #** classify ---------------------------------------------------
 if (!isGeneric("classify")) {
-  setGeneric("classify", function(x,method=NULL,saveToDisk=T,...)
+  setGeneric("classify", function(x,saveToDisk=T,...)
     standardGeneric("classify"))
 }
 
 #' @export
 setMethod('classify',signature = ('environment'),
-          function(x,method=NULL,saveToDisk=T,...){
+          function(x,saveToDisk=T,...){
 
             if (is.null(x$currentAnalysis$classifier)) stop(mError('coud not find a classification model to apply'))
-            # clfrClass<-paste(class(x$currentAnalysis$classifier),collapse = '_')
-            if (is.null(method)) stop(mError('specify what method to use'))
+            clfrClass<-paste(class(x$currentAnalysis$classifier),collapse = '_')
 
-            switch(method,
-                   randomForest = {
+            switch(clfrClass,
+                   randomForest.formula_randomForest = {
 
-                     pFtr<-x$currentAnalysis$classificationDirectives[[method]]@methodParameters$predictiveFeatures
-                     rfCls<-x$currentAnalysis$classifier[[method]]
+                     pFtr<-x$currentAnalysis$classificationDirectives@methodParameters$predictiveFeatures
+                     rfCls<-x$currentAnalysis$classifier
                      uids<-x$studyTable$uid
 
                      TEST_monkey<-sapply(uids,function(uid){
@@ -763,47 +687,10 @@ setMethod('classify',signature = ('environment'),
                                         fn_filePath = fn_filePath,
                                         fn_append = F)},USE.NAMES = T)
 
-                     if (is.null(x$currentAnalysis$classification)){
-                       TEST_monkey<-new('IMC_Classification',TEST_monkey)
-                       x$currentAnalysis$classification<-TEST_monkey
-                     } else {
-                       x$currentAnalysis$classification<-append(x$currentAnalysis$classification,TEST_monkey)
-                     }
+                   })
 
-                   },
-                   randomOnions={
-
-                     if (is.null(x$currentAnalysis$classification)) stop(mError('coud not find any classification'))
-
-
-                     newClassification<-randomOnions(fn_rstStack=x$currentAnalysis$classification,
-                                                   fn_layerLabel=x$currentAnalysis$classificationDirectives[[method]]@methodParameters$classificationLyr,
-                                                   fn_label=x$currentAnalysis$classificationDirectives[[method]]@methodParameters$labels,
-                                                   fn_prefix=x$currentAnalysis$classificationDirectives[[method]]@methodParameters$prefix,
-                                                   fn_raster=x$raster,
-                                                   fn_derivedRaster=x$currentAnalysis$derivedRasters,
-                                                   fn_classifiers = x$currentAnalysis$classifier[[method]])
-                     newClassification<-new('IMC_Classification',newClassification)
-
-
-                     newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
-
-                     attr(newClassification,'crtnTimeStmp')<-attr(x$currentAnalysis$classification,'crtnTimeStmp')
-                     attr(newClassification,'mdtnTimeStmp')<-newTimeStmp
-
-                     if (!is.null(attr(x$currentAnalysis$classification,'fileArchive'))){
-                       attr(newClassification,'artnTimeStmp')<-newTimeStmp
-                       attr(newClassification,'fileArchive')<-attr(x$currentAnalysis$classification,'fileArchive')
-                     }
-
-                     x$currentAnalysis$classification<-newClassification
-
-                     # param<-append(list(x=x),x$currentAnalysis$classificationDirectives[[method]]@methodParameters)
-                     # do.call(RUNIMC::concentricClassification,param)
-                   },
-                   stop(mError('unknown method')))
-
-
+            TEST_monkey<-new('IMC_Classification',TEST_monkey)
+            x$currentAnalysis$classification<-TEST_monkey
 
             newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
             attr(x,'mdtnTimeStmp')<-newTimeStmp
@@ -866,15 +753,74 @@ setMethod('addSegmentationDirectives',signature = ('environment'),
           function(x,method=NULL,methodParameters=NULL,...){
 
 
-            if (is.null(method)) stop(mError('provide a method'),call. = F)
-            if (!any(method %in% names(methodParametersSegmentation))) stop(mError('unknown method'),call. = F)
+            if (is.null(method)) stop(mError('provide a method'))
             if (is.null(methodParameters)) {
               message(mWarning(paste0('no parameters provided for ',method,', default parameters will be added. You can change them manually in *@methodParameters') ))
-                       methodParameters<-methodParametersSegmentation[[method]]} else {
-                         namesDefault = names (methodParametersSegmentation[[method]])
-                         namesProvided = names (methodParameters)
-                         methodParameters<-append(methodParameters,methodParametersSegmentation[[method]][!(namesDefault %in% namesProvided)])
-                       }
+              switch(method,
+                     spiderMap = {
+                       methodParameters<-list(areaQuantile=c(0,1),
+                                              roundnessQuantile=c(0,1),
+                                              areaExpansion=c(1,1),
+                                              roundnessExpansion = c(1,1),
+                                              spikes=8,
+                                              radiusExpansion = 1.5,
+                                              densityMultiplier=1,
+                                              coverage = 0.5,
+                                              seedOutScore = 3,
+                                              cutSeedList = 0.05,
+                                              cycleWindow = 1000,
+                                              discoverTreshold = 1e-3,
+                                              adaptative = T,
+                                              drasticExpansion = 0.75,
+                                              direction = 'random',
+                                              seed=123)
+
+                     },
+                     ratMap = {
+                       methodParameters<-list(areaQuantile=c(0,1),
+                                              roundnessQuantile=c(0,1),
+                                              areaExpansion=c(1,1),
+                                              roundnessExpansion = c(1,1),
+                                              spikes=8,
+                                              radiusExpansion = 1.5,
+                                              coverage = 0.5,
+                                              seedOutScore = 3,
+                                              cycleWindow = 1000,
+                                              discoverTreshold = 1e-3,
+                                              adaptative = T,
+                                              drasticExpansion = 0.5,
+                                              lowPenalty=2,
+                                              highPenalty=1,
+                                              roundnessPenalty=1,
+                                              seed=123)
+
+                     },
+                     slothMap = {
+                       methodParameters<-list(areaQuantile=c(0,1),
+                                              roundnessQuantile=c(0,1),
+                                              spikes=8,
+                                              radiusExpansion=1.5,
+                                              coverage=0.3,
+                                              seedOutScore=10,
+                                              cycleWindow=1000,
+                                              discoverTreshold=1e-3,
+                                              adaptative=T,
+                                              areaAdaptRate=0.1,
+                                              roundnessAdaptRate=0.1,
+                                              fusion=T,
+                                              targetArea='training_mean',
+                                              maxNetworkSize=8,
+                                              inflateDeflate=0.1,
+                                              returnKinetic=T,
+                                              returnRasters=T)
+
+                     },
+                     lazyCatMap = {
+                       methodParameters<-list()
+
+                     }
+              )
+            }
 
 
             newDirectives<-new('IMC_SegmentationDirectives',

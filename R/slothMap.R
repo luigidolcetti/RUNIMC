@@ -135,27 +135,70 @@ slothMap<-function (fn_srt,
     orgVal<-fn_srt[raster::cellFromXY(fn_srt,c(xCoords,yCoords))]
     # orgVal<-DFraster$value[DFraster$x==xCoords & DFraster$y==yCoords]
 
+    # spikeEnds<-apply(xyVal,1,
+    #                  function(profileVector){
+    #                    profileVector[profileVector<0]<-NA
+    #                    gradienVector<-diff(c(orgVal,profileVector))
+    #                    signVector<-sign(gradienVector)
+    #                    signVector[is.na(signVector)]<-(-0.5)
+    #                    scoreVector<-cumsum(signVector)
+    #                    if (any(is.na(profileVector))){
+    #                      i<-min(which(is.na(profileVector)))
+    #                    } else {
+    #                      i<-min(which(scoreVector==max(scoreVector)))
+    #                    }
+    #
+    #                    if (is.na(profileVector[i])) u<-0 else u<-1
+    #
+    #                    return(list=c(i,u))
+    #                  })
+
     spikeEnds<-apply(xyVal,1,
                      function(profileVector){
-                       profileVector[profileVector<0]<-NA
-                       gradienVector<-diff(c(orgVal,profileVector))
-                       signVector<-sign(gradienVector)
-                       signVector[is.na(signVector)]<-(-0.5)
-                       scoreVector<-cumsum(signVector)
-                       if (any(is.na(profileVector))){
-                         i<-min(which(is.na(profileVector)))
-                       } else {
-                         i<-min(which(scoreVector==max(scoreVector)))
+                       profileVector[profileVector<0]<-0
+                       profileVector[is.na(profileVector)]<-0
+                       if (any(profileVector==0)){
+                         peakSafe<-which(profileVector==0)[1]
+                       } else peakSafe<-length(profileVector)
+                       profileFrame<-data.frame(x=1:length(profileVector),
+                                            y=profileVector)
+                       fitPoly<-lm(y~I(x^2)+x,data=profileFrame)
+                       a <- coef(fitPoly)[2]
+                       b <- coef(fitPoly)[3]
+                       peak<-(-(b/(2*a)))
+                       peakRound<-round(peak)
+                       hillSide<-peak-peakRound
+
+                       if (is.null(peakRound) | is.na(peakRound) | length(peakRound)==0){
+                         peakRound<-0
+                         hillside<-0
+                       }
+                       if (peakRound>length(profileVector)) peakRound<-length(profileVector)
+                       if (peakRound<1) {
+                         if (any(profileVector==0)){
+                         peakRound<-min(which(profileVector==0))[1]
+                         hillSide<-0
+                         } else {
+                           peakRound<-length(peakRound)
+                           hillSide<-1}
+                       }
+                       if (peakSafe<peakRound){
+                         peakRound<-peakSafe
+                         hillSide<-0
                        }
 
-                       if (is.na(profileVector[i])) u<-0 else u<-1
+                       if (hillSide<=0.5) u<-0 else u<-1
 
-                       return(list=c(i,u))
+                       return(list=c(peakRound,u))
                      })
 
+  # if (polyIndex==10) bunchOfSeeds$active<-rep(0,nrow(bunchOfSeeds))
 
     polyG<-t(sapply(1:fn_Nspikes,function(x){
-      intersectionMatrix[x,spikeEnds[1,x]][[1]][spikeEnds[2,x]+1,]+c(xCoords,yCoords)}))
+
+      intersectionMatrix[x,spikeEnds[1,x]][[1]][spikeEnds[2,x]+1,]+c(xCoords,yCoords)
+      # intersectionMatrix[x,20][[1]][1,]+c(xCoords,yCoords)
+      }))
     colnames(polyG)<-c('x','y')
 
     polyG<-na.omit(polyG)

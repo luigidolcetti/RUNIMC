@@ -1,8 +1,8 @@
 
 radialMask<-function(fn_radius,
                      fn_Nspikes){
-  rds<-seq(1:fn_radius)
-  ang<-seq(0,2*pi,pi/fn_Nspikes)
+  rds<-seq(1,fn_radius)
+  ang<-seq(0,2*pi,2*pi/fn_Nspikes)
   ang<-ang[1:(length(ang)-1)]
   mat<-expand.grid(rds,ang)
   sinMatrix<-matrix(apply(mat,1,function(x){round(sin(x[2])*x[1])}),ncol=(length(rds)),nrow=(length(ang)),byrow = T)
@@ -25,7 +25,7 @@ radialMask<-function(fn_radius,
 
   pixelBox<-matrix(pixelBox,ncol=fn_radius,byrow = T)
   intersectionMatrix<-matrix(list(),ncol=fn_radius,nrow = fn_Nspikes*2)
-  for (spike in 1:(fn_Nspikes*2)){
+  for (spike in 1:(fn_Nspikes)){
     for (rad in 1:(fn_radius)){
       pB<-pixelBox[spike,rad][[1]]
       sG<-segmentRadius[[spike]]

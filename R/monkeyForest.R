@@ -16,7 +16,7 @@ monkeyForest<-function(fn_rst,
 
   testMatrix<-raster::getValues(fn_rst)[,fn_layers]
 
-  prediction_for_table <-(predict(fn_forest,testMatrix,type='prob'))
+  prediction_for_table <-(predict(fn_forest,testMatrix,type='prob',progress='text'))
 
   Nundt<-ncol(prediction_for_table)+1
 

@@ -589,12 +589,12 @@ setMethod('archive',signature = c('IMC_ExtractionDirectives'),
 
 #*** archive:imc_classificationdirectives ---------------------------------------------------
 
-setMethod('archive',signature = c('IMC_ClassificationDirectives'),
+setMethod('archive',signature = c('IMC_ClassificationDirectivesList'),
           function(x,filePathName=NULL,objectReturn=F,forceSave=F,...){
 
 
             if (is.null(filePathName)) stop(mError('Provide file name'))
-            if (!endsWith(filePathName,'.IMC_ClassificationDirectives')) filePathName<-paste0(filePathName,'.IMC_ClassificationDirectives')
+            if (!endsWith(filePathName,'.IMC_ClassificationDirectivesList')) filePathName<-paste0(filePathName,'.IMC_ClassificationDirectivesList')
             if (!forceSave){
               mdtnTimeStmp<-attr(x,'mdtnTimeStmp')
               artnTimeStmp<-attr(x,'artnTimeStmp')

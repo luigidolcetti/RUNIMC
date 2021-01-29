@@ -25,7 +25,10 @@ IMC_Classification<-setClass('IMC_Classification',
 
 #* IMC_Classifier ---------------------------------------------------
 #' A Class container directives
-IMC_Classifier<-setClassUnion('IMC_Classifier',members =c('randomForest.formula','randomForest'))
+# IMC_Classifier<-setClassUnion('IMC_Classifier',members =c('randomForest.formula','randomForest'))
+
+IMC_Classifier<-setClass('IMC_Classifier',
+                         contains = 'list')
 
 #* IMC_TrainingFeatures ---------------------------------------------------
 #' A class container for treaning features
@@ -103,6 +106,11 @@ IMC_ClassificationDirectives<-setClass('IMC_ClassificationDirectives',
                                                       methodParameters='list'),
                                        prototype(method=c(),
                                                  methodParameters=list()))
+
+#* IMC_ClassificationDirectivesList ---------------------------------------------------
+#' A Class container directives
+IMC_ClassificationDirectivesList<-setClass('IMC_ClassificationDirectivesList',
+                                       contains = 'list')
 
 #* IMC_SegmentationDirectives ---------------------------------------------------
 #' a class
