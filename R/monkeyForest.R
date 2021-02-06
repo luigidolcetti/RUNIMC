@@ -2,84 +2,47 @@
 #'
 #'
 #' @export
-monkeyForest<-function(fn_rst,
-                       fn_layers,
+monkeyForest<-function(fn_rst = NULL,
+                       fn_layers = NULL,
                        fn_newLayerName='label',
                        fn_undeterminedLabel='undetermined',
-                       fn_Ptreshold=NULL,
-                       fn_colN,
-                       fn_rowN,
-                       fn_forest,
-                       fn_filePath=NULL,
-                       fn_append=T){
-
-
-  testMatrix<-raster::getValues(fn_rst)[,fn_layers]
-
-  prediction_for_table <-(predict(fn_forest,testMatrix,type='prob',progress='text'))
-
-  Nundt<-ncol(prediction_for_table)+1
-
-  synthLabel<-unlist(apply(prediction_for_table,1,function(x){
-    winLabel<-which(x==max(x))
-    if (length(winLabel)!=1) winLabel<-Nundt
-    if (!is.null(fn_Ptreshold) & winLabel!=Nundt){
-      if (x[winLabel]<fn_Ptreshold) winLabel<-Nundt
-    }
-    return(winLabel)
-  }),recursive = T,use.names = F)
-
-  oldNames<-colnames(prediction_for_table)
-  trainingLabels<-c(oldNames,fn_undeterminedLabel)
-
-  prediction_for_table<-cbind(prediction_for_table,synthLabel)
-
-  colnames(prediction_for_table)<-c(oldNames,fn_newLayerName)
-
-  rat<-data.frame(ID=1:length(trainingLabels),label=trainingLabels)
-
-  # prediction_for_table_numeric<-unname(sapply(prediction_for_table,function(x){
-  #   rat$ID[rat$label==x]}))
+                       fn_Ptreshold=0,
+                       fn_forest = NULL,
+                       fn_filePath=NULL){
 
   newFilePath<-checkDir(file.path(fn_filePath,'rasters'),fn_rst@IMC_text_file)
+  winnerSelection<-function(x,trsh=fn_Ptreshold,na.rm){
+    winnerClass<-which(x==max(x))
+    if (length(winnerClass)==0) return(length(x)+1)
+    if (length(winnerClass)>1) return(length(x)+1)
+    if (x[winnerClass[1]]>trsh) return(winnerClass[1]) else return(length(x)+1)
+  }
+  rfClasses<-fn_forest$classes
+  rfClassNumber<-length(rfClasses)
+  newStack <-raster::predict(fn_rst,fn_forest,type='prob',progress='text',index=seq_along(rfClasses))
+  newRaster<-raster::stackApply(x = newStack,
+                                indices = rep(1,rfClassNumber),
+                                fun=winnerSelection)
 
-  newRstList<-sapply(colnames(prediction_for_table),function(Xcol){
+  names(newRaster)<-fn_newLayerName
 
+  trainingLabels<-c(rfClasses,fn_undeterminedLabel)
 
-    prediction_for_table_numeric<-matrix(prediction_for_table[,Xcol],
-                                         ncol = fn_colN,
-                                         nrow = fn_rowN,
-                                         byrow = T)
+  rat<-data.frame(ID=seq_along(trainingLabels),label=trainingLabels)
 
+  levels(newRaster)[[1]]<-rat
 
-    newRaster<-raster::raster(prediction_for_table_numeric,
-                              # xmn=0,
-                              # xmx=ncol(prediction_for_table_numeric),
-                              # ymn=0,
-                              # ymx=nrow(prediction_for_table_numeric),
-                              xmn=raster::extent(fn_rst)[1],
-                              xmx=raster::extent(fn_rst)[2],
-                              ymn=raster::extent(fn_rst)[3],
-                              ymx=raster::extent(fn_rst)[4],
-                              crs=sp::CRS(as.character(NA)))
+  newRstList<-raster::as.list(newStack)
+  names(newRstList)<-names(newStack)
+  newRstList[[fn_newLayerName]]<-newRaster
 
-    names(newRaster)<-Xcol
-
-    if (names(newRaster)==fn_newLayerName){
-
-      levels(newRaster)[[1]]<-rat
-    }
-
-    if (!is.null(fn_filePath)){
-      rstfilePath<-file.path(newFilePath,paste0(Xcol,'.grd'))
-      raster::writeRaster(x = newRaster,
-                          filename = rstfilePath,
-                          overwrite=T,
-                          format='raster')
-      newRaster<-raster(rstfilePath)
-    }
-
-
+  newRstList<-sapply(names(newRstList), function(nms){
+    rstfilePath<-file.path(newFilePath,paste0(nms,'.grd'))
+    newRaster<-raster::writeRaster(x = newRstList[[nms]],
+                                   filename = rstfilePath,
+                                   overwrite=T,
+                                   format='raster')
+    return(newRaster)
   })
 
   rstrStk<-IMC_stack(x = newRstList,

@@ -23,6 +23,7 @@ slothMap(
   fn_targetArea = 50,
   fn_maxNetworkSize = 4,
   fn_inflateDeflate = 0.1,
+  fn_favourForeing = T,
   fn_returnKinetic = F,
   fn_returnRasters = F
 )

@@ -291,6 +291,7 @@ setMethod('tf_labelList',signature(x='environment'),
                         'parLabel',
                         'label',
                         'DFC',
+                        'SLI',
                         'x',
                         'y',
                         'coverage_fraction')

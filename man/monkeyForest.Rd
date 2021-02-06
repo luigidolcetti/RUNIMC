@@ -5,16 +5,13 @@
 \title{Some BullShit}
 \usage{
 monkeyForest(
-  fn_rst,
-  fn_layers,
+  fn_rst = NULL,
+  fn_layers = NULL,
   fn_newLayerName = "label",
   fn_undeterminedLabel = "undetermined",
-  fn_Ptreshold = NULL,
-  fn_colN,
-  fn_rowN,
-  fn_forest,
-  fn_filePath = NULL,
-  fn_append = T
+  fn_Ptreshold = 0,
+  fn_forest = NULL,
+  fn_filePath = NULL
 )
 }
 \description{

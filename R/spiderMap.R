@@ -31,11 +31,23 @@ spiderMap<-function (fn_srt,
   labelSeed<-levels(fn_srt)[[1]]$ID[levels(fn_srt)[[1]]$label==rownames(fn_interpret)[fn_interpret$seed==1]]
   bunchOfSeeds<-which(getValues(fn_srt)%in%labelSeed)
 
-  if (length(bunchOfSeeds)==0){
-    return(list(polygons=list(),
-                performance=data.frame(Nseeds=numeric(0),Npoly=numeric(0),Ntime=numeric(0)),
-                raster=fn_srt))}
-
+  if (nrow(bunchOfSeeds)==0){
+    if (!fn_returnRasters) fn_srt<-raster::raster(matrix(0))
+    fakePolygon<-matrix(data = c(xmn,ymn,xmn+1,ymn,xmn+1,ymn+1,xmn,ymn+1,xmn,ymn),
+                        ncol = 2,
+                        byrow = T)
+    colnames(fakePolygon)<-c('x','y')
+    segmentationOut<-new('IMC_Segmentation',
+                         polygons=list(fakePolygon),
+                         performance=data.frame(Nseeds=numeric(0),
+                                                Npoly=numeric(0),
+                                                Ntime=numeric(0))
+                         ,raster=fn_srt)
+    return(segmentationOut)
+    # return(list(polygons=list(),
+    #             performance=data.frame(Nseeds=numeric(0),Npoly=numeric(0),Ntime=numeric(0)),
+    #             raster=fn_srt))
+  }
 
 
   if (fn_direction!='random'){

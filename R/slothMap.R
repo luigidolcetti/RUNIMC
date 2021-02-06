@@ -20,6 +20,7 @@ slothMap<-function (fn_srt,
                     fn_targetArea=50,
                     fn_maxNetworkSize=4,
                     fn_inflateDeflate=0.1,
+                    fn_favourForeing=T,
                     fn_returnKinetic = F,
                     fn_returnRasters = F){
 
@@ -50,12 +51,22 @@ slothMap<-function (fn_srt,
   lyr<-names(fn_srt)
 
   if (nrow(bunchOfSeeds)==0){
-    return(list(polygons=list(),
-                performance=data.frame(Nseeds=numeric(0),Npoly=numeric(0),Ntime=numeric(0)),
-                raster=fn_srt))}
-
-
-
+    if (!fn_returnRasters) fn_srt<-raster::raster(matrix(0))
+    fakePolygon<-matrix(data = c(xmn,ymn,xmn+1,ymn,xmn+1,ymn+1,xmn,ymn+1,xmn,ymn),
+                        ncol = 2,
+                        byrow = T)
+    colnames(fakePolygon)<-c('x','y')
+    segmentationOut<-new('IMC_Segmentation',
+                         polygons=list(fakePolygon),
+                         performance=data.frame(Nseeds=numeric(0),
+                                                Npoly=numeric(0),
+                                                Ntime=numeric(0))
+                         ,raster=fn_srt)
+    return(segmentationOut)
+    # return(list(polygons=list(),
+    #             performance=data.frame(Nseeds=numeric(0),Npoly=numeric(0),Ntime=numeric(0)),
+    #             raster=fn_srt))
+    }
 
   polyList<-vector(mode = 'list',length = nrow(bunchOfSeeds))
   areaList<-vector(mode = 'list',length = nrow(bunchOfSeeds))
@@ -157,9 +168,12 @@ slothMap<-function (fn_srt,
                      function(profileVector){
                        profileVector[profileVector<0]<-0
                        profileVector[is.na(profileVector)]<-0
-                       if (any(profileVector==0)){
-                         peakSafe<-which(profileVector==0)[1]
-                       } else peakSafe<-length(profileVector)
+                       if (fn_favourForeing & any(profileVector==0)){
+                         peakRound<-which(profileVector==0)[1]
+                         u<-0
+                         return(list=c(peakRound,u))
+                     } else {
+
                        profileFrame<-data.frame(x=1:length(profileVector),
                                             y=profileVector)
                        fitPoly<-lm(y~I(x^2)+x,data=profileFrame)
@@ -182,14 +196,15 @@ slothMap<-function (fn_srt,
                            peakRound<-length(peakRound)
                            hillSide<-1}
                        }
-                       if (peakSafe<peakRound){
-                         peakRound<-peakSafe
-                         hillSide<-0
+                       if (any(profileVector==0)){
+                         if (peakRound>min(which(profileVector==0))[1]){
+                           peakRound<-min(which(profileVector==0))[1]
+                           hillSide<-0
+                         }
                        }
-
                        if (hillSide<=0.5) u<-0 else u<-1
+                       return(list=c(peakRound,u))}
 
-                       return(list=c(peakRound,u))
                      })
 
   # if (polyIndex==10) bunchOfSeeds$active<-rep(0,nrow(bunchOfSeeds))
@@ -385,33 +400,35 @@ slothMap<-function (fn_srt,
 
     })
 
-    TEMP_newPolyList<-list()
-    newLSIndex<-1
-    for (i in 1:length(newPolyList)){
-      if(all(class(newPolyList[[i]])=='list')){
-        for (ii in 1:length(newPolyList[[i]])){
-          if(any(class(newPolyList[[i]][[ii]])=='MULTYPOLYGON')){
-            for (iii in 1:length(newPolyList[[i]][[ii]]))
-              TEMP_newPolyList[[newLSIndex]]<-sf::st_polygon(newPolyList[[i]][[ii]][[iii]])
-            newLSIndex<-newLSIndex+1
-          } else {
-            TEMP_newPolyList[[newLSIndex]]<-newPolyList[[i]][[ii]]
-            newLSIndex<-newLSIndex+1}
-        }} else{
-          if(any(class(newPolyList[[i]])=='MULTYPOLYGON')){
-            for (ii in 1:length(newPolyList[[i]]))
-              TEMP_newPolyList[[newLSIndex]]<-sf::st_polygon(newPolyList[[i]][[ii]])
-            newLSIndex<-newLSIndex+1
-          } else{
-            TEMP_newPolyList[[newLSIndex]]<-newPolyList[[i]]
-            newLSIndex<-newLSIndex+1
-          }
-        }
-    }
 
-    newPolyList<-TEMP_newPolyList
+    # TEMP_newPolyList<-list()
+    # newLSIndex<-1
+    # for (i in 1:length(newPolyList)){
+    #   if(all(class(newPolyList[[i]])=='list')){
+    #     for (ii in 1:length(newPolyList[[i]])){
+    #       if(any(class(newPolyList[[i]][[ii]])=='MULTYPOLYGON')){
+    #         for (iii in 1:length(newPolyList[[i]][[ii]]))
+    #           TEMP_newPolyList[[newLSIndex]]<-sf::st_polygon(newPolyList[[i]][[ii]][[iii]])
+    #         newLSIndex<-newLSIndex+1
+    #       } else {
+    #         TEMP_newPolyList[[newLSIndex]]<-newPolyList[[i]][[ii]]
+    #         newLSIndex<-newLSIndex+1}
+    #     }} else{
+    #       if(any(class(newPolyList[[i]])=='MULTYPOLYGON')){
+    #         for (ii in 1:length(newPolyList[[i]]))
+    #           TEMP_newPolyList[[newLSIndex]]<-sf::st_polygon(newPolyList[[i]][[ii]])
+    #         newLSIndex<-newLSIndex+1
+    #       } else{
+    #         TEMP_newPolyList[[newLSIndex]]<-newPolyList[[i]]
+    #         newLSIndex<-newLSIndex+1
+    #       }
+    #     }
+    # }
 
-    newPolyList<-unlist(newPolyList,recursive = F)
+    # newPolyList<-TEMP_newPolyList
+    newPolyList<-.wiseUnlist(newPolyList)
+
+    # newPolyList<-unlist(newPolyList,recursive = F)
 
     newPolyList<-lapply(newPolyList,function(x){
       if (class(x)=='list') {return(x[[1]])} else (return(x))

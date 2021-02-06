@@ -677,7 +677,7 @@ setMethod('makeClassificationModel',signature = ('environment'),
                      rf_classifier<-sapply(Lvar,function(lbl){
                        cat('Random Forest...:::',lbl,':::\n')
                        rFcall<-c(list(formula = fFormula,
-                                      data = x$currentAnalysis$trainingFeatures$value[x$currentAnalysis$trainingFeatures$value$parLabel==Lvar,]),
+                                      data = x$currentAnalysis$trainingFeatures$value[x$currentAnalysis$trainingFeatures$value$parLabel==lbl,]),
                                  cPrm)
                        rf<-do.call(randomForest::randomForest,rFcall)
                        return(rf)
@@ -756,12 +756,9 @@ setMethod('classify',signature = ('environment'),
                                         fn_layers = pFtr,
                                         fn_newLayerName = 'label',
                                         fn_undeterminedLabel='undetermined',
-                                        fn_Ptreshold=NULL,
-                                        fn_colN = ncol(rstrStk),
-                                        fn_rowN = nrow(rstrStk),
+                                        fn_Ptreshold=x$currentAnalysis$classificationDirectives[[method]]@methodParameters$PvalueTreshold,
                                         fn_forest =rfCls,
-                                        fn_filePath = fn_filePath,
-                                        fn_append = F)},USE.NAMES = T)
+                                        fn_filePath = fn_filePath)},USE.NAMES = T)
 
                      if (is.null(x$currentAnalysis$classification)){
                        TEST_monkey<-new('IMC_Classification',TEST_monkey)
@@ -777,12 +774,12 @@ setMethod('classify',signature = ('environment'),
 
 
                      newClassification<-randomOnions(fn_rstStack=x$currentAnalysis$classification,
-                                                   fn_layerLabel=x$currentAnalysis$classificationDirectives[[method]]@methodParameters$classificationLyr,
-                                                   fn_label=x$currentAnalysis$classificationDirectives[[method]]@methodParameters$labels,
-                                                   fn_prefix=x$currentAnalysis$classificationDirectives[[method]]@methodParameters$prefix,
-                                                   fn_raster=x$raster,
-                                                   fn_derivedRaster=x$currentAnalysis$derivedRasters,
-                                                   fn_classifiers = x$currentAnalysis$classifier[[method]])
+                                                     fn_layerLabel=x$currentAnalysis$classificationDirectives[[method]]@methodParameters$classificationLyr,
+                                                     fn_label=x$currentAnalysis$classificationDirectives[[method]]@methodParameters$labels,
+                                                     fn_prefix=x$currentAnalysis$classificationDirectives[[method]]@methodParameters$prefix,
+                                                     fn_raster=x$raster,
+                                                     fn_derivedRaster=x$currentAnalysis$derivedRasters,
+                                                     fn_classifiers = x$currentAnalysis$classifier[[method]])
                      newClassification<-new('IMC_Classification',newClassification)
 
 
@@ -870,11 +867,11 @@ setMethod('addSegmentationDirectives',signature = ('environment'),
             if (!any(method %in% names(methodParametersSegmentation))) stop(mError('unknown method'),call. = F)
             if (is.null(methodParameters)) {
               message(mWarning(paste0('no parameters provided for ',method,', default parameters will be added. You can change them manually in *@methodParameters') ))
-                       methodParameters<-methodParametersSegmentation[[method]]} else {
-                         namesDefault = names (methodParametersSegmentation[[method]])
-                         namesProvided = names (methodParameters)
-                         methodParameters<-append(methodParameters,methodParametersSegmentation[[method]][!(namesDefault %in% namesProvided)])
-                       }
+              methodParameters<-methodParametersSegmentation[[method]]} else {
+                namesDefault = names (methodParametersSegmentation[[method]])
+                namesProvided = names (methodParameters)
+                methodParameters<-append(methodParameters,methodParametersSegmentation[[method]][!(namesDefault %in% namesProvided)])
+              }
 
 
             newDirectives<-new('IMC_SegmentationDirectives',
@@ -1064,6 +1061,7 @@ setMethod('segment',signature = ('environment'),
                                              fn_maxNetworkSize = mthdPrmtrs$maxNetworkSize,
                                              fn_targetArea = targetArea,
                                              fn_inflateDeflate = mthdPrmtrs$inflateDeflate,
+                                             fn_favourForeing = mthdPrmtrs$favourForeing,
                                              fn_returnKinetic = mthdPrmtrs$returnKinetic,
                                              fn_returnRasters = mthdPrmtrs$returnRasters))
 
@@ -1296,6 +1294,7 @@ setMethod('testSegment',signature = ('environment'),
                                          fn_maxNetworkSize = mthdPrmtrs$maxNetworkSize,
                                          fn_targetArea = targetArea,
                                          fn_inflateDeflate = mthdPrmtrs$inflateDeflate,
+                                         fn_favourForeing = mthdPrmtrs$favourForeing,
                                          fn_returnKinetic = T,
                                          fn_returnRasters = T))
 

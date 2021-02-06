@@ -28,43 +28,17 @@ extractFeatures<-function(fn_raster,
   featuresList<-exactextractr::exact_extract(fn_raster[[TEMP_UID]],fn_st_sfc,include_xy=T)
   labels<-fn_st_sfc$label
   polygonid<-1:nrow(fn_st_sfc)
-  neigbours<-matrix(c(0,1,0,-1,1,0,-1,0),ncol = 2,byrow = T)
   extraFeaturesList<-lapply(polygonid,function(pid){
-    cat(paste0(pid,'...',max(polygonid),'\r'))
     estimatedCentroid<-apply(featuresList[[pid]][,c('x','y')],2,mean)
     distanceFromCentroid<-raster::pointDistance(p1 = featuresList[[pid]][,c('x','y')],
                                                p2 = estimatedCentroid,
                                                lonlat = F)
-
-    workMatrix<-featuresList[[pid]][,c('x','y')]
-    skinLayer<-vector(mode = 'numeric',length = nrow(workMatrix))
-    skinLayerIndex<-0
-    flag<-nrow(workMatrix)
-    while(flag>0){
-      testPixel<-apply(workMatrix,1,function(rr){
-        scorePixel<-apply(neigbours,1,function(ngbrs){
-          newNgbrs<-rr+ngbrs
-          NgbrsCompare<-(newNgbrs[1]==workMatrix[,1]) & (newNgbrs[2]==workMatrix[,2])
-          if (any(NgbrsCompare)) return(1) else return(0)
-        })
-
-        scorePixel<-sum(scorePixel)
-        if (scorePixel<4) return(T) else return(F)
-      })
-
-      skinLayer[testPixel]<-skinLayerIndex
-      workMatrix[testPixel,]<-c(Inf,Inf)
-      flag<-flag-sum(testPixel)
-      skinLayerIndex<-skinLayerIndex-1
-    }
-    skinLayer<-skinLayer-(min(skinLayer))
     data.frame(uid=TEMP_UID,
                pixel.id = 1:nrow(featuresList[[pid]]),
                polygon.id = pid,
                parLabel = labels[pid],
                label = NA,
                DFC = distanceFromCentroid,
-               SLI = skinLayer,
                stringsAsFactors = F)})
   extraFeaturesList<-do.call(rbind.data.frame,c(extraFeaturesList,stringsAsFactors=F))
   featuresList<-do.call(rbind,featuresList)
