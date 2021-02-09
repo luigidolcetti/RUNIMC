@@ -1,50 +1,6 @@
-#'Segmentation engines
+#'Some BullShit
 #'
-#'A segmentation engine is a function used by the wrapper [segment()].
-#'  A segmentation engine can be deployed outside the mechanism of the [segment()]
-#'  method for example if it becomes convenient to apply specific values for
-#'  each different cell subtype.
-#'  [spiderMap()] offers a basic segmentation algorithm that is highly heuristic
-#'  because it lacks a deterministic assignment of seeds, as opposed to
-#'  [ratMap()] and [slothMap()] where the seeds are determined at the classification
-#'  level.
 #'
-#'@param fn_srt rasterLayer, a classification discrete raster layer, as produced
-#'  by the **randomForest** classification method, that describes in a single
-#'  raster all the classes.
-#'@param fn_interpret interpretation matrix, as produced by [addInterpretationMatrix()]
-#'  and possibly manually modified.
-#'@param fn_radius numeric, length (pixels) of the radius of the scanning mask
-#'@param fn_densityMultiplier ....
-#'@param fn_Nspikes numeric, number of vectors to use in the scanning matrix
-#'@param fn_minArea numeric, minimum area extent of a polygon to be accepted
-#'@param fn_maxArea numeric, the same as minArea
-#'@param fn_minRoundness numeric, minimum roundness of a polygon to be accepted
-#'@param fn_maxRoundness numeric, the same a s minRoundness
-#'@param fn_coverage numeric, minimum coverage (between 0 and 1) of a pixel,
-#'  to be included in a newly defined polygon and therfore masked out.
-#'@param fn_seedOutScore numeric, maximum nuber of times a seed should be
-#'  used to try before being discarded.
-#'@param fn_cutSeedList numeric, proportion (between 0 and 1) of the seed list
-#'  to discard after a number of unsuccesfull try. used only if **fn_direction**
-#'  is **insideout**.
-#'@param fn_cyclewindow numeric, how many cycles to run before modifying the
-#'  search parameters
-#'@param fn_discoveryTreshold numeric, ratio of new polygons/ n cycles to be
-#'  discovered within a **fn_cycleWindow** to prevent the modification
-#'  of the search parameters.
-#'@param fn_adaptative logic, whether to apply (TRUE) or not (FALSE) the mechanisms
-#'  that alter search parameters
-#'@param fn_drastic numeric, proportion of fn_minArea that determine the drastic
-#'  dismissal of all the pixels included in a polygon that is considered too small.
-#'@param fn_direction character, can be one among: **random**, **insideout** and
-#'  **outsidein**. It determines the order in which seeds will be interrogated
-#'  and depends on the pixel density as determined by the function [MASS::kde2d],
-#'  in which the bandwidth will be **fn_radius x fn_densityMultiplier**.
-#'@param fn_seed numeric, number used in [set.seed()] if **fn_direction** is set
-#'  to **random**
-#'@param ... not implemented
-#'@return IMC_segmentation object
 #' @export
 spiderMap<-function (fn_srt,
                      fn_interpret,
@@ -63,8 +19,7 @@ spiderMap<-function (fn_srt,
                      fn_adaptative=T,
                      fn_drastic=0,
                      fn_direction='random',
-                     fn_seed=1234,
-                     ...){
+                     fn_seed=1234){
 
   TimingFunction<-data.frame(Nseeds=0,Npoly=0,Ntime=Sys.time())
 
@@ -76,7 +31,7 @@ spiderMap<-function (fn_srt,
   labelSeed<-levels(fn_srt)[[1]]$ID[levels(fn_srt)[[1]]$label==rownames(fn_interpret)[fn_interpret$seed==1]]
   bunchOfSeeds<-which(getValues(fn_srt)%in%labelSeed)
 
-  if (length(bunchOfSeeds)==0){
+  if (nrow(bunchOfSeeds)==0){
     if (!fn_returnRasters) fn_srt<-raster::raster(matrix(0))
     fakePolygon<-matrix(data = c(xmn,ymn,xmn+1,ymn,xmn+1,ymn+1,xmn,ymn+1,xmn,ymn),
                         ncol = 2,
@@ -123,14 +78,51 @@ spiderMap<-function (fn_srt,
                        random={set.seed(fn_seed)
                          bunchOfSeeds[sample(nrow(bunchOfSeeds)),]})
 
-  polyList<-vector(mode = 'list',length = nrow(bunchOfSeeds))
+  polyIndex=1
+  polyList<-list()
+  rds<-seq(1:fn_radius)
+  ang<-seq(0,2*pi,pi/fn_Nspikes)
+  ang<-ang[1:(length(ang)-1)]
+  mat<-expand.grid(rds,ang)
+  sinMatrix<-matrix(apply(mat,1,function(x){round(sin(x[2])*x[1])}),ncol=(length(rds)),nrow=(length(ang)),byrow = T)
+  cosMatrix<-matrix(apply(mat,1,function(x){round(cos(x[2])*x[1])}),ncol=(length(rds)),nrow=(length(ang)),byrow = T)
 
-  rMsk<-RUNIMC:::radialMask(fn_radius,fn_Nspikes)
-  sinMatrix<-rMsk$sinMatrix
-  cosMatrix<-rMsk$cosMatrix
-  intersectionMatrix<-rMsk$intersectionMatrix
+  centerPoint<-sf::st_point(x=c(0,0),dim='XY')
+  segmentRadius<-lapply(ang,function(ang){
+    sf::st_linestring(matrix(c(c(0,sin(ang)*(fn_radius+1)),
+                           c(0,cos(ang)*(fn_radius+1))),
+                         ncol=2),
+                  dim='XY')})
 
-  polyIndex=0
+  pixelBox<-lapply(1:nrow(mat),function(x){
+    xPxCenter<-round(sin(mat[x,2])*mat[x,1])
+    yPxCenter<-round(cos(mat[x,2])*mat[x,1])
+    pixelBox<-matrix(c(c(xPxCenter-0.5,xPxCenter+0.5,xPxCenter+0.5,xPxCenter-0.5,xPxCenter-0.5),
+                       c(yPxCenter+0.5,yPxCenter+0.5,yPxCenter-0.5,yPxCenter-0.5,yPxCenter+0.5)),ncol=2)
+    pixelBox<-sf::st_linestring(pixelBox,dim='XY')
+  })
+
+  pixelBox<-matrix(pixelBox,ncol=fn_radius,byrow = T)
+  intersectionMatrix<-matrix(list(),ncol=fn_radius,nrow = fn_Nspikes*2)
+  for (spike in 1:(fn_Nspikes*2)){
+    for (rad in 1:(fn_radius)){
+      pB<-pixelBox[spike,rad][[1]]
+      sG<-segmentRadius[[spike]]
+      intersectionsCoords<-sf::st_intersection(sG,pB,flatten=F)
+      intersectionsCoords<-matrix(unlist(lapply(intersectionsCoords,function(x) x)),ncol=2)
+
+      distEstimate<-apply(intersectionsCoords,1,function (x){
+        sf::st_distance(centerPoint,sf::st_point(x=as.vector(x)),which='Euclidean')})
+      if (length(distEstimate)==1){
+        intersectionsCoords<-rbind(intersectionsCoords,intersectionsCoords)
+        distEstimate<-c(distEstimate,distEstimate)
+      }
+      if (length(distEstimate)==0){intersectionsCoords=NULL}
+      intersectionMatrix[spike,rad]<-list(intersectionsCoords[order(distEstimate),])
+    }
+  }
+
+
   cycleIndex=1
   oldCycleIndex=1
   oldPolyIndex=1
@@ -259,15 +251,15 @@ spiderMap<-function (fn_srt,
         else {
           if (polyArea>fn_maxArea){
             activeSeed<-bunchOfSeeds[bunchOfSeeds$seed %in% coordDF,]
-            activeSeed<-activeSeed[sample(length(activeSeed),1),]
-            activeSeed<-activeSeed$seed[1]
+            activeSeed<-activeSeed[sample(length(activeSeed),1)]
+            activeSeed<-activeSeed[1]
             bunchOfSeeds$score[bunchOfSeeds$seed==activeSeed]<-bunchOfSeeds$score[bunchOfSeeds$seed==activeSeed]+1
           } else {
             if (polyRoundness>=fn_minRoundness & polyRoundness<=fn_maxRoundness){
               bunchOfSeeds$active[bunchOfSeeds$seed %in% coordDF]<-0
-              polyIndex=polyIndex+1
               fn_srt[coordDF]<-(-polyIndex)
               polyList[[polyIndex]]<-polyG
+              polyIndex=polyIndex+1
               activeSeed<-c()
             } else {
               activeSeed<-c()}
@@ -304,8 +296,6 @@ spiderMap<-function (fn_srt,
              '| / throwout after: ',
              formatC(fn_seedOutScore,flag='0',digits=3),
              '\n'))
-
-  polyList<-polyList[1:polyIndex]
 
   TimingFunction<-rbind(TimingFunction,data.frame(Nseeds=nrow(bunchOfSeeds),Npoly=polyIndex,Ntime=Sys.time()))
 

@@ -813,17 +813,19 @@ setMethod('classify',signature = ('environment'),
 
 #** addInterpretationMatrix ---------------------------------------------------
 if (!isGeneric("addInterpretationMatrix")) {
-  setGeneric("addInterpretationMatrix", function(x,undtLabel=NULL,undtID=NULL,...)
+  setGeneric("addInterpretationMatrix", function(x,classifierObject=NULL,undtLabel=NULL,undtID=NULL,...)
     standardGeneric("addInterpretationMatrix"))
 }
 
 #' @export
 setMethod('addInterpretationMatrix',signature = ('environment'),
-          function(x,undtLabel=NULL,undtID=NULL,...){
+          function(x,classifierObject=NULL,undtLabel=NULL,undtID=NULL,...){
 
-            if (is.null(x$currentAnalysis$classifier)) stop(mError('coud not find a classification model to apply'))
+            if (is.null(x$currentAnalysis$classifier)) stop(mError('coud not find a classification model to apply'),call. = F)
+            if (is.null(classifierObject)) stop(mError('specify classifier'),call. = F)
+            if (is.null(x$currentAnalysis$classifier[[classifierObject]])) stop(mError('cannot find specific the specified classifier object'),call. = F)
 
-            iMat<-guideMatrix(x$currentAnalysis$classifier)
+            iMat<-guideMatrix(x$currentAnalysis$classifier[[classifierObject]])
 
             for (i in names(iMat)){
               iMat[[i]]$seed[iMat[[i]]$level==i]<-1

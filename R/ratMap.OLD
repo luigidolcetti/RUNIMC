@@ -58,14 +58,14 @@ ratMap<-function (fn_srt,
 
 
 
-  polyList<-vector(mode = 'list',length = nrow(bunchOfSeeds))
+  polyIndex=1
+  polyList<-list()
 
   rMsk<-RUNIMC:::radialMask(fn_radius,fn_Nspikes)
   sinMatrix<-rMsk$sinMatrix
   cosMatrix<-rMsk$cosMatrix
   intersectionMatrix<-rMsk$intersectionMatrix
 
-  polyIndex=0
   cycleIndex=1
   oldCycleIndex=1
   oldPolyIndex=1
@@ -198,9 +198,9 @@ ratMap<-function (fn_srt,
           } else {
             if (polyRoundness>=fn_minRoundness & polyRoundness<=fn_maxRoundness){
               bunchOfSeeds$active[bunchOfSeeds$seed %in% coordDF]<-0
-              polyIndex=polyIndex+1
               fn_srt[coordDF]<-(-polyIndex)
               polyList[[polyIndex]]<-polyG
+              polyIndex=polyIndex+1
               activeSeed<-c()
             } else {
               bunchOfSeeds$score[seedPointer]<-bunchOfSeeds$score[seedPointer]+fn_roundnessPenalty
@@ -232,8 +232,6 @@ ratMap<-function (fn_srt,
              '| / throwout after: ',
              formatC(fn_seedOutScore,flag='0',digits=3),
              '\n'))
-
-  polyList<-polyList[1:polyIndex]
 
   TimingFunction<-rbind(TimingFunction,data.frame(Nseeds=nrow(bunchOfSeeds),Npoly=polyIndex,Ntime=Sys.time()))
 

@@ -63,9 +63,6 @@ slothMap<-function (fn_srt,
                                                 Ntime=numeric(0))
                          ,raster=fn_srt)
     return(segmentationOut)
-    # return(list(polygons=list(),
-    #             performance=data.frame(Nseeds=numeric(0),Npoly=numeric(0),Ntime=numeric(0)),
-    #             raster=fn_srt))
     }
 
   polyList<-vector(mode = 'list',length = nrow(bunchOfSeeds))

@@ -2,7 +2,7 @@
 % Please edit documentation in R/spiderMap.R
 \name{spiderMap}
 \alias{spiderMap}
-\title{Some BullShit}
+\title{Segmentation engines}
 \usage{
 spiderMap(
   fn_srt,
@@ -22,9 +22,75 @@ spiderMap(
   fn_adaptative = T,
   fn_drastic = 0,
   fn_direction = "random",
-  fn_seed = 1234
+  fn_seed = 1234,
+  ...
 )
 }
+\arguments{
+\item{fn_srt}{rasterLayer, a classification discrete raster layer, as produced
+by the \strong{randomForest} classification method, that describes in a single
+raster all the classes.}
+
+\item{fn_interpret}{interpretation matrix, as produced by \code{\link[=addInterpretationMatrix]{addInterpretationMatrix()}}
+and possibly manually modified.}
+
+\item{fn_radius}{numeric, length (pixels) of the radius of the scanning mask}
+
+\item{fn_densityMultiplier}{....}
+
+\item{fn_Nspikes}{numeric, number of vectors to use in the scanning matrix}
+
+\item{fn_minArea}{numeric, minimum area extent of a polygon to be accepted}
+
+\item{fn_maxArea}{numeric, the same as minArea}
+
+\item{fn_minRoundness}{numeric, minimum roundness of a polygon to be accepted}
+
+\item{fn_maxRoundness}{numeric, the same a s minRoundness}
+
+\item{fn_coverage}{numeric, minimum coverage (between 0 and 1) of a pixel,
+to be included in a newly defined polygon and therfore masked out.}
+
+\item{fn_seedOutScore}{numeric, maximum nuber of times a seed should be
+used to try before being discarded.}
+
+\item{fn_cutSeedList}{numeric, proportion (between 0 and 1) of the seed list
+to discard after a number of unsuccesfull try. used only if \strong{fn_direction}
+is \strong{insideout}.}
+
+\item{fn_adaptative}{logic, whether to apply (TRUE) or not (FALSE) the mechanisms
+that alter search parameters}
+
+\item{fn_drastic}{numeric, proportion of fn_minArea that determine the drastic
+dismissal of all the pixels included in a polygon that is considered too small.}
+
+\item{fn_direction}{character, can be one among: \strong{random}, \strong{insideout} and
+\strong{outsidein}. It determines the order in which seeds will be interrogated
+and depends on the pixel density as determined by the function \link[MASS:kde2d]{MASS::kde2d},
+in which the bandwidth will be \strong{fn_radius x fn_densityMultiplier}.}
+
+\item{fn_seed}{numeric, number used in \code{\link[=set.seed]{set.seed()}} if \strong{fn_direction} is set
+to \strong{random}}
+
+\item{...}{not implemented}
+
+\item{fn_cyclewindow}{numeric, how many cycles to run before modifying the
+search parameters}
+
+\item{fn_discoveryTreshold}{numeric, ratio of new polygons/ n cycles to be
+discovered within a \strong{fn_cycleWindow} to prevent the modification
+of the search parameters.}
+}
+\value{
+IMC_segmentation object
+}
 \description{
-Some BullShit
+A segmentation engine is a function used by the wrapper \code{\link[=segment]{segment()}}.
+A segmentation engine can be deployed outside the mechanism of the \code{\link[=segment]{segment()}}
+method for example if it becomes convenient to apply specific values for
+each different cell subtype.
+\code{\link[=spiderMap]{spiderMap()}} offers a basic segmentation algorithm that is highly heuristic
+because it lacks a deterministic assignment of seeds, as opposed to
+\code{\link[=ratMap]{ratMap()}} and \code{\link[=slothMap]{slothMap()}} where the seeds are determined at the classification
+level.
 }
