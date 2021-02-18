@@ -14,6 +14,8 @@ ggp.biplot(
   fn_yTrsh = NULL,
   fn_zLimits = NULL,
   fn_limitsType = NULL,
+  fn_xlimits = NULL,
+  fn_ylimits = NULL,
   fn_xModulus = 0,
   fn_yModulus = 0,
   fn_colors = NULL,

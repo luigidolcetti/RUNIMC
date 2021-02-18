@@ -22,12 +22,24 @@
 #'
 #' @export
 .importTiffMask<-function(fn_fileList = NULL,
-                          fn_transpose = T,
+                          fn_transpose = F,
+                          fn_flip = NULL,
                           fn_layerName = 'Tiff_imported'){
 
   lrst <- lapply(fn_fileList, function(dataFile){
     rst<-raster::raster(dataFile)
     if (fn_transpose) rst<-raster::t(rst)
+    if (!is.null(fn_flip)){
+      if (fn_flip=='x' | fn_flip=='y' | fn_flip=='xy'){
+        switch (fn_flip,
+                x = {rst<-raster::flip(rst,fn_flip)},
+                y = {rst<-raster::flip(rst,fn_flip)},
+                xy = {
+                  rst<-raster::flip(rst,direction = 'x')
+                  rst<-raster::flip(rst,direction = 'y')
+                })
+      } else stop(mError('flip must be one of x, y or xy'),call. = F)
+    }
     names(rst)<-fn_layerName
     return(rst)
   })
@@ -63,11 +75,11 @@
 #' }
 #'
 #' @export
-setGeneric("importTiffMask", function(x,fileFolder=NULL,orderAgain=NULL,transposeImage=T,layerName='Tiff_imported',saveToDisk=T, ...)
+setGeneric("importTiffMask", function(x,fileFolder=NULL,orderAgain=NULL,transposeImage=F,flipImage=NULL,layerName='Tiff_imported',saveToDisk=T, ...)
     standardGeneric("importTiffMask"))
 
 setMethod('importTiffMask',signature = ('environment'),
-          function(x,fileFolder=NULL,orderAgain=NULL,transposeImage=T,layerName='Tiff_imported',saveToDisk=T, ...){
+          function(x,fileFolder=NULL,orderAgain=NULL,transposeImage=F,flipImage=NULL,layerName='Tiff_imported',saveToDisk=T, ...){
 
 
             if (is.null(fileFolder)) {stop(RUNIMC:::mError('specify a folder where to look for .tiff'))}
@@ -86,13 +98,15 @@ setMethod('importTiffMask',signature = ('environment'),
               filesToImport<-list.files(dirToImport[[lbl]],full.names = T )
 
               if (length(uids)!=length(filesToImport)) {stop(RUNIMC:::mError('the number of files in this folder does not match the number of samples for this study'))}
-              filesToImport<-filesToImport[orderAgain]
+              if (!is.null(orderAgain)) filesToImport<-filesToImport[orderAgain]
 
               newClassification<-.importTiffMask(fn_fileList = filesToImport,
                                                  fn_transpose = transposeImage,
+                                                 fn_flip = flipImage,
                                                  fn_layerName = newLabel)
 
               for (i in 1:length(newClassification)){
+
                 comparisonRst<-raster::compareRaster(newClassification[[i]],
                                                      x$raster[[i]],
                                                      extent = F,

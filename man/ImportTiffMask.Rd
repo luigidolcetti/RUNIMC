@@ -8,7 +8,8 @@ importTiffMask(
   x,
   fileFolder = NULL,
   orderAgain = NULL,
-  transposeImage = T,
+  transposeImage = F,
+  flipImage = NULL,
   layerName = "Tiff_imported",
   saveToDisk = T,
   ...

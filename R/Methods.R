@@ -1087,7 +1087,8 @@ setMethod('segment',signature = ('environment'),
 
                          cat(paste(rst,i,'\n',sep=":::"))
 
-                         TEMP<-list(lazyCatMap(fn_srt = rstToSegment[[rst]][[i]]))
+                         TEMP<-list(lazyCatMap_NEW(fn_srt = rstToSegment[[rst]][[i]],
+                                                   fn_indexToExclude = mthdPrmtrs$indexToExclude))
                          polygonsList[[rst]][[i]]<-list()
                          polygonsList[[rst]][[i]]<-TEMP[[1]]
 

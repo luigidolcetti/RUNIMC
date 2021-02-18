@@ -6,7 +6,8 @@
 \usage{
 .importTiffMask(
   fn_fileList = NULL,
-  fn_transpose = T,
+  fn_transpose = F,
+  fn_flip = NULL,
   fn_layerName = "Tiff_imported"
 )
 }

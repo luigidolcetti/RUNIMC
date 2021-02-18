@@ -132,5 +132,5 @@ methodParametersSegmentation<-list(
                   favourForeing=T,
                   returnKinetic=T,
                   returnRasters=T),
-  lazyCatMap = list()
+  lazyCatMap = list(indexToExclude = NULL)
 )

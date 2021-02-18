@@ -52,15 +52,13 @@ ggp.raster<-function(fn_raster = NULL,
   } else fn_limitsType  <- 'asIs'
 
   ggNew<-ggplot2::ggplot()
-  ggNew <- ggNew + ggplot2::theme(aspect.ratio = 1,
-                                  # legend.position = 'none',
-                                  legend.title = ggplot2::element_blank(),
+  ggNew <- ggNew + ggplot2::theme(legend.title = ggplot2::element_blank(),
                                   legend.position = 'bottom',
                                   panel.background = ggplot2::element_rect(fill = fn_bg),
                                   panel.border = ggplot2::element_blank(),
                                   panel.grid = ggplot2::element_blank())
   if (!is.null(fn_zoom)){
-    coordSystem<-ggplot2::coord_equal(ratio = 1,
+    coordSystem<-ggplot2::coord_fixed(ratio=1,
                                       xlim = c(min(fn_zoom[1:2]),max(fn_zoom[1:2])),
                                       ylim = c(min(fn_zoom[3:4]),max(fn_zoom[3:4])),
                                       expand = F,
@@ -196,8 +194,7 @@ ggp.geometry<-function(fn_gg = NULL,
   if (is.null(fn_gg)){
 
     ggNew<-ggplot2::ggplot()
-    ggNew <- ggNew + ggplot2::theme(aspect.ratio = 1,
-                                    legend.title = ggplot2::element_blank(),
+    ggNew <- ggNew + ggplot2::theme(legend.title = ggplot2::element_blank(),
                                     legend.position = 'bottom',
                                     panel.background = ggplot2::element_rect(fill = fn_bg),
                                     panel.border = ggplot2::element_blank(),
@@ -213,11 +210,13 @@ ggp.geometry<-function(fn_gg = NULL,
   if (!is.null(fn_fillVar)) {
     if (!any(fn_fillVar %in% colNms)) stop(RUNIMC:::mError("couldn't find fill values"))}
 
-  ggNew<-ggNew+ggnewscale::new_scale(new_aes = c('color','border'))
+
   if (!is.null(fn_gg)){
+    ggNew<-ggNew+ggnewscale::new_scale(new_aes = c('color'))
     ggNew<-ggNew+ggplot2::geom_sf(data=fn_geometry,
                                   ggplot2::aes_string(color=fn_borderVar), fill=NA)
   } else {
+    ggNew<-ggNew+ggnewscale::new_scale(new_aes = c('color','fill'))
     ggNew<-ggNew+ggplot2::geom_sf(data=fn_geometry,
                                   ggplot2::aes_string(color=fn_borderVar,
                                                       fill=fn_fillVar))
@@ -231,13 +230,46 @@ ggp.geometry<-function(fn_gg = NULL,
   }
 
   if (!is.null(fn_fillVar)){
-    if (any(class(fn_geometry[[fn_fillVar]]) %in% c('factor','character'))){
+
+    if (class(fn_geometry[[fn_fillVar]]) == 'character'){
       if (is.null(fn_fillCol)) fn_fillCol<-RUNIMC:::prettyColors(fn_nSamples = length(unique(fn_geometry[[fn_fillVar]])))
-      ggNew<-ggNew+ggplot2::scale_fill_manual(values = fn_fillCol)}
+      ggNew<-ggNew+ggplot2::scale_fill_manual(values = fn_fillCol,drop=F)
+    }
+    if (class(fn_geometry[[fn_fillVar]]) == 'factor'){
+      if (is.null(fn_fillCol)) fn_fillCol<-RUNIMC:::prettyColors(fn_nSamples = length(levels(fn_geometry[[fn_fillVar]])))
+      ggNew<-ggNew+ggplot2::scale_fill_manual(values = fn_fillCol,drop=F)
+    }
     if (class(fn_geometry[[fn_fillVar]])=='numeric'){
       if (is.null(fn_fillCol)) fn_fillCol<-c('black','white')
-      ggNew<-ggNew+ggplot2::scale_fill_gradientn(colours = fn_fillCol)}
+      ggNew<-ggNew+ggplot2::scale_fill_gradientn(colours = fn_fillCol)
+    }
+  } else {
+    if (is.null(fn_fillCol) & is.null(fn_gg)){
+      fn_fillCol<-'white'
+      ggNew<-ggNew+ggplot2::scale_fill_manual(values = fn_fillCol,drop=F)
+    }
   }
+
+  if (!is.null(fn_borderVar)){
+
+    if (class(fn_geometry[[fn_borderVar]]) == 'character'){
+      if (is.null(fn_borderCol)) fn_borderCol<-RUNIMC:::prettyColors(fn_nSamples = length(unique(fn_geometry[[fn_borderVar]])))
+      ggNew<-ggNew+ggplot2::scale_color_manual(values = fn_borderCol,drop=F)
+    }
+    if (class(fn_geometry[[fn_borderVar]]) == 'factor'){
+      if (is.null(fn_borderCol)) fn_borderCol<-RUNIMC:::prettyColors(fn_nSamples = length(levels(fn_geometry[[fn_borderVar]])))
+      ggNew<-ggNew+ggplot2::scale_color_manual(values = fn_borderCol,drop=F)
+    }
+    if (class(fn_geometry[[fn_borderVar]])=='numeric'){
+      if (is.null(fn_borderCol)) fn_borderCol<-c('black','white')
+      ggNew<-ggNew+ggplot2::scale_color_gradientn(colours = fn_borderCol,drop=F)
+    }
+  } else {
+    if (is.null(fn_borderCol)) fn_borderCol<-'white'
+    ggNew<-ggNew+ggplot2::scale_color_manual(values = fn_borderCol,drop=F)
+  }
+
+
 
   ggNew <-ggNew + ggplot2::guides(colour = ggplot2::guide_legend(override.aes = list(size=3)))
 
@@ -296,6 +328,8 @@ ggp.biplot<-function(fn_exprs = NULL,
                      fn_yTrsh = NULL,
                      fn_zLimits = NULL,
                      fn_limitsType = NULL,
+                     fn_xlimits = NULL,
+                     fn_ylimits = NULL,
                      fn_xModulus = 0,
                      fn_yModulus = 0,
                      fn_colors = NULL,
@@ -336,8 +370,8 @@ ggp.biplot<-function(fn_exprs = NULL,
   }
 
 
-  ggNew<-ggNew + ggplot2::scale_x_continuous(trans = scales::modulus_trans(fn_xModulus)) +
-    ggplot2::scale_y_continuous(trans = scales::modulus_trans(fn_yModulus))
+  ggNew<-ggNew + ggplot2::scale_x_continuous(trans = scales::modulus_trans(fn_xModulus),limits = fn_xlimits) +
+    ggplot2::scale_y_continuous(trans = scales::modulus_trans(fn_yModulus),limits = fn_ylimits)
 
   if (!is.null(fn_z)){
     classZ<-class(fn_exprs[[fn_z]])
@@ -348,7 +382,8 @@ ggp.biplot<-function(fn_exprs = NULL,
       } else {
         newColors<-fn_colors
       }
-      ggNew<-ggNew+ggplot2::scale_fill_manual(values = newColors)
+      ggNew<-ggNew+ggplot2::scale_fill_manual(values = newColors,drop=F)
+      ggNew<-ggNew+ggplot2::scale_color_manual(values = newColors,drop=F)
     }
     if (classZ == 'numeric') {
       if (is.null(fn_colors)){

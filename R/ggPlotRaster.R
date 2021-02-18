@@ -124,7 +124,7 @@ plot.raster<-function(fn_raster=NULL,
       ggp<-ggp+ggnewscale::new_scale(new_aes = 'color')
       ggp<-ggp+ggplot2::geom_sf(data=subSegmentation,ggplot2::aes(color=label),fill=NA)
       ggp<-ggp+ggplot2::coord_sf(xlim = coordLim[1:2],ylim = coordLim[3:4])
-      ggp<-ggp+ggplot2::scale_color_manual(values=fn_segmentColor,breaks =fn_segmentLabel)
+      ggp<-ggp+ggplot2::scale_color_manual(values=fn_segmentColor,breaks =fn_segmentLabel,drop = F)
     } else {
       ggp<-ggp+ggplot2::coord_fixed(ratio = 1,xlim = coordLim[1:2],ylim = coordLim[3:4])
 
