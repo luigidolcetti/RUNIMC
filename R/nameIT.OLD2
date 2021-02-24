@@ -3,9 +3,7 @@ nameIT <- function(fn_exprs,
                    fn_Xclass,
                    fn_Yclass,
                    fn_dimToPlot,
-                   fn_transform = scales::modulus_trans(-1,1),
-                   fn_Newclass = 'newClass',
-                   fn_undefined = 'UNDF') {
+                   fn_Newclass = 'newClass') {
 
   newExprs<-sf::st_drop_geometry(fn_exprs)
 
@@ -17,130 +15,152 @@ nameIT <- function(fn_exprs,
 
   labelClash<-newExprs[,c(fn_Xclass,fn_Yclass)]
 
-  labelCross<-list()
-
-  tLabelClash<-table(labelClash)
-
-  labelCross[['column']]<-apply(tLabelClash,2,function(x){x/sum(x)})
-  labelCross[['row']]<-t(apply(tLabelClash,1,function(x){x/sum(x)}))
-  labelCross[['total']]<-matrix(tLabelClash/sum(tLabelClash),
-                                nrow=length(Xlevels),
-                                ncol=length(Ylevels),
-                                dimnames = list(Xlevels,Ylevels))
-
-
-  medianNewExprs<-aggregate(newExprs[,fn_dimToPlot,drop=F],by=list(newExprs[,fn_Xclass],newExprs[,fn_Yclass]),FUN=median,drop = F)
-  medianNewExprs[is.na(medianNewExprs)]<-0
-  colnames(medianNewExprs)[1:2]<-c(fn_Xclass,fn_Yclass)
-
-  TEMP<-sapply(fn_dimToPlot,function(dTp){
-
-    focusColumn<-fn_transform$transform(medianNewExprs[,dTp])
-    focusColumn<-focusColumn/max(focusColumn)
-    out<-matrix(focusColumn,
-                nrow = length(Xlevels),
-                ncol = length(Ylevels),
-                dimnames = list(Xlevels,Ylevels),
-                byrow = F)
-  },USE.NAMES = T,simplify = F)
-
-  labelCross<-append(labelCross,TEMP)
-
-
-  labelCross<-sapply(labelCross,function(x){
-    Rowv <- as.dendrogram(hclust(dist(x)))
-    rowInd <- order.dendrogram(Rowv)
-    Colv <- as.dendrogram(hclust(dist(t(x))))
-    colInd <- order.dendrogram(Colv)
-    x<-x[rowInd,colInd]
-    return(x)
-  },USE.NAMES = T,simplify = F)
-
-
-  labelCross_long<-expand.grid(rev(rownames(labelCross[['row']])),colnames(labelCross[['row']]))
-  numberCross_long<-expand.grid(seq_along(rownames(labelCross[['row']])),seq_along(colnames(labelCross[['row']])))
-
-  colnames(labelCross_long)<-c(fn_Xclass,fn_Yclass)
-  labelCross_long[,fn_Xclass]<-factor(labelCross_long[,fn_Xclass],levels = Xlevels)
-  labelCross_long[,fn_Yclass]<-factor(labelCross_long[,fn_Yclass],levels = Ylevels)
-
-  colnames(numberCross_long)<-c('Y','X')
-  labelCross_long<-cbind.data.frame(labelCross_long,
-                                    crossLabel = paste(labelCross_long[,fn_Xclass],
-                                                       labelCross_long[,fn_Yclass],
-                                                       sep = ' x '),
-                                    numberCross_long,
-                                    perc = as.vector(labelCross[['row']]))
-
-  labelCross_def<-cbind.data.frame(labelCross_long[,c(fn_Xclass,
-                                                      fn_Yclass,
-                                                      'crossLabel')],
-                                   NC = fn_undefined)
-  colnames(labelCross_def)[4]<-fn_Newclass
-
   exprs_long<-newExprs[,c(fn_Xclass,fn_Yclass,fn_dimToPlot)]
   exprs_long<-as.data.frame(tidyr::pivot_longer(data = exprs_long,
                                                 cols = fn_dimToPlot,
                                                 names_to = 'marker',
                                                 values_to = 'MFI'))
 
-  exprs_long<-dplyr::left_join(exprs_long,
-                               labelCross_long[,c(fn_Xclass,
-                                                  fn_Yclass,
-                                                  'crossLabel',
-                                                  'Y',
-                                                  'X')],
-                               by = c(fn_Xclass,fn_Yclass))
-
+# labelCross<-apply(table(labelClash),2,function(x){x/sum(x)})
+#
+# Rowv <- as.dendrogram(hclust(dist(labelCross)))
+# rowInd <- order.dendrogram(Rowv)
+#
+# Colv <- as.dendrogram(hclust(dist(t(labelCross))))
+# colInd <- order.dendrogram(Colv)
+#
+# labelCross<-labelCross[rowInd,colInd]
+#
+# labelCross_long<-expand.grid(rev(rownames(labelCross)),colnames(labelCross))
+# numberCross_long<-expand.grid(seq_along(rownames(labelCross)),seq_along(colnames(labelCross)))
+#
+# colnames(labelCross_long)<-c(fn_Xclass,fn_Yclass)
+# labelCross_long[,fn_Xclass]<-factor(labelCross_long[,fn_Xclass],levels = Xlevels)
+# labelCross_long[,fn_Yclass]<-factor(labelCross_long[,fn_Yclass],levels = Ylevels)
+#
+# colnames(numberCross_long)<-c('Y','X')
+# labelCross_long<-cbind.data.frame(labelCross_long,
+#                                   crossLabel = paste(labelCross_long[,fn_Xclass],
+#                                                      labelCross_long[,fn_Yclass],
+#                                                      sep = ' x '),
+#                                   numberCross_long,
+#                                   perc = as.vector(labelCross))
+#
+# labelCross_def<-cbind.data.frame(labelCross_long[,c(fn_Xclass,
+#                                                     fn_Yclass,
+#                                                     'crossLabel')],
+#                                  NC='UNDEF')
+# colnames(labelCross_def)[4]<-fn_Newclass
+#
+#
+# exprs_long<-newExprs[,c(fn_Xclass,fn_Yclass,fn_dimToPlot)]
+# exprs_long<-as.data.frame(tidyr::pivot_longer(data = exprs_long,
+#                                               cols = fn_dimToPlot,
+#                                               names_to = 'marker',
+#                                               values_to = 'MFI'))
+#
+# exprs_long<-dplyr::left_join(exprs_long,
+#                              labelCross_long[,c(fn_Xclass,
+#                                                 fn_Yclass,
+#                                                 'crossLabel',
+#                                                 'Y',
+#                                                 'X')],
+#                              by = c(fn_Xclass,fn_Yclass))
+#
 
 
 
   server <- function(input, output, session) {
 
 
-    ##### set reactive values #####
 
-    rv_plotMap<-shiny::reactiveValues(map = raster::raster(labelCross[['row']],
-                                                           xmn=0,
-                                                           xmx=0+ncol(labelCross[['row']]),
-                                                           ymn=0,
-                                                           ymx=0+nrow(labelCross[['row']])),
-                                      df = labelCross_long,
-                                      newLab = labelCross_def,
+    rv_plotMap<-shiny::reactiveValues(map = NULL,
+                                      df = NULL,
+                                      newLab = NULL,
                                       newLabSub =NULL,
                                       select = NULL,
                                       selectCol = NULL,
-                                      selectLab = NULL,
                                       selectCrossLabel = NULL)
+
+    shiny::observeEvent(input$mapOrigin,{
+      switch(input$mapOrigin,
+             column={
+               labelCross<-apply(as.matrix(table(labelClash)),2,function(x){x/sum(x)})
+             },
+             row = {
+               labelCross<-t(apply(as.matrix(table(labelClash)),1,function(x){x/sum(x)}))
+             },
+             total = {
+               TEMP<-table(labelClash)
+               labelCross<-matrix(TEMP/sum(TEMP),
+                                  nrow = nrow(TEMP),
+                                  ncol = ncol(TEMP),
+                                  dimnames = list(rownames(TEMP),colnames(TEMP)))
+             })
+
+      Rowv <- as.dendrogram(hclust(dist(labelCross)))
+      rowInd <- order.dendrogram(Rowv)
+
+      Colv <- as.dendrogram(hclust(dist(t(labelCross))))
+      colInd <- order.dendrogram(Colv)
+
+      labelCross<-labelCross[rowInd,colInd]
+
+      labelCross_long<-expand.grid(rev(rownames(labelCross)),colnames(labelCross))
+      numberCross_long<-expand.grid(seq_along(rownames(labelCross)),seq_along(colnames(labelCross)))
+
+      colnames(labelCross_long)<-c(fn_Xclass,fn_Yclass)
+      labelCross_long[,fn_Xclass]<-factor(labelCross_long[,fn_Xclass],levels = Xlevels)
+      labelCross_long[,fn_Yclass]<-factor(labelCross_long[,fn_Yclass],levels = Ylevels)
+
+      colnames(numberCross_long)<-c('Y','X')
+      labelCross_long<-cbind.data.frame(labelCross_long,
+                                        crossLabel = paste(labelCross_long[,fn_Xclass],
+                                                           labelCross_long[,fn_Yclass],
+                                                           sep = ' x '),
+                                        numberCross_long,
+                                        perc = as.vector(labelCross))
+
+      labelCross_def<-cbind.data.frame(labelCross_long[,c(fn_Xclass,
+                                                          fn_Yclass,
+                                                          'crossLabel')],
+                                       NC='UNDEF')
+      colnames(labelCross_def)[4]<-fn_Newclass
+
+
+      exprs_long<-newExprs[,c(fn_Xclass,fn_Yclass,fn_dimToPlot)]
+      exprs_long<-as.data.frame(tidyr::pivot_longer(data = exprs_long,
+                                                    cols = fn_dimToPlot,
+                                                    names_to = 'marker',
+                                                    values_to = 'MFI'))
+
+      exprs_long<-dplyr::left_join(exprs_long,
+                                   labelCross_long[,c(fn_Xclass,
+                                                      fn_Yclass,
+                                                      'crossLabel',
+                                                      'Y',
+                                                      'X')],
+                                   by = c(fn_Xclass,fn_Yclass))
+
+
+      rv_plotMap$map <- raster::raster(labelCross,
+                                       xmn=0,
+                                       xmx=0+ncol(labelCross),
+                                       ymn=0,
+                                       ymx=0+nrow(labelCross))
+      rv_plotMap$df <- labelCross_long
+    },priority = 100)
+
+
+
+
+
 
     rv_plotProfile<-shiny::reactiveValues(original = as.data.frame(exprs_long),
                                           sub = NULL)
 
 
-    ##### set origin for heatmap #####
 
-    shiny::observeEvent(input$mapOrigin,{
-      rv_plotMap$map<-raster::raster(labelCross[[input$mapOrigin]],
-                                     xmn=0,
-                                     xmx=0+ncol(labelCross[[input$mapOrigin]]),
-                                     ymn=0,
-                                     ymx=0+nrow(labelCross[[input$mapOrigin]]))
-
-      xlab<-colnames(labelCross[[input$mapOrigin]])
-      ylab<-rev(rownames(labelCross[[input$mapOrigin]]))
-
-
-      if (!is.null(rv_plotMap$selectLab)){
-        rv_plotMap$select<-t(apply(rv_plotMap$selectLab,1,function(x){
-          xInd<-which(xlab == x[1],arr.ind = T)
-          yInd<-which(ylab == x[2],arr.ind = T)
-          return (c(xInd,yInd))
-        }))
-      }
-    })
-
-
-    ##### I/O file #####
     shiny::observeEvent(input$defUp,{
       rv_plotMap$newLab<-read.table(input$defUp$datapath,
                                     header = T,
@@ -148,6 +168,7 @@ nameIT <- function(fn_exprs,
                                     check.names = F,
                                     stringsAsFactors = T)
     })
+
 
     output$defDown <- shiny::downloadHandler(
 
@@ -160,7 +181,7 @@ nameIT <- function(fn_exprs,
 
 
 
-    ##### plot heatmap #####
+
 
     output$plotMap<-shiny::renderPlot({
 
@@ -179,37 +200,31 @@ nameIT <- function(fn_exprs,
              lwd=1,
              cex = 2)
       #
-      xlab<-rev(rownames(labelCross[[input$mapOrigin]]))
-      ylab<-colnames(labelCross[[input$mapOrigin]])
-
-      axis(1, at=seq_along(ylab)-0.5, labels=ylab)
-      axis(2, at=seq_along(xlab)-0.5, labels=xlab)
+      axis(1, at=rv_plotMap$df[,5]-0.5, labels=rv_plotMap$df[,2])
+      axis(2, at=rv_plotMap$df[,4]-0.5, labels=rv_plotMap$df[,1])
     })
 
-    ##### plot density #####
     output$plotPlot<-shiny::renderPlot({
 
-      # selectCase<-apply(rv_plotMap$select,1,function(sC){
-      #   rv_plotMap$df[(rv_plotMap$df$Y == sC[2] &
-      #                    rv_plotMap$df$X == sC[1])
-      #                 ,c(fn_Yclass,fn_Xclass)]
-      # })
-      # selectCase<-do.call(rbind.data.frame,selectCase)
-      #
-      #
-      # sub_plot<-apply(selectCase,1,function(sC){
-      #   rv_plotProfile$original[rv_plotProfile$original[,fn_Yclass] == sC[fn_Yclass] &
-      #                             rv_plotProfile$original[,fn_Xclass] == sC[fn_Xclass],]
-      # })
-      #
-      # sub_plot<-do.call(rbind.data.frame,sub_plot)
+      selectCase<-apply(rv_plotMap$select,1,function(sC){
+        rv_plotMap$df[(rv_plotMap$df$Y == sC[2] &
+                         rv_plotMap$df$X == sC[1])
+                      ,c(fn_Yclass,fn_Xclass)]
+      })
+      selectCase<-do.call(rbind.data.frame,selectCase)
 
-      sub_plot<-rv_plotProfile$original[rv_plotProfile$original$crossLabel %in% as.vector(rv_plotMap$selectCrossLabel),]
+
+      sub_plot<-apply(selectCase,1,function(sC){
+        rv_plotProfile$original[rv_plotProfile$original[,fn_Yclass] == sC[fn_Yclass] &
+                                  rv_plotProfile$original[,fn_Xclass] == sC[fn_Xclass],]
+      })
+
+      sub_plot<-do.call(rbind.data.frame,sub_plot)
 
 
       ggplot2::ggplot(rv_plotProfile$original)+
         ggplot2::geom_density(data = sub_plot,mapping = ggplot2::aes(x=MFI,y=..scaled..,col=crossLabel))+
-        ggplot2::scale_x_continuous(trans=fn_transform,)+
+        ggplot2::scale_x_continuous(trans=scales::modulus_trans(-1),)+
         ggplot2::scale_color_manual(values = rv_plotMap$selectCol,
                                     breaks = rv_plotMap$selectCrossLabel,
                                     guide = ggplot2::guide_legend(override.aes = list(fill = rv_plotMap$selectCol) ))+
@@ -224,12 +239,22 @@ nameIT <- function(fn_exprs,
     # ,width = 300,height = 150*length(fn_dimToPlot),res = 72
     )
 
-
-    ##### selection table #####
-
     shiny::observeEvent(rv_plotMap$selectCrossLabel,{
       rv_plotMap$newLabSub <- rv_plotMap$newLab[rv_plotMap$newLab$crossLabel %in% rv_plotMap$selectCrossLabel, ]
     })
+
+
+    # output$dtNewDef<-DT::renderDT(rv_plotMap$newLabSub,
+    #                               server = T,
+    #                               editable = T,
+    #                               selection = 'single',
+    #
+    #                               options = list(bFilter=0,
+    #                                              bInfo=0,
+    #                                              bLengthChange=0,
+    #                                              bAutoWidth=0,
+    #                                              pageLength=nrow(rv_plotMap$newLab)))
+
 
     output$dtNewDef<-DT::renderDT(DT::formatStyle(
       table = DT::datatable(rv_plotMap$newLabSub,
@@ -239,9 +264,22 @@ nameIT <- function(fn_exprs,
       columns = 3,
       target = 'cell',
       backgroundColor = DT::styleEqual(levels = rv_plotMap$selectCrossLabel, values = rv_plotMap$selectCol),
-      valueColumns = 3
+      valueColumns = 3,
 
+      # ,
+      # options = list(bFilter=0,
+      #                bInfo=0,
+      #                bLengthChange=0,
+      #                bAutoWidth=0,
+      #                pageLength=nrow(rv_plotMap$newLab))
     ))
+
+
+
+
+
+
+
 
     proxy = DT::dataTableProxy('dtNewDef')
 
@@ -272,7 +310,7 @@ nameIT <- function(fn_exprs,
                                               bLengthChange=0,
                                               bAutoWidth=0))
 
-    ##### final table #####
+
     output$dtFinal<-DT::renderDT(rv_plotMap$newLab,
                                  server = T,
                                  editable = T,
@@ -300,29 +338,25 @@ nameIT <- function(fn_exprs,
         }
     })
 
-    ##### click on heatmap #####
     shiny::observeEvent(input$plotMap_click,{
 
       xSelect<-trunc(input$plotMap_click$x)+1
       ySelect<-trunc(input$plotMap_click$y)+1
-      xlab<-colnames(labelCross[[input$mapOrigin]])
-      ylab<-rev(rownames(labelCross[[input$mapOrigin]]))
-
-
       if (is.null(rv_plotMap$select)) {
         rv_plotMap$select<-matrix(c(xSelect,ySelect),ncol=2)
-        rv_plotMap$selectLab<-matrix(c(xlab[xSelect],ylab[ySelect]),ncol = 2)
-        rv_plotMap$selectCrossLabel<-paste(c(ylab[ySelect],xlab[xSelect]),collapse = ' x ')
+
+        rv_plotMap$selectCrossLabel<-paste(unlist(rv_plotMap$df[rv_plotMap$df$Y == ySelect &
+                                                                  rv_plotMap$df$X == xSelect, c(fn_Xclass,fn_Yclass)]),collapse = ' x ')
       } else {
         whichIs<-rv_plotMap$select[,1]==xSelect & rv_plotMap$select[,2]==ySelect
         if (any(whichIs)){
           rv_plotMap$select<-rv_plotMap$select[!(whichIs),,drop=F]
-          rv_plotMap$selectLab<-rv_plotMap$selectLab[!(whichIs),,drop=F]
           rv_plotMap$selectCrossLabel<-rv_plotMap$selectCrossLabel[!(whichIs)]
         } else {
           rv_plotMap$select<-rbind(rv_plotMap$select,c(xSelect,ySelect))
-          rv_plotMap$selectLab<-rbind(rv_plotMap$selectLab,c(xlab[xSelect],ylab[ySelect]))
-          rv_plotMap$selectCrossLabel<-rbind(rv_plotMap$selectCrossLabel,paste(c(ylab[ySelect],xlab[xSelect]),collapse = ' x '))
+          rv_plotMap$selectCrossLabel<-c(rv_plotMap$selectCrossLabel,
+                                         paste(unlist(rv_plotMap$df[rv_plotMap$df$Y == ySelect &
+                                                                      rv_plotMap$df$X == xSelect, c(fn_Xclass,fn_Yclass)]),collapse = ' x '))
         }
 
       }
@@ -358,9 +392,9 @@ nameIT <- function(fn_exprs,
                                     shiny::selectInput(inputId = 'mapOrigin',
                                                        label = 'on display:',
                                                        choices = (c('column',
-                                                                    'row',
-                                                                    'total',
-                                                                    fn_dimToPlot)),
+                                                                      'row',
+                                                                      'total',
+                                                                      fn_dimToPlot)),
                                                        selected = 'column',
                                                        multiple = F),
                                     width = 12
