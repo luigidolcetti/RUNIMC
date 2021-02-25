@@ -15,21 +15,20 @@ nameIT <- function(fn_exprs,
   newExprs[,fn_Xclass]<-factor(newExprs[,fn_Xclass],levels = Xlevels)
   newExprs[,fn_Yclass]<-factor(newExprs[,fn_Yclass],levels = Ylevels)
 
-  labelClash<-newExprs[,c(fn_Yclass,fn_Xclass)]
-
-  tLabelClash<-table(labelClash)
+  labelClash<-newExprs[,c(fn_Xclass,fn_Yclass)]
 
   labelCross<-list()
 
+  tLabelClash<-table(labelClash)
 
   labelCross[['column']]<-apply(tLabelClash,2,function(x){x/sum(x)})
   labelCross[['row']]<-t(apply(tLabelClash,1,function(x){x/sum(x)}))
   labelCross[['total']]<-matrix(tLabelClash/sum(tLabelClash),
-                                nrow=length(Ylevels),
-                                ncol=length(Xlevels),
-                                dimnames = list(Ylevels,Xlevels))
+                                nrow=length(Xlevels),
+                                ncol=length(Ylevels),
+                                dimnames = list(Xlevels,Ylevels))
 
-browser()
+
   medianNewExprs<-aggregate(newExprs[,fn_dimToPlot,drop=F],by=list(newExprs[,fn_Xclass],newExprs[,fn_Yclass]),FUN=median,drop = F)
   medianNewExprs[is.na(medianNewExprs)]<-0
   colnames(medianNewExprs)[1:2]<-c(fn_Xclass,fn_Yclass)
@@ -39,10 +38,10 @@ browser()
     focusColumn<-fn_transform$transform(medianNewExprs[,dTp])
     focusColumn<-focusColumn/max(focusColumn)
     out<-matrix(focusColumn,
-                nrow = length(Ylevels),
-                ncol = length(Xlevels),
-                dimnames = list(Ylevels,Xlevels),
-                byrow = T)
+                nrow = length(Xlevels),
+                ncol = length(Ylevels),
+                dimnames = list(Xlevels,Ylevels),
+                byrow = F)
   },USE.NAMES = T,simplify = F)
 
   labelCross<-append(labelCross,TEMP)
@@ -61,7 +60,7 @@ browser()
   labelCross_long<-expand.grid(rev(rownames(labelCross[['row']])),colnames(labelCross[['row']]))
   numberCross_long<-expand.grid(seq_along(rownames(labelCross[['row']])),seq_along(colnames(labelCross[['row']])))
 
-  colnames(labelCross_long)<-c(fn_Yclass,fn_Xclass)
+  colnames(labelCross_long)<-c(fn_Xclass,fn_Yclass)
   labelCross_long[,fn_Xclass]<-factor(labelCross_long[,fn_Xclass],levels = Xlevels)
   labelCross_long[,fn_Yclass]<-factor(labelCross_long[,fn_Yclass],levels = Ylevels)
 
@@ -89,8 +88,8 @@ browser()
                                labelCross_long[,c(fn_Xclass,
                                                   fn_Yclass,
                                                   'crossLabel',
-                                                  'X',
-                                                  'Y')],
+                                                  'Y',
+                                                  'X')],
                                by = c(fn_Xclass,fn_Yclass))
 
 
@@ -185,16 +184,28 @@ browser()
 
       msk<-sapply(rev(ylab),function(y){
         sapply(xlab,function(x){
-        out<-rv_plotMap$newLab[rv_plotMap$newLab[,fn_Xclass]==x &
-                          rv_plotMap$newLab[,fn_Yclass]==y,fn_Newclass]
+        out<-rv_plotMap$newLab[rv_plotMap$newLab[,fn_Xclass]==y &
+                          rv_plotMap$newLab[,fn_Yclass]==x,fn_Newclass]
 
-        if (out==fn_undefined) out<-NA else out<-rgb(0,1,0,0.5)
+        if (out==fn_undefined) out<-'NA' else out<-rgb(0,1,0,0.5)
         return(out)
       },USE.NAMES = F,simplify = F)
         },USE.NAMES = F,simplify = F)
 
       msk<-unlist(msk,recursive = T)
+      # lnwdt<-vector(mode='numeric',length = length(xlab)*length(ylab))
+      # lnwdtInd<-1
+      # for (y in rev(ylab)){
+      #   for (x in xlab){
+      #     out<-rv_plotMap$newLab[rv_plotMap$newLab[,fn_Xclass]==y &
+      #                              rv_plotMap$newLab[,fn_Yclass]==x,fn_Newclass]
+      #
+      #     if (out==fn_undefined) lnwdt[lnwdtInd]<-NA else lnwdt[lnwdtInd]<-'yellow'
+      #     lnwdtInd=lnwdtInd+1
+      #   }
+      # }
 
+# browser()
       raster::plot(raster::rasterToPolygons(rv_plotMap$map),add=T,col=msk)
       points(rv_plotMap$select-c(0.5,0.5),
              bg = rv_plotMap$selectCol,
@@ -249,7 +260,6 @@ browser()
     ##### selection table #####
 
     shiny::observeEvent(rv_plotMap$selectCrossLabel,{
-
       rv_plotMap$newLabSub <- rv_plotMap$newLab[rv_plotMap$newLab$crossLabel %in% rv_plotMap$selectCrossLabel, ]
     })
 
@@ -334,7 +344,7 @@ browser()
       if (is.null(rv_plotMap$select)) {
         rv_plotMap$select<-matrix(c(xSelect,ySelect),ncol=2)
         rv_plotMap$selectLab<-matrix(c(xlab[xSelect],ylab[ySelect]),ncol = 2)
-        rv_plotMap$selectCrossLabel<-paste(c(xlab[xSelect],ylab[ySelect]),collapse = ' x ')
+        rv_plotMap$selectCrossLabel<-paste(c(ylab[ySelect],xlab[xSelect]),collapse = ' x ')
       } else {
         whichIs<-rv_plotMap$select[,1]==xSelect & rv_plotMap$select[,2]==ySelect
         if (any(whichIs)){
@@ -344,7 +354,7 @@ browser()
         } else {
           rv_plotMap$select<-rbind(rv_plotMap$select,c(xSelect,ySelect))
           rv_plotMap$selectLab<-rbind(rv_plotMap$selectLab,c(xlab[xSelect],ylab[ySelect]))
-          rv_plotMap$selectCrossLabel<-rbind(rv_plotMap$selectCrossLabel,paste(c(xlab[xSelect],ylab[ySelect]),collapse = ' x '))
+          rv_plotMap$selectCrossLabel<-rbind(rv_plotMap$selectCrossLabel,paste(c(ylab[ySelect],xlab[xSelect]),collapse = ' x '))
         }
 
       }
