@@ -287,9 +287,10 @@ nameIT <- function(fn_exprs,
           dd<-sapply(fn_dimToPlot,function(mrkr){
 
             sss_plot<-ss_plot[ss_plot$marker==mrkr,]
-            ddOut<-density(fn_transform$transform(sss_plot$MFI),
-                           from=fn_transform$transform(unname(axisLimits[[mrkr]][1])),
-                           to=fn_transform$transform(unname(axisLimits[[mrkr]][2])))
+
+            ddOut<-density(sss_plot$MFI,
+                           from=unname(axisLimits[[mrkr]][1]),
+                           to=unname(axisLimits[[mrkr]][2]))
 
             ddOut$y<-(ddOut$y-min(ddOut$y))/(max(ddOut$y)-min(ddOut$y))
 
@@ -301,7 +302,6 @@ nameIT <- function(fn_exprs,
                                         drop = F],
                             marker = mrkr,
                             row.names = NULL)
-
             return(out)
           },USE.NAMES = F,simplify = F)
 
@@ -316,68 +316,37 @@ nameIT <- function(fn_exprs,
 
     output$plotPlot<-shiny::renderPlot({
 
-      par(mfrow=c(6,5),mar=c(0,0,0,0),bg='black',col.main='white')
-      for(mrkr in fn_dimToPlot){
-        sub_plot<-rv_plotProfile$density[rv_plotProfile$density$marker==mrkr,]
-        plot(x=NA,
-             y=NA,
-             xlim = fn_transform$transform(axisLimits[[mrkr]]),
-             ylim = c(0,1.2),
-             xlab = NULL,
-             ylab = NULL,
-             xaxt = 'n',
-             yaxt = 'n')
-        title(main = mrkr,
-              line = -1,
-              outer = F)
-        abline(v=fn_transform$transform(rv_plotProfile$axisLimits[[mrkr]]),
-               col='gray60',
-               lty=2)
-        popToPlot<-unique(sub_plot$crossLabel)
-        for (pop in 1:length(popToPlot)){
-          subSub_plot<-sub_plot[sub_plot$crossLabel==popToPlot[pop],]
-          lines(x=subSub_plot$x,
-                y=subSub_plot$y,
-                col = rv_plotMap$selectCol[pop],
-                lwd = 2)
-        }
-      }
+      ppt<-sapply(fn_dimToPlot,function(mrkr){
+        subsub_plot<-rv_plotProfile$density[rv_plotProfile$density$marker==mrkr,]
+        # subsub_plot<-subsub_plot[sample(1:nrow(subsub_plot),nrow(subsub_plot)/10),]
+        ggplot2::ggplot()+
+          ggplot2::geom_line(data = subsub_plot,mapping = ggplot2::aes(x=x,y=y,col=crossLabel))+
+          ggplot2::scale_x_continuous(trans=fn_transform,limits = axisLimits[[mrkr]])+
+          ggplot2::scale_color_manual(values = rv_plotMap$selectCol,
+                                      breaks = rv_plotMap$selectCrossLabel,
+                                      guide = ggplot2::guide_legend(override.aes = list(fill = rv_plotMap$selectCol) ))+
+          ggplot2::geom_vline(xintercept = rv_plotProfile$axisLimits[[mrkr]],col='white')+
+          ggplot2::ggtitle(mrkr)+
+          ggplot2::theme(panel.background = ggplot2::element_rect(fill = 'black'),
+                         panel.grid = ggplot2::element_line(color = 'gray20',
+                                                            linetype = 3),
+                         legend.position = 'none',
+                         axis.title.x = ggplot2::element_blank(),
+                         axis.ticks.y = ggplot2::element_blank(),
+                         axis.title.y = ggplot2::element_blank(),
+                         axis.text.y = ggplot2::element_blank(),
+                         plot.title = ggplot2::element_text(size=12))
 
+      },USE.NAMES = T,simplify = F)
 
-      # ppt<-sapply(fn_dimToPlot,function(mrkr){
-      #   subsub_plot<-rv_plotProfile$density[rv_plotProfile$density$marker==mrkr,]
-      #   # subsub_plot<-subsub_plot[sample(1:nrow(subsub_plot),nrow(subsub_plot)/10),]
-      #   ggplot2::ggplot()+
-      #     ggplot2::geom_line(data = subsub_plot,mapping = ggplot2::aes(x=x,y=y,col=crossLabel))+
-      #     ggplot2::scale_x_continuous(trans=fn_transform,limits = axisLimits[[mrkr]])+
-      #     ggplot2::scale_color_manual(values = rv_plotMap$selectCol,
-      #                                 breaks = rv_plotMap$selectCrossLabel,
-      #                                 guide = ggplot2::guide_legend(override.aes = list(fill = rv_plotMap$selectCol) ))+
-      #     ggplot2::geom_vline(xintercept = rv_plotProfile$axisLimits[[mrkr]],col='white')+
-      #     ggplot2::ggtitle(mrkr)+
-      #     ggplot2::theme(panel.background = ggplot2::element_rect(fill = 'black'),
-      #                    panel.grid = ggplot2::element_line(color = 'gray20',
-      #                                                       linetype = 3),
-      #                    legend.position = 'none',
-      #                    axis.title.x = ggplot2::element_blank(),
-      #                    axis.ticks.y = ggplot2::element_blank(),
-      #                    axis.title.y = ggplot2::element_blank(),
-      #                    axis.text.y = ggplot2::element_blank(),
-      #                    plot.title = ggplot2::element_text(size=12))
-      #
-      # },USE.NAMES = T,simplify = F)
-      #
-      # layoutQ<-sqrt(length(ppt))
-      # layoutY<-floor(layoutQ)
-      # layoutX<-layoutY+((length(ppt)-layoutY^2))/layoutY
-      # layoutMatrix<-matrix(c(names(ppt),rep(NULL,length(ppt)-(layoutX*layoutY))),ncol=layoutX,nrow=layoutY)
-      #
-      #
-      # rv_plotProfile$gridGrob<-gridExtra::grid.arrange(grobs = ppt,
-      #                                                  layout_matrix = layoutMatrix,
-      #                                                  as.table = F)
+      layoutQ<-sqrt(length(ppt))
+      layoutY<-floor(layoutQ)
+      layoutX<-layoutY+((length(ppt)-layoutY^2))/layoutY
+      layoutMatrix<-matrix(c(names(ppt),rep(NULL,length(ppt)-(layoutX*layoutY))),ncol=layoutX,nrow=layoutY)
 
-
+      rv_plotProfile$gridGrob<-gridExtra::grid.arrange(grobs = ppt,
+                                                       layout_matrix = layoutMatrix,
+                                                       as.table = F)
     }
     )
 
