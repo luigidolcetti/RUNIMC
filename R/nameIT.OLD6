@@ -5,10 +5,9 @@ nameIT <- function(fn_exprs,
                    fn_dimToPlot,
                    fn_transform = scales::modulus_trans(-1,1),
                    fn_quantileLimits = c(0,1),
-                   fn_percent = c(0.01,0.10,0.25,0.5,0.75,1),
+                   fn_percent = c(0.01,0.10,0.25,0.5,0.75,0.99),
                    fn_nColPanel = 5,
                    fn_Newclass = 'newClass',
-                   fn_newClassValues = NULL,
                    fn_undefined = 'UNDF',
                    fn_additionalCoords=NULL) {
 
@@ -125,27 +124,12 @@ nameIT <- function(fn_exprs,
                                     numberCross_long,
                                     perc = as.vector(labelCross[['row']]))
 
-  if (!is.null(fn_newClassValues)){
-    fn_newClassValues[,fn_Xclass]<-factor(fn_newClassValues[,fn_Xclass],levels = Xlevels)
-    fn_newClassValues[,fn_Yclass]<-factor(fn_newClassValues[,fn_Yclass],levels = Ylevels)
-    fn_newClassValues[,fn_Newclass]<-factor(fn_newClassValues[,fn_Newclass],levels = sort(unique(fn_newClassValues[,fn_Newclass])))
-
-    labelCross_def<-dplyr::left_join(labelCross_long[,c(fn_Xclass,
-                                                        fn_Yclass,
-                                                        'crossLabel')],
-                                     fn_newClassValues,
-                                     by = c(fn_Xclass,fn_Yclass))
-    labelCross_def[is.na(labelCross_def[,fn_Newclass]),fn_Newclass]<-fn_undefined
-
-  }else{
-    labelCross_def<-cbind.data.frame(labelCross_long[,c(fn_Xclass,
-                                                        fn_Yclass,
-                                                        'crossLabel')],
-                                     NC = fn_undefined)
-
-  }
-
+  labelCross_def<-cbind.data.frame(labelCross_long[,c(fn_Xclass,
+                                                      fn_Yclass,
+                                                      'crossLabel')],
+                                   NC = fn_undefined)
   colnames(labelCross_def)[4]<-fn_Newclass
+
   exprs_long<-newExprs[,c(fn_Xclass,fn_Yclass,fn_dimToPlot)]
   exprs_long<-as.data.frame(tidyr::pivot_longer(data = exprs_long,
                                                 cols = fn_dimToPlot,
@@ -380,30 +364,6 @@ nameIT <- function(fn_exprs,
                     col = newColorScale,
                     breaks = c(0,fn_percent))
 
-      TEMP_msk<-rv_plotMap$map
-      TEMP_msk<-TEMP_msk==0
-      TEMP_msk[TEMP_msk==0]<-NA
-
-      raster::image(TEMP_msk,
-                    ann = F,
-                    axes = F,
-                    col = 'black',
-                    add=T,)
-
-      # if (rv_plotMap$msk){
-      #
-      #   TEMP_ord<-rv_plotMap$newLab[order(rv_plotMap$newLab[,fn_Yclass],rv_plotMap$newLab[,fn_Xclass]),fn_Newclass]
-      #   TEMP_msk<-rv_plotMap$map
-      #   TEMP_msk[TEMP_ord==fn_undefined]<-NA
-      #   TEMP_msk[TEMP_ord!=fn_undefined]<-1
-      #
-      #   raster::image(TEMP_msk,
-      #                 ann = F,
-      #                 axes = F,
-      #                 col = 'yellow',
-      #                 add=T,)
-      # }
-
       legend(x = 1,y=-1,
              legend = lgnd,
              fill = newColorScale,
@@ -425,10 +385,10 @@ nameIT <- function(fn_exprs,
         msk<-unlist(msk,recursive = T)} else { msk<-rep(NA,length(xlab)*length(ylab))}
 
       raster::plot(raster::rasterToPolygons(rv_plotMap$map),add=T,col=msk,border='gray60')
-      pltXmx<-length(xlab)
-      pltYmx<-length(ylab)
-      for (cln in seq_along(xlab)) lines(x=c(cln,cln),y=c(0,pltYmx),col='gray60',lty=2)
-      for (rw in seq_along(ylab)) lines(x=c(0,pltXmx),y=c(rw,rw),col='gray60',lty=2)
+      # pltXmx<-length(xlab)
+      # pltYmx<-length(ylab)
+      # for (cln in seq_along(xlab)) lines(x=c(cln,cln),y=c(0,pltYmx),col='gray60',lty=2)
+      # for (rw in seq_along(ylab)) lines(x=c(0,pltXmx),y=c(rw,rw),col='gray60',lty=2)
 
       points(rv_plotMap$select-c(0.5,0.5),
              bg = rv_plotMap$selectCol,
@@ -688,15 +648,6 @@ nameIT <- function(fn_exprs,
       TEMP<-levels(TEMP[,input$mrkrSelect])
       newCols<-rainbow(length(TEMP))
 
-      shinyWidgets::updatePickerInput(
-        session = session,
-        inputId = 'popPicker',
-        selected = TEMP,
-        choices = TEMP,
-        choicesOpt = NULL
-      )
-
-
       rv_plotPolygon$panel<-RUNIMC::ggp.geometry(fn_gg = NULL,
                                                  fn_geometry = sub_poly,
                                                  fn_fillVar = input$mrkrSelect,
@@ -708,24 +659,7 @@ nameIT <- function(fn_exprs,
       rv_plotPolygon$panel<-rv_plotPolygon$panel+ggplot2::theme(legend.position = 'none')
     })
 
-    observeEvent(input$popRender,{
-      sub_poly<-newPolygon[newPolygon$uid==input$uidSelect,]
-
-      sub_poly<-dplyr::left_join(sub_poly,
-                                 rv_plotMap$newLab,
-                                 by=c(fn_Xclass,fn_Yclass))
-
-      TEMP<-sf::st_drop_geometry(sub_poly)
-      TEMP<-levels(TEMP[,input$mrkrSelect])
-      newCols<-rainbow(length(TEMP))
-      newCols[!(TEMP %in% input$popPicker)]<-NA
-      rv_plotPolygon$panel<-RUNIMC::ggp.geometry(fn_gg = NULL,
-                                                 fn_geometry = sub_poly,
-                                                 fn_fillVar = input$mrkrSelect,
-                                                 fn_fillCol = newCols,
-                                                 fn_bg = 'black')
-      rv_plotPolygon$panel<-rv_plotPolygon$panel+ggplot2::theme(legend.position = 'none')
-    })
+    observeEvent(input$ppwidth,{rv_plotPolygon$width<-input$ppwidth})
 
     output$plotPolygon<-shiny::renderPlot({print(rv_plotPolygon$panel)},height = 600)
     output$plotPolygonLegend<-shiny::renderPlot({print(rv_plotPolygon$legend)},height = 600)
@@ -1021,23 +955,6 @@ nameIT <- function(fn_exprs,
                                                       hover = NULL),
                                     width = 4,
                                     height = 700
-                                  ),
-                                  shinydashboard::box(
-                                    shinyWidgets::pickerInput(
-                                      inputId = "popPicker",
-                                      label = "Select/deselect pops",
-                                      choices = LETTERS,
-                                      options = list(
-                                        `actions-box` = TRUE,
-                                        size = 10,
-                                        `selected-text-format` = "count > 3"
-                                      ),
-                                      multiple = TRUE
-                                    ),
-                                    shiny::actionButton(inputId = 'popRender',
-                                                        label = 'update'
-                                                        ),
-                                    width = 2
                                   )
                                 )
         ),

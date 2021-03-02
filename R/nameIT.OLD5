@@ -5,23 +5,20 @@ nameIT <- function(fn_exprs,
                    fn_dimToPlot,
                    fn_transform = scales::modulus_trans(-1,1),
                    fn_quantileLimits = c(0,1),
-                   fn_percent = c(0.01,0.10,0.25,0.5,0.75,1),
                    fn_nColPanel = 5,
                    fn_Newclass = 'newClass',
-                   fn_newClassValues = NULL,
-                   fn_undefined = 'UNDF',
-                   fn_additionalCoords=NULL) {
-
+                   fn_undefined = 'UNDF') {
 
   newExprs<-sf::st_drop_geometry(fn_exprs)
   newPolygon<-fn_exprs[,c('uid',fn_Xclass,fn_Yclass)]
   uidX<-as.character(unique(newPolygon$uid))
 
+
   Xlevels<-sort(unique(as.character(newExprs[,fn_Xclass])))
   Ylevels<-sort(unique(as.character(newExprs[,fn_Yclass])))
 
   nColPlot<-fn_nColPanel
-  nRowPlot<-ceiling(length(fn_dimToPlot)/nColPlot)
+  nRowPlot<-length(fn_dimToPlot)/nColPlot
 
   newExprs[,fn_Xclass]<-factor(newExprs[,fn_Xclass],levels = Xlevels)
   newExprs[,fn_Yclass]<-factor(newExprs[,fn_Yclass],levels = Ylevels)
@@ -29,18 +26,8 @@ nameIT <- function(fn_exprs,
   newPolygon[,fn_Xclass]<-factor(newExprs[,fn_Xclass],levels = Xlevels)
   newPolygon[,fn_Yclass]<-factor(newExprs[,fn_Yclass],levels = Ylevels)
 
-  if(!is.null(fn_additionalCoords)){
-    if (nrow(fn_additionalCoords)!=nrow(fn_exprs)) {
-      stop(mError('additional coordinates length differs from expression matrix'))} else {
-        colnames(fn_additionalCoords)<-c('Dimensional_X','Dimensional_Y')
-        newDimensional<-cbind.data.frame(fn_additionalCoords,newExprs[,c('uid',fn_Xclass,fn_Yclass)])
-      }
-  }
-
   axisLimits<-sapply(fn_dimToPlot,function(mrkr){
-    newLimits <- quantile(newExprs[,mrkr],fn_quantileLimits)
-    list(linear = newLimits,
-         transformed = fn_transform$transform(newLimits))
+    quantile(newExprs[,mrkr],fn_quantileLimits)
   },USE.NAMES = T,simplify = F)
 
   labelClash<-newExprs[,c(fn_Yclass,fn_Xclass)]
@@ -57,14 +44,6 @@ nameIT <- function(fn_exprs,
                                 ncol=length(Xlevels),
                                 dimnames = list(Ylevels,Xlevels))
 
-  labelCross<-sapply(labelCross,function(x){
-    Rowv <- as.dendrogram(hclust(dist(x)))
-    rowInd <- order.dendrogram(Rowv)
-    Colv <- as.dendrogram(hclust(dist(t(x))))
-    colInd <- order.dendrogram(Colv)
-    x<-x[rowInd,colInd]
-    return(x)
-  },USE.NAMES = T,simplify = F)
 
   medianNewExprs<-aggregate(newExprs[,fn_dimToPlot,drop=F],by=list(newExprs[,fn_Xclass],newExprs[,fn_Yclass]),FUN=median,drop = F)
   medianNewExprs[is.na(medianNewExprs)]<-0
@@ -74,40 +53,24 @@ nameIT <- function(fn_exprs,
 
     focusColumn<-fn_transform$transform(medianNewExprs[,dTp])
     focusColumn<-focusColumn/max(focusColumn)
-    out_transformed<-matrix(focusColumn,
-                            nrow = length(Ylevels),
-                            ncol = length(Xlevels),
-                            dimnames = list(Ylevels,Xlevels),
-                            byrow = T)
-
-    Rowv <- as.dendrogram(hclust(dist(out_transformed)))
-    rowInd <- order.dendrogram(Rowv)
-    Colv <- as.dendrogram(hclust(dist(t(out_transformed))))
-    colInd <- order.dendrogram(Colv)
-    out_transformed<-out_transformed[rowInd,colInd]
-
-    focusColumn<-medianNewExprs[,dTp]
-    focusColumn<-focusColumn/max(focusColumn)
-    out_linear<-matrix(focusColumn,
-                       nrow = length(Ylevels),
-                       ncol = length(Xlevels),
-                       dimnames = list(Ylevels,Xlevels),
-                       byrow = T)
-
-    Rowv <- as.dendrogram(hclust(dist(out_linear)))
-    rowInd <- order.dendrogram(Rowv)
-    Colv <- as.dendrogram(hclust(dist(t(out_linear))))
-    colInd <- order.dendrogram(Colv)
-    out_linear<-out_linear[rowInd,colInd]
-
-    list(linear = out_linear,
-         transformed = out_transformed)
-
+    out<-matrix(focusColumn,
+                nrow = length(Ylevels),
+                ncol = length(Xlevels),
+                dimnames = list(Ylevels,Xlevels),
+                byrow = T)
   },USE.NAMES = T,simplify = F)
 
   labelCross<-append(labelCross,TEMP)
 
-  rm(TEMP)
+
+  labelCross<-sapply(labelCross,function(x){
+    Rowv <- as.dendrogram(hclust(dist(x)))
+    rowInd <- order.dendrogram(Rowv)
+    Colv <- as.dendrogram(hclust(dist(t(x))))
+    colInd <- order.dendrogram(Colv)
+    x<-x[rowInd,colInd]
+    return(x)
+  },USE.NAMES = T,simplify = F)
 
 
   labelCross_long<-expand.grid(rev(rownames(labelCross[['row']])),colnames(labelCross[['row']]))
@@ -125,27 +88,12 @@ nameIT <- function(fn_exprs,
                                     numberCross_long,
                                     perc = as.vector(labelCross[['row']]))
 
-  if (!is.null(fn_newClassValues)){
-    fn_newClassValues[,fn_Xclass]<-factor(fn_newClassValues[,fn_Xclass],levels = Xlevels)
-    fn_newClassValues[,fn_Yclass]<-factor(fn_newClassValues[,fn_Yclass],levels = Ylevels)
-    fn_newClassValues[,fn_Newclass]<-factor(fn_newClassValues[,fn_Newclass],levels = sort(unique(fn_newClassValues[,fn_Newclass])))
-
-    labelCross_def<-dplyr::left_join(labelCross_long[,c(fn_Xclass,
-                                                        fn_Yclass,
-                                                        'crossLabel')],
-                                     fn_newClassValues,
-                                     by = c(fn_Xclass,fn_Yclass))
-    labelCross_def[is.na(labelCross_def[,fn_Newclass]),fn_Newclass]<-fn_undefined
-
-  }else{
-    labelCross_def<-cbind.data.frame(labelCross_long[,c(fn_Xclass,
-                                                        fn_Yclass,
-                                                        'crossLabel')],
-                                     NC = fn_undefined)
-
-  }
-
+  labelCross_def<-cbind.data.frame(labelCross_long[,c(fn_Xclass,
+                                                      fn_Yclass,
+                                                      'crossLabel')],
+                                   NC = fn_undefined)
   colnames(labelCross_def)[4]<-fn_Newclass
+
   exprs_long<-newExprs[,c(fn_Xclass,fn_Yclass,fn_dimToPlot)]
   exprs_long<-as.data.frame(tidyr::pivot_longer(data = exprs_long,
                                                 cols = fn_dimToPlot,
@@ -160,11 +108,6 @@ nameIT <- function(fn_exprs,
                                                   'Y')],
                                by = c(fn_Xclass,fn_Yclass))
 
-  exprs_long<-list(linear = exprs_long,
-                   transformed = exprs_long)
-
-  exprs_long$transformed$MFI<-fn_transform$transform(exprs_long$transformed$MFI)
-
   area_long<-newExprs[,c(fn_Xclass,fn_Yclass,'area')]
   area_long<-dplyr::left_join(area_long,
                               labelCross_long[,c(fn_Xclass,
@@ -175,14 +118,14 @@ nameIT <- function(fn_exprs,
                               by = c(fn_Xclass,fn_Yclass))
 
 
-  # markerSliders<-sapply(fn_dimToPlot,function(mrkr){
-  #   shiny::sliderInput(inputId = mrkr,
-  #                      label = mrkr,
-  #                      min = axisLimits[[mrkr]][1],
-  #                      max = axisLimits[[mrkr]][2],
-  #                      value = axisLimits[[mrkr]],
-  #                      width = 100)
-  # },USE.NAMES = T,simplify = F)
+  markerSliders<-sapply(fn_dimToPlot,function(mrkr){
+    shiny::sliderInput(inputId = mrkr,
+                       label = mrkr,
+                       min = axisLimits[[mrkr]][1],
+                       max = axisLimits[[mrkr]][2],
+                       value = axisLimits[[mrkr]],
+                       width = 100)
+  },USE.NAMES = T,simplify = F)
 
 
 
@@ -212,15 +155,7 @@ nameIT <- function(fn_exprs,
                                           density = NULL,
                                           switch =NULL)
 
-    rv_plotPolygon<-shiny::reactiveValues(panel = NULL,
-                                          legend = NULL,
-                                          width = 500)
-
-    rv_plotDimensional<-shiny::reactiveValues(panel = NULL,
-                                              legend = NULL,
-                                              labels = NULL)
-
-    ##### kill selection #####
+    ##### set origin for heatmap #####
 
     shiny::observeEvent(input$killIt,{
       rv_plotMap$select <- NULL
@@ -231,26 +166,19 @@ nameIT <- function(fn_exprs,
 
     ##### toggle marker #####
 
-    shiny::observeEvent(list(input$mrkr,input$trnsfrm),{
+    shiny::observeEvent(input$mrkr,{
 
       shiny::updateSliderInput(session = session,
                                inputId = 'trsh',
-                               min = unname(axisLimits[[input$mrkr]][[input$trnsfrm]][1]),
-                               max = unname(axisLimits[[input$mrkr]][[input$trnsfrm]][2]),
-                               value = unname(rv_plotProfile$axisLimits[[input$mrkr]][[input$trnsfrm]]))
+                               min = unname(axisLimits[[input$mrkr]][1]),
+                               max = unname(axisLimits[[input$mrkr]][2]),
+                               value = unname(rv_plotProfile$axisLimits[[input$mrkr]]))
 
     })
 
     shiny::observeEvent(input$trsh,{
 
-      rv_plotProfile$axisLimits[[input$mrkr]][[input$trnsfrm]]<-input$trsh
-
-      if (input$trnsfrm == 'linear'){
-        rv_plotProfile$axisLimits[[input$mrkr]][['transformed']]<-
-          fn_transform$transform(input$trsh)} else {
-            rv_plotProfile$axisLimits[[input$mrkr]][['linear']]<-
-              fn_transform$inverse(input$trsh)
-          }
+      rv_plotProfile$axisLimits[[input$mrkr]]<-input$trsh
 
 
     })
@@ -263,30 +191,15 @@ nameIT <- function(fn_exprs,
 
     ##### set origin for heatmap #####
 
-    shiny::observeEvent(list(input$mapOrigin,input$trnsfrm_HM),{
+    shiny::observeEvent(input$mapOrigin,{
+      rv_plotMap$map<-raster::raster(labelCross[[input$mapOrigin]],
+                                     xmn=0,
+                                     xmx=0+ncol(labelCross[[input$mapOrigin]]),
+                                     ymn=0,
+                                     ymx=0+nrow(labelCross[[input$mapOrigin]]))
 
-      if (input$mapOrigin %in% c('row','column','total')){
-        shinyjs::disable("trnsfrm_HM")
-        rv_plotMap$map<-raster::raster(labelCross[[input$mapOrigin]],
-                                       xmn=0,
-                                       xmx=0+ncol(labelCross[[input$mapOrigin]]),
-                                       ymn=0,
-                                       ymx=0+nrow(labelCross[[input$mapOrigin]]))
-
-        xlab<-colnames(labelCross[[input$mapOrigin]])
-        ylab<-rev(rownames(labelCross[[input$mapOrigin]]))
-
-      } else {
-        shinyjs::enable("trnsfrm_HM")
-        rv_plotMap$map<-raster::raster(labelCross[[input$mapOrigin]][[input$trnsfrm_HM]],
-                                       xmn=0,
-                                       xmx=0+ncol(labelCross[[input$mapOrigin]][[input$trnsfrm_HM]]),
-                                       ymn=0,
-                                       ymx=0+nrow(labelCross[[input$mapOrigin]][[input$trnsfrm_HM]]))
-
-        xlab<-colnames(labelCross[[input$mapOrigin]][[input$trnsfrm_HM]])
-        ylab<-rev(rownames(labelCross[[input$mapOrigin]][[input$trnsfrm_HM]]))
-      }
+      xlab<-colnames(labelCross[[input$mapOrigin]])
+      ylab<-rev(rownames(labelCross[[input$mapOrigin]]))
 
 
       if (!is.null(rv_plotMap$selectLab)){
@@ -319,29 +232,26 @@ nameIT <- function(fn_exprs,
     )
 
     shiny::observeEvent(input$trshUp,{
-      newTrshTable<-read.table(input$trshUp$datapath,
-                               header = T,
-                               colClasses = c('character',rep('numeric',4)),
-                               check.names = F,
-                               stringsAsFactors = F)
-
-      rv_plotProfile$axisLimits<-apply(newTrshTable[,-1],1,function(x){
-        x<-unname(x)
-        newList<-list(linear=x[1:2],transformed=x[3:4])})
-      names(rv_plotProfile$axisLimits)<-newTrshTable[,1]
-
+      rv_plotMap$newLab<-read.table(input$defUp$datapath,
+                                    header = T,
+                                    as.is = T,
+                                    check.names = F,
+                                    stringsAsFactors = T)
+      rv_plotMap$newLab[,fn_Xclass]<-factor(rv_plotMap$newLab[,fn_Xclass])
+      rv_plotMap$newLab[,fn_Yclass]<-factor(rv_plotMap$newLab[,fn_Yclass])
     })
 
     output$trshDown <- shiny::downloadHandler(
 
       filename =function() 'Treshold_table.txt',
       content = function(file) {
-
-        tableOut<-unlist(rv_plotProfile$axisLimits,recursive = T)
-        tableOut<-matrix(tableOut,ncol=4,byrow = T)
-        colnames(tableOut)<-c('lin.low','lin.high','trnsf.low','trnsf.high')
+        tableOut<-do.call(rbind.data.frame,rv_plotProfile$axisLimits)
+        colnames(tableOut)<-c('low','high')
+        tableOut_transformed<-fn_transform$transform(tableOut)
+        colnames(tableOut_transformed)<-c('low_transformed','high_tranformed')
         tableOut<-cbind.data.frame(maker=names(axisLimits),
-                                   tableOut)
+                                   tableOut,
+                                   tableOut_transformed)
         write.table(tableOut,file,append = F,row.names = F)
       }
     )
@@ -358,56 +268,19 @@ nameIT <- function(fn_exprs,
           xpd=T)
 
 
-
-      if (input$mapOrigin %in% c('column',
-                                 'row',
-                                 'total')){
-        lgnd<-scales::label_percent()(fn_percent)
-        ylab<-rev(rownames(labelCross[[input$mapOrigin]]))
-        xlab<-colnames(labelCross[[input$mapOrigin]])
-      } else {
-        lgnd<-fn_percent
-        ylab<-rev(rownames(labelCross[[input$mapOrigin]][[input$trnsfrm_HM]]))
-        xlab<-colnames(labelCross[[input$mapOrigin]][[input$trnsfrm_HM]])
-      }
-
-      nBrks<-length(fn_percent)
-      newColorScale<-scales::colour_ramp(c('blue','white','red'))(fn_percent)
+      ylab<-rev(rownames(labelCross[[input$mapOrigin]]))
+      xlab<-colnames(labelCross[[input$mapOrigin]])
 
       raster::image(rv_plotMap$map,
                     ann = F,
                     axes = F,
-                    col = newColorScale,
-                    breaks = c(0,fn_percent))
-
-      TEMP_msk<-rv_plotMap$map
-      TEMP_msk<-TEMP_msk==0
-      TEMP_msk[TEMP_msk==0]<-NA
-
-      raster::image(TEMP_msk,
-                    ann = F,
-                    axes = F,
-                    col = 'black',
-                    add=T,)
-
-      # if (rv_plotMap$msk){
-      #
-      #   TEMP_ord<-rv_plotMap$newLab[order(rv_plotMap$newLab[,fn_Yclass],rv_plotMap$newLab[,fn_Xclass]),fn_Newclass]
-      #   TEMP_msk<-rv_plotMap$map
-      #   TEMP_msk[TEMP_ord==fn_undefined]<-NA
-      #   TEMP_msk[TEMP_ord!=fn_undefined]<-1
-      #
-      #   raster::image(TEMP_msk,
-      #                 ann = F,
-      #                 axes = F,
-      #                 col = 'yellow',
-      #                 add=T,)
-      # }
-
+                    col = scales::colour_ramp(c('blue','white','red'))((0:3)/3),
+                    breaks = c(0,3,10,100,1000)/1000)
       legend(x = 1,y=-1,
-             legend = lgnd,
-             fill = newColorScale,
-             ncol=nBrks)
+             legend = as.character(c(3,10,100,1000)),
+             fill = scales::colour_ramp(c('blue','white','red'))((0:3)/3),
+             ncol=5)
+
 
 
       if(rv_plotMap$msk){
@@ -424,12 +297,7 @@ nameIT <- function(fn_exprs,
 
         msk<-unlist(msk,recursive = T)} else { msk<-rep(NA,length(xlab)*length(ylab))}
 
-      raster::plot(raster::rasterToPolygons(rv_plotMap$map),add=T,col=msk,border='gray60')
-      pltXmx<-length(xlab)
-      pltYmx<-length(ylab)
-      for (cln in seq_along(xlab)) lines(x=c(cln,cln),y=c(0,pltYmx),col='gray60',lty=2)
-      for (rw in seq_along(ylab)) lines(x=c(0,pltXmx),y=c(rw,rw),col='gray60',lty=2)
-
+      raster::plot(raster::rasterToPolygons(rv_plotMap$map),add=T,col=msk)
       points(rv_plotMap$select-c(0.5,0.5),
              bg = rv_plotMap$selectCol,
              pch = 22,
@@ -443,70 +311,67 @@ nameIT <- function(fn_exprs,
 
     ##### plot density #####
 
-    observeEvent(list(input$sdbmn,
-                      input$trnsfrm),{
+    observeEvent(input$sdbmn,{
 
-                        if (input$sdbmn=='PLOT'){
+      if (input$sdbmn=='PLOT'){
 
 
-                          density_list<-sapply(as.vector(rv_plotMap$selectCrossLabel),function(x){
+        density_list<-sapply(as.vector(rv_plotMap$selectCrossLabel),function(x){
 
-                            ss_plot<-exprs_long[[input$trnsfrm]][exprs_long[[input$trnsfrm]]$crossLabel ==x,]
+          ss_plot<-rv_plotProfile$original[rv_plotProfile$original$crossLabel ==x,]
 
-                            # ss_plot<-rv_plotProfile$original[rv_plotProfile$original$crossLabel ==x,]
+          # if (nrow(ss_plot)>fn_sampleLimit) ss_plot<-ss_plot[sample(1:nrow(ss_plot),fn_sampleLimit),]
 
-                            # if (nrow(ss_plot)>fn_sampleLimit) ss_plot<-ss_plot[sample(1:nrow(ss_plot),fn_sampleLimit),]
+          dd<-sapply(fn_dimToPlot,function(mrkr){
 
-                            dd<-sapply(fn_dimToPlot,function(mrkr){
+            sss_plot<-ss_plot[ss_plot$marker==mrkr,]
 
-                              sss_plot<-ss_plot[ss_plot$marker==mrkr,]
+            if (nrow(sss_plot)>3){
+              ddOut<-density(fn_transform$transform(sss_plot$MFI),
+                             from=fn_transform$transform(unname(axisLimits[[mrkr]][1])),
+                             to=fn_transform$transform(unname(axisLimits[[mrkr]][2])))
 
-                              if (nrow(sss_plot)>3){
-                                ddOut<-density(sss_plot$MFI,
-                                               from=unname(axisLimits[[mrkr]][[input$trnsfrm]][1]),
-                                               to=unname(axisLimits[[mrkr]][[input$trnsfrm]][2]))
+              ddOut$y<-(ddOut$y-min(ddOut$y))/(max(ddOut$y)-min(ddOut$y))
 
-                                ddOut$y<-(ddOut$y-min(ddOut$y))/(max(ddOut$y)-min(ddOut$y))
+              out<-data.frame(x=ddOut$x,
+                              y=ddOut$y,
+                              sss_plot[1,c(fn_Xclass,
+                                           fn_Yclass,
+                                           'crossLabel'),
+                                       drop = F],
+                              marker = mrkr,
+                              row.names = NULL)} else {
+                                if (nrow(sss_plot)==0){
+                                  out<-data.frame(x=0,
+                                                  y=0,
+                                                  sss_plot[1,c(fn_Xclass,
+                                                               fn_Yclass,
+                                                               'crossLabel'),
+                                                           drop = F],
+                                                  marker = mrkr,
+                                                  row.names = NULL)
+                                } else {
+                                  TEMP_x<-fn_transform$transform(sss_plot$MFI)
+                                  out<-data.frame(x=TEMP_x[order(TEMP_x)],
+                                                  y=1,
+                                                  sss_plot[1,c(fn_Xclass,
+                                                               fn_Yclass,
+                                                               'crossLabel'),
+                                                           drop = F],
+                                                  marker = mrkr,
+                                                  row.names = NULL)
+                                }}
 
-                                out<-data.frame(x=ddOut$x,
-                                                y=ddOut$y,
-                                                sss_plot[1,c(fn_Xclass,
-                                                             fn_Yclass,
-                                                             'crossLabel'),
-                                                         drop = F],
-                                                marker = mrkr,
-                                                row.names = NULL)} else {
-                                                  if (nrow(sss_plot)==0){
-                                                    out<-data.frame(x=0,
-                                                                    y=0,
-                                                                    sss_plot[1,c(fn_Xclass,
-                                                                                 fn_Yclass,
-                                                                                 'crossLabel'),
-                                                                             drop = F],
-                                                                    marker = mrkr,
-                                                                    row.names = NULL)
-                                                  } else {
-                                                    TEMP_x<-fn_transform$transform(sss_plot$MFI)
-                                                    out<-data.frame(x=TEMP_x[order(TEMP_x)],
-                                                                    y=1,
-                                                                    sss_plot[1,c(fn_Xclass,
-                                                                                 fn_Yclass,
-                                                                                 'crossLabel'),
-                                                                             drop = F],
-                                                                    marker = mrkr,
-                                                                    row.names = NULL)
-                                                  }}
+            return(out)
+          },USE.NAMES = F,simplify = F)
 
-                              return(out)
-                            },USE.NAMES = F,simplify = F)
+          do.call(rbind.data.frame,dd)
+        },USE.NAMES = F,simplify = F)
 
-                            do.call(rbind.data.frame,dd)
-                          },USE.NAMES = F,simplify = F)
+        rv_plotProfile$density<-do.call(rbind.data.frame,density_list)
 
-                          rv_plotProfile$density<-do.call(rbind.data.frame,density_list)
-
-                        }
-                      })
+      }
+    })
 
 
     output$plotPlot<-shiny::renderPlot({
@@ -516,7 +381,7 @@ nameIT <- function(fn_exprs,
         sub_plot<-rv_plotProfile$density[rv_plotProfile$density$marker==mrkr,]
         plot(x=NA,
              y=NA,
-             xlim = axisLimits[[mrkr]][[input$trnsfrm]],
+             xlim = fn_transform$transform(axisLimits[[mrkr]]),
              ylim = c(0,1.2),
              xlab = NULL,
              ylab = NULL,
@@ -525,7 +390,7 @@ nameIT <- function(fn_exprs,
         title(main = mrkr,
               line = -1,
               outer = F)
-        abline(v=rv_plotProfile$axisLimits[[mrkr]][[input$trnsfrm]],
+        abline(v=fn_transform$transform(rv_plotProfile$axisLimits[[mrkr]]),
                col='gray60',
                lty=2)
         popToPlot<-unique(sub_plot$crossLabel)
@@ -673,112 +538,23 @@ nameIT <- function(fn_exprs,
 
 
     ##### plot Polygons #####
+    output$plotPolygon<-shiny::renderPlot({
 
-    observeEvent(list(input$uidSelect,input$mrkrSelect),{
+      if (!is.null(input$uidSelect)){
 
-      sub_poly<-newPolygon[newPolygon$uid==input$uidSelect,]
+        sub_poly<-newPolygon[newPolygon$uid==input$uidSelect,]
 
-
-
-      sub_poly<-dplyr::left_join(sub_poly,
-                                 rv_plotMap$newLab,
-                                 by=c(fn_Xclass,fn_Yclass))
-
-      TEMP<-sf::st_drop_geometry(sub_poly)
-      TEMP<-levels(TEMP[,input$mrkrSelect])
-      newCols<-rainbow(length(TEMP))
-
-      shinyWidgets::updatePickerInput(
-        session = session,
-        inputId = 'popPicker',
-        selected = TEMP,
-        choices = TEMP,
-        choicesOpt = NULL
-      )
-
-
-      rv_plotPolygon$panel<-RUNIMC::ggp.geometry(fn_gg = NULL,
-                                                 fn_geometry = sub_poly,
-                                                 fn_fillVar = input$mrkrSelect,
-                                                 fn_fillCol = newCols,
-                                                 fn_bg = 'black')
-
-      rv_plotPolygon$legend<-ggpubr::as_ggplot(ggpubr::get_legend(rv_plotPolygon$panel+
-                                                                    ggplot2::theme(legend.position = 'right')))
-      rv_plotPolygon$panel<-rv_plotPolygon$panel+ggplot2::theme(legend.position = 'none')
-    })
-
-    observeEvent(input$popRender,{
-      sub_poly<-newPolygon[newPolygon$uid==input$uidSelect,]
-
-      sub_poly<-dplyr::left_join(sub_poly,
-                                 rv_plotMap$newLab,
-                                 by=c(fn_Xclass,fn_Yclass))
-
-      TEMP<-sf::st_drop_geometry(sub_poly)
-      TEMP<-levels(TEMP[,input$mrkrSelect])
-      newCols<-rainbow(length(TEMP))
-      newCols[!(TEMP %in% input$popPicker)]<-NA
-      rv_plotPolygon$panel<-RUNIMC::ggp.geometry(fn_gg = NULL,
-                                                 fn_geometry = sub_poly,
-                                                 fn_fillVar = input$mrkrSelect,
-                                                 fn_fillCol = newCols,
-                                                 fn_bg = 'black')
-      rv_plotPolygon$panel<-rv_plotPolygon$panel+ggplot2::theme(legend.position = 'none')
-    })
-
-    output$plotPolygon<-shiny::renderPlot({print(rv_plotPolygon$panel)},height = 600)
-    output$plotPolygonLegend<-shiny::renderPlot({print(rv_plotPolygon$legend)},height = 600)
-
-    ##### plot dimensions #####
-
-    observeEvent(list(input$dimRed,input$mrkrSelect_Dimensional),{
-
-      if (exists('newDimensional')){
-
-        sub_dimensional<-dplyr::left_join(newDimensional,
-                                          rv_plotMap$newLab,
-                                          by=c(fn_Xclass,fn_Yclass))
-
-        newCols<-rainbow(length(levels(sub_dimensional[,input$mrkrSelect_Dimensional])))
-
-        TEMP_L<-nrow(sub_dimensional)
-        sub_dimensional<-sub_dimensional[sample(1:TEMP_L,TEMP_L*(input$dimRed/100)),]
-
-        rv_plotDimensional$panel<-ggplot2::ggplot(sub_dimensional)+
-          ggplot2::geom_point(ggplot2::aes_string(x='Dimensional_X',
-                                                  y='Dimensional_Y',
-                                                  color=input$mrkrSelect_Dimensional),
-                              alpha = input$pointAlpha,
-                              size = input$pointSize)+
-          ggplot2::scale_color_manual(values = newCols)
-
-        rv_plotDimensional$legend<-ggpubr::as_ggplot(ggpubr::get_legend(rv_plotDimensional$panel))
-        rv_plotDimensional$panel<-rv_plotDimensional$panel+ggplot2::theme(legend.position = 'none')
-
+        sub_poly<-dplyr::left_join(sub_poly,
+                                   rv_plotMap$newLab,
+                                   by=c(fn_Xclass,fn_Yclass))
+        ggp<-RUNIMC::ggp.geometry(fn_gg = NULL,
+                                  fn_geometry = sub_poly,
+                                  fn_fillVar = fn_Newclass,
+                                  fn_bg = 'black')
+        print(ggp)
       }
-    })
 
-    observeEvent(input$pointSize,{
-      rv_plotDimensional$panel$layers[[1]]$aes_params$size<-input$pointSize
-      TEMP<-rv_plotDimensional$panel
-      rv_plotDimensional$panel<-NULL
-      rv_plotDimensional$panel<-TEMP
-    })
-
-    observeEvent(input$pointAlpha,{
-      rv_plotDimensional$panel$layers[[1]]$aes_params$alpha<-input$pointAlpha
-      TEMP<-rv_plotDimensional$panel
-      rv_plotDimensional$panel<-NULL
-      rv_plotDimensional$panel<-TEMP
-
-    })
-
-
-    output$plotDimensional<-shiny::renderPlot({print(rv_plotDimensional$panel)})
-    output$plotDimensionalLegend<-shiny::renderPlot({print(rv_plotDimensional$legend)})
-
-
+    },width = 600,height = 600,res = 96)
     ##### selection table #####
 
     shiny::observeEvent(rv_plotMap$selectCrossLabel,{
@@ -860,14 +636,8 @@ nameIT <- function(fn_exprs,
 
       xSelect<-trunc(input$plotMap_click$x)+1
       ySelect<-trunc(input$plotMap_click$y)+1
-
-      if (input$mapOrigin %in% c('row','column','total')){
-        xlab<-colnames(labelCross[[input$mapOrigin]])
-        ylab<-rev(rownames(labelCross[[input$mapOrigin]]))
-      } else {
-        xlab<-colnames(labelCross[[input$mapOrigin]][[input$trnsfrm_HM]])
-        ylab<-rev(rownames(labelCross[[input$mapOrigin]][[input$trnsfrm_HM]]))
-      }
+      xlab<-colnames(labelCross[[input$mapOrigin]])
+      ylab<-rev(rownames(labelCross[[input$mapOrigin]]))
 
 
       if (is.null(rv_plotMap$select)) {
@@ -906,12 +676,10 @@ nameIT <- function(fn_exprs,
                                   shinydashboard::menuItem("MAP", tabName = "MAP"),
                                   shinydashboard::menuItem("PLOT", tabName = "PLOT"),
                                   shinydashboard::menuItem('POLYGONS',tabName = 'POLYGONS'),
-                                  shinydashboard::menuItem('DIMENSIONAL',tabName = 'DIMENSIONAL'),
                                   shinydashboard::menuItem("FINALIZE", tabName = "FINALIZE")
       )
     ),
     shinydashboard::dashboardBody(
-      shinyjs::useShinyjs(),
       shinydashboard::tabItems(
         shinydashboard::tabItem(tabName = "MAP",
                                 shiny::fluidRow(
@@ -929,12 +697,6 @@ nameIT <- function(fn_exprs,
                                                                     'total',
                                                                     fn_dimToPlot)),
                                                        selected = 'column',
-                                                       multiple = F),
-                                    shiny::selectInput(inputId = 'trnsfrm_HM',
-                                                       label = 'scale:',
-                                                       choices = c('linear',
-                                                                   'transformed'),
-                                                       selected = 'transformed',
                                                        multiple = F),
                                     width = 6
                                   ),
@@ -970,12 +732,6 @@ nameIT <- function(fn_exprs,
                                     height = NULL),
 
                                   shinydashboard::box(
-                                    shiny::selectInput(inputId = 'trnsfrm',
-                                                       label = 'X axis:',
-                                                       choices = c('linear',
-                                                                   'transformed'),
-                                                       selected = 'transformed',
-                                                       multiple = F),
                                     shiny::selectInput(inputId = 'mrkr',
                                                        label = 'marker',
                                                        choices = fn_dimToPlot,
@@ -983,9 +739,9 @@ nameIT <- function(fn_exprs,
                                                        multiple = F),
                                     shiny::sliderInput(inputId = 'trsh',
                                                        label = 'treshold',
-                                                       min = unname(axisLimits[[fn_dimToPlot[1]]][['transformed']][1]),
-                                                       max = unname(axisLimits[[fn_dimToPlot[1]]][['transformed']][2]),
-                                                       value = unname(axisLimits[[fn_dimToPlot[1]]][['transformed']]),
+                                                       min = unname(axisLimits[[fn_dimToPlot[1]]][1]),
+                                                       max = unname(axisLimits[[fn_dimToPlot[1]]][2]),
+                                                       value = unname(axisLimits[[fn_dimToPlot[1]]]),
                                                        step = 0.01),
                                     width = 3,
                                     height = NULL)
@@ -999,91 +755,13 @@ nameIT <- function(fn_exprs,
                                                        choices = (uidX),
                                                        selected = uidX[1],
                                                        multiple = F),
-                                    shiny::selectInput(inputId = 'mrkrSelect',
-                                                       label = 'Select one marker',
-                                                       choices = c(fn_Newclass,
-                                                                   fn_Xclass,
-                                                                   fn_Yclass),
-                                                       selected = fn_Newclass,
-                                                       multiple = F),
                                     width = 2
                                   ),
                                   shinydashboard::box(
                                     shiny::plotOutput("plotPolygon",
                                                       click = NULL,
                                                       hover = NULL),
-                                    width = 6,
-                                    height = 700
-                                  ),
-                                  shinydashboard::box(
-                                    shiny::plotOutput("plotPolygonLegend",
-                                                      click = NULL,
-                                                      hover = NULL),
-                                    width = 4,
-                                    height = 700
-                                  ),
-                                  shinydashboard::box(
-                                    shinyWidgets::pickerInput(
-                                      inputId = "popPicker",
-                                      label = "Select/deselect pops",
-                                      choices = LETTERS,
-                                      options = list(
-                                        `actions-box` = TRUE,
-                                        size = 10,
-                                        `selected-text-format` = "count > 3"
-                                      ),
-                                      multiple = TRUE
-                                    ),
-                                    shiny::actionButton(inputId = 'popRender',
-                                                        label = 'update'
-                                                        ),
-                                    width = 2
-                                  )
-                                )
-        ),
-        shinydashboard::tabItem(tabName = "DIMENSIONAL",
-                                shiny::fluidRow(
-                                  shinydashboard::box(
-                                    shiny::sliderInput(inputId = 'dimRed',
-                                                       label = 'Percent to plot:',
-                                                       min = 0,
-                                                       max = 100,
-                                                       value = 10,
-                                                       step = 1,
-                                                       post = '%'),
-                                    shiny::selectInput(inputId = 'mrkrSelect_Dimensional',
-                                                       label = 'Select one marker',
-                                                       choices = c(fn_Newclass,
-                                                                   fn_Xclass,
-                                                                   fn_Yclass),
-                                                       selected = fn_Newclass,
-                                                       multiple = F),
-                                    shiny::sliderInput(inputId = 'pointSize',
-                                                       label = 'size: ',
-                                                       min = 1,
-                                                       max = 10,
-                                                       value = 3,
-                                                       step = 1),
-                                    shiny::sliderInput(inputId = 'pointAlpha',
-                                                       label = 'alpha: ',
-                                                       min = 0,
-                                                       max = 1,
-                                                       value = 0.5,
-                                                       step = 0.1),
-                                    width = 2
-                                  ),
-                                  shinydashboard::box(
-                                    shiny::plotOutput("plotDimensional",
-                                                      click = NULL,
-                                                      hover = NULL),
-                                    width = 6
-                                  ),
-                                  shinydashboard::box(
-
-                                    shiny::plotOutput("plotDimensionalLegend",
-                                                      click = NULL,
-                                                      hover = NULL),
-                                    width = 4
+                                    width = 10
                                   )
                                 )
         ),
@@ -1104,7 +782,7 @@ nameIT <- function(fn_exprs,
                                                      accept = ".stk"),
 
                                     shiny::downloadButton('defDown','Download one table'),
-                                    # br(),
+                                    br(),
                                     shiny::fileInput("trshUp", "Upload treshold table",
                                                      multiple = FALSE,
 
