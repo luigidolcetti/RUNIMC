@@ -90,7 +90,7 @@ initStudy<-function(fn_studyName='IMCstudy',
           if (fn_whichColumns=='named') ldld<-T
         } else {stop('Something weird whith the raw files...')}
       chnls<-data.frame(columnNames=mstrhdr,
-                        RcolumnNames=tolower(make.names(mstrhdr,unique = F,allow_ = F)),
+                        RcolumnNames=make.names(mstrhdr,unique = F,allow_ = T),
                         channel=chnl,
                         marker=mrkr,
                         loaded=ldld,

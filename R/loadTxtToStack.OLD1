@@ -64,7 +64,7 @@ loadTxtToStack<-function(fn_path=NULL,
                          return(fileObjective)})
 
   rstrStk<-IMC_stack(x = rasterMatrix,
-                     uid = paste0('uid.',digest::digest(rawMatrix,seed=123)),
+                     uid = digest::digest(rawMatrix,seed=123),
                      IMC_text_file = fn_file,
                      study = fn_details$study,
                      sample = fn_details$sample,
