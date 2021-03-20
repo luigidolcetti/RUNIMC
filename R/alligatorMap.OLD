@@ -46,11 +46,9 @@ alligatorMap<-function (fn_srt,
   DFraster<-DFraster[!is.na(DFraster$value),]
   DFraster<-DFraster[order(DFraster$value,decreasing = F),]
 
-  bunchOfSeeds<-matrix(c(DFraster$cellIndex,
-                         rep(0,nrow(DFraster)),
-                         rep(1,nrow(DFraster))),ncol=3,byrow = F)
-
-  colnames(bunchOfSeeds)<-c('seed','score','active')
+  bunchOfSeeds<-data.frame(seed= DFraster$cellIndex,
+                           score=rep(0,nrow(DFraster)),
+                           active=rep(1,nrow(DFraster)))
   rm(DFraster)
   lyr<-names(fn_srt)
 
@@ -90,12 +88,12 @@ alligatorMap<-function (fn_srt,
   while(switchOff>0){
 
 
-    logicActive<-bunchOfSeeds[,3]==1
-    minPointerScore<-min(bunchOfSeeds[logicActive,2])
-    logicScore<-bunchOfSeeds[,2]==minPointerScore
+    logicActive<-bunchOfSeeds$active==1
+    minPointerScore<-min(bunchOfSeeds$score[logicActive])
+    logicScore<-bunchOfSeeds$score==minPointerScore
     seedPointer<-which(logicActive & logicScore)[1]
-    bunchOfSeeds[seedPointer,2]<-bunchOfSeeds[seedPointer,2]+1
-    activeSeed<-bunchOfSeeds[seedPointer,seed]
+    bunchOfSeeds$score[seedPointer]<-bunchOfSeeds$score[seedPointer]+1
+    activeSeed<-bunchOfSeeds$seed[seedPointer]
 
 
     cat(paste0(lyr,' / ',
@@ -173,7 +171,7 @@ alligatorMap<-function (fn_srt,
         coverageDF <- (exactextractr::exact_extract(fn_srt,sf::st_sfc(sfPolygon),include_xy=T))[[1]]
         coverageDF<-coverageDF[coverageDF$coverage_fraction>=fn_coverage,]
         coordDF<-raster::cellFromXY(fn_srt,as.matrix(coverageDF[,c(2,3)]))
-        bunchOfSeeds[bunchOfSeeds[1,] %in% coordDF,3]<-0
+        bunchOfSeeds$active[bunchOfSeeds$seed %in% coordDF]<-0
         polyIndex=polyIndex+1
         fn_srt[coordDF]<-(-polyIndex)
         polyList[[polyIndex]]<-sfPolygon
@@ -197,8 +195,8 @@ alligatorMap<-function (fn_srt,
       oldPolyIndex=polyIndex
     }
 
-    bunchOfSeeds[bunchOfSeeds[,2]>fn_seedOutScore,3]<-0
-    switchOff<-sum(bunchOfSeeds[,3])
+    bunchOfSeeds$active[bunchOfSeeds$score>fn_seedOutScore]<-0
+    switchOff<-sum(bunchOfSeeds$active)
     cycleIndex=cycleIndex+1
   }
 
