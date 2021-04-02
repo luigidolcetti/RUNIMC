@@ -632,6 +632,7 @@ setMethod('addClassificationDirectives',signature = ('environment'),
             newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
             attr(x,'mdtnTimeStmp')<-newTimeStmp
             attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
+            attr(x$currentAnalysis$classificationDirectives,'mdtnTimeStmp')<-newTimeStmp
           })
 
 #** makeClassificationModel ---------------------------------------------------
@@ -696,6 +697,7 @@ setMethod('makeClassificationModel',signature = ('environment'),
             newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
             attr(x,'mdtnTimeStmp')<-newTimeStmp
             attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
+            attr(x$currentAnalysis$classifier,'mdtnTimeStmp')<-newTimeStmp
           })
 
 #** classify ---------------------------------------------------
