@@ -69,9 +69,9 @@ setMethod('localCorrection',signature = ('environment'),
 
             oldStk<-as.list(x$currentAnalysis$classification)
 
-            for (i in uids){
+            newStk<-sapply(uids,function(i){
               cat (paste0('cleaning up ',labelLayer,' of ',i,'\n'))
-              rst<-oldStk[[i]][[labelLayer]]
+              rst<-newStk[[i]][[labelLayer]]
               filePath<-raster::filename(rst)
               fileN<-fs::path_file(filePath)
               fileD<-fs::path_dir(filePath)
@@ -95,10 +95,24 @@ setMethod('localCorrection',signature = ('environment'),
               levels(newRst)<-raster::levels(rst)
               newName<-paste0(labelLayer,suffix)
               names(newRst)<-newName
-              oldStk[[i]][[newName]]<-newRst
-            }
+              newStk[[i]][[newName]]<-newRst
 
-            newClassification<-new('IMC_Classification',oldStk)
+              rstrStk<-IMC_stack(x = newStk,
+                                 uid = rst@uid,
+                                 IMC_text_file = rst@IMC_text_file,
+                                 study = rst@study,
+                                 sample = rst@sample,
+                                 replicate = rst@replicate,
+                                 ROI = rst@ROI,
+                                 bioGroup = rst@bioGroup,
+                                 channels = rst@channels)
+
+              rstrStk<-IMCstackSave(rstrStk,file.path(fn_filePath,'rasterStacks',paste0(fn_rst@IMC_text_file,'.stk')))
+            })
+
+
+
+            newClassification<-new('IMC_Classification',newStk)
 
             newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
 
