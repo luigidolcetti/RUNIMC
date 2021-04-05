@@ -35,7 +35,7 @@ setMethod('localCorrection',signature = ('environment'),
                    paddingLabel = 'undetermined',
                    ...){
 
-browser()
+
             chkLayer<-lapply(x$currentAnalysis$classification,names)
 
             chkLayer<-sapply(chkLayer,function(x){any(labelLayer %in% x)},simplify = T,USE.NAMES = F)
@@ -70,7 +70,7 @@ browser()
             oldStk<-as.list(x$currentAnalysis$classification)
 
             newStk<-sapply(uids,function(i){
-              browser()
+
               cat (paste0('cleaning up ',labelLayer,' of ',i,'\n'))
               rst<-oldStk[[i]][[labelLayer]]
               filePath<-raster::filename(rst)
