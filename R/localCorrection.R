@@ -35,7 +35,7 @@ setMethod('localCorrection',signature = ('environment'),
                    paddingLabel = 'undetermined',
                    ...){
 
-
+browser()
             chkLayer<-lapply(x$currentAnalysis$classification,names)
 
             chkLayer<-sapply(chkLayer,function(x){any(labelLayer %in% x)},simplify = T,USE.NAMES = F)
@@ -70,8 +70,9 @@ setMethod('localCorrection',signature = ('environment'),
             oldStk<-as.list(x$currentAnalysis$classification)
 
             newStk<-sapply(uids,function(i){
+              browser()
               cat (paste0('cleaning up ',labelLayer,' of ',i,'\n'))
-              rst<-newStk[[i]][[labelLayer]]
+              rst<-oldStk[[i]][[labelLayer]]
               filePath<-raster::filename(rst)
               fileN<-fs::path_file(filePath)
               fileD<-fs::path_dir(filePath)
@@ -95,19 +96,19 @@ setMethod('localCorrection',signature = ('environment'),
               levels(newRst)<-raster::levels(rst)
               newName<-paste0(labelLayer,suffix)
               names(newRst)<-newName
-              newStk[[i]][[newName]]<-newRst
+              oldStk[[i]][[newName]]<-newRst
 
-              rstrStk<-IMC_stack(x = newStk,
-                                 uid = rst@uid,
-                                 IMC_text_file = rst@IMC_text_file,
-                                 study = rst@study,
-                                 sample = rst@sample,
-                                 replicate = rst@replicate,
-                                 ROI = rst@ROI,
-                                 bioGroup = rst@bioGroup,
-                                 channels = rst@channels)
+              rstrStk<-IMC_stack(x = as.list(oldStk[[i]]),
+                                 uid = oldStk[[i]]@uid,
+                                 IMC_text_file = oldStk[[i]]@IMC_text_file,
+                                 study = oldStk[[i]]@study,
+                                 sample = oldStk[[i]]@sample,
+                                 replicate = oldStk[[i]]@replicate,
+                                 ROI = oldStk[[i]]@ROI,
+                                 bioGroup = oldStk[[i]]@bioGroup,
+                                 channels = oldStk[[i]]@channels)
 
-              rstrStk<-IMCstackSave(rstrStk,file.path(fn_filePath,'rasterStacks',paste0(fn_rst@IMC_text_file,'.stk')))
+              rstrStk<-IMCstackSave(rstrStk,raster::filename(oldStk[[i]]))
             })
 
 
