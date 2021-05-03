@@ -16,7 +16,7 @@ alligatorMap<-function (fn_srt,
                         fn_adaptative=T,
                         fn_areaAdaptRate=0,
                         fn_roundnessAdaptRate=0,
-                        fn_segmentAlg = c('sign_simple','sign_extended','quadratic'),
+                        fn_segmentAlg = c('sign','sign_mixed','sign_fixed','sign_2','sign_3','quadratic','sign_new','basin'),
                         fn_fusion=T,
                         fn_targetArea=50,
                         fn_maxNetworkSize=4,
@@ -140,11 +140,26 @@ alligatorMap<-function (fn_srt,
 
 
     switch(fn_segmentAlg,
-           sign_simple = {
-             spikeEnds<-apply(xyVal,1,.segmentBySign_simple,orgVal)
+           basin = {
+             spikeEnds<-apply(xyVal,1,.segmentBySign_basin,orgVal)
            },
-           sign_extended = {
-             spikeEnds<-apply(xyVal,1,.segmentBySign_extended,orgVal,fn_minArea,fn_maxArea)
+           sign = {
+             spikeEnds<-apply(xyVal,1,.segmentBySign,orgVal)
+           },
+           sign_mixed = {
+             spikeEnds<-apply(xyVal,1,.segmentBySign_mixed,orgVal,fn_minArea,fn_maxArea)
+           },
+           sign_fixed = {
+             spikeEnds<-apply(xyVal,1,.segmentBySign_fixed,orgVal)
+           },
+           sign_2 = {
+             spikeEnds<-apply(xyVal,1,.segmentBySign_2,orgVal)
+           },
+           sign_3 = {
+             spikeEnds<-apply(xyVal,1,.segmentBySign_3,orgVal)
+           },
+           sign_new = {
+             spikeEnds<-apply(xyVal,1,.segmentBySign_new,orgVal)
            },
            quadratic = {
              bigX<-matrix(c(rep(1,fn_radius),(1:fn_radius)^2,1:fn_radius),byrow = F,ncol = 3)
@@ -359,33 +374,32 @@ alligatorMap<-function (fn_srt,
 }
 
 
-#### prototype with sum bugs
-# .segmentBySign<-function(profileVector,orgVal){
-#   profileVector[profileVector<0]<-0
-#   profileVector[is.na(profileVector)]<-0
-#   shiftVector<-c(orgVal,profileVector[-length(profileVector)])
-#   signVector<-sign(profileVector-shiftVector)
-#   zeroSign<-which(signVector==0)
-#   zeroSubstitute<-zeroSign-1
-#   zeroSubstitute[zeroSubstitute==0]<-2
-#   signVector[zeroSign]<-signVector[zeroSubstitute]
-#   runLength<-rle(signVector)
-#   runLength$lengths<-cumsum(runLength$lengths)
-#   topS<-profileVector[runLength$lengths[runLength$values == 1]]
-#   bottomS<-profileVector[runLength$lengths[runLength$values == -1]]
-#   T_winner<-topS/c(orgVal,bottomS[(1:length(topS))-1])
-#   winner<-which.max(T_winner)
-#   winner<-runLength$lengths[runLength$values == 1][winner]
-#   if (length(winner)==0) winner<-length(profileVector)
-#   if (any(profileVector[1:winner]==0)){
-#     winner<-which(profileVector[1:winner]==0)[1]
-#     return(list=c(winner,0))
-#   }
-#   return(list=c(winner,1))
-# }
 
-#### chose peck with larger peck to valley ratio
-.segmentBySign_simple<-function(profileVector,orgVal){
+.segmentBySign<-function(profileVector,orgVal){
+  profileVector[profileVector<0]<-0
+  profileVector[is.na(profileVector)]<-0
+  shiftVector<-c(orgVal,profileVector[-length(profileVector)])
+  signVector<-sign(profileVector-shiftVector)
+  zeroSign<-which(signVector==0)
+  zeroSubstitute<-zeroSign-1
+  zeroSubstitute[zeroSubstitute==0]<-2
+  signVector[zeroSign]<-signVector[zeroSubstitute]
+  runLength<-rle(signVector)
+  runLength$lengths<-cumsum(runLength$lengths)
+  topS<-profileVector[runLength$lengths[runLength$values == 1]]
+  bottomS<-profileVector[runLength$lengths[runLength$values == -1]]
+  T_winner<-topS/c(orgVal,bottomS[(1:length(topS))-1])
+  winner<-which.max(T_winner)
+  winner<-runLength$lengths[runLength$values == 1][winner]
+  if (length(winner)==0) winner<-length(profileVector)
+  if (any(profileVector[1:winner]==0)){
+    winner<-which(profileVector[1:winner]==0)[1]
+    return(list=c(winner,0))
+  }
+  return(list=c(winner,1))
+}
+
+.segmentBySign_fixed<-function(profileVector,orgVal){
 
   profileVector[profileVector<0]<-0
   profileVector[is.na(profileVector)]<-0
@@ -430,9 +444,8 @@ alligatorMap<-function (fn_srt,
 }
 
 
-#### chose peak with largest peack to valley ratio and lower distance from
-#### expected radius
-.segmentBySign_extended<-function(profileVector,orgVal,minA,maxA){
+
+.segmentBySign_mixed<-function(profileVector,orgVal,minA,maxA){
 
   profileVector[profileVector<0]<-0
   profileVector[is.na(profileVector)]<-0
@@ -480,7 +493,225 @@ alligatorMap<-function (fn_srt,
 }
 
 
-###chose peack as maximum of a quadratic curve
+
+
+
+
+
+
+.segmentBySign_2<-function(profileVector,orgVal){
+  profileVector[profileVector<0]<-0
+  profileVector[is.na(profileVector)]<-0
+  shiftVector<-c(orgVal,profileVector[-length(profileVector)])
+  browser()
+  signVector<-sign(profileVector-shiftVector)
+  signVector_1<-sign(profileVector-shiftVector)
+  zeroSign<-which(signVector==0)
+  if (length(zeroSign)>0){
+
+    for (i in zeroSign){
+      ifelse(i==1 & length(signVector)>=2,
+             {signVector[i] = signVector[i+1]},
+             {
+               plus<-which(signVector[1:i]==1)
+               if (length(plus)>1) plus<-max(plus)
+               minus<-which(signVector[1:i]==-1)
+               if (length(minus)>1) minus<-max(minus)
+               if (length(plus)==0 & length(minus)==0) return(list=c(1,0))
+               pm<-max(c(plus,minus))
+               if (signVector[pm]==1) signVector_1[i]=1 else signVector_1[i]=-1
+
+             })
+    }
+  }
+  runLength<-rle(signVector_1)
+  runLength$lengths<-cumsum(runLength$lengths)
+  topX<-runLength$lengths[runLength$values == 1]
+  topS<-profileVector[topX]
+  bottomX<-runLength$lengths[runLength$values == -1]
+  bottomS<-profileVector[bottomX]
+  if (runLength$values[1]==1){
+    if (length(topS)==length(bottomS)){
+      T_winner<-(topS-bottomS)/(topX-bottomX)
+    } else {T_winner<-(topS[-length(topS)]-bottomS)/(topX[-length(topS)]-bottomX)}
+  } else {
+    if (length(topS)==length(bottomS)){
+      T_winner<-(topS[-length(topS)]-bottomS[-1])/(topX[-length(topS)]-bottomX[-1])
+    } else {T_winner<-(topS-bottomS[-1])/(topX-bottomX[-1])}
+  }
+  # browser()
+  winner<-which.min(T_winner)
+  winner<-runLength$lengths[runLength$values == 1][winner]
+  if (length(winner)==0) winner<-length(profileVector)
+  if (any(profileVector[1:winner]==0)){
+    winner<-which(profileVector[1:winner]==0)[1]
+    return(list=c(winner,0))
+  }
+  return(list=c(winner,1))
+}
+
+.segmentBySign_3<-function(profileVector,orgVal){
+  profileVector[profileVector<0]<-0
+  profileVector[is.na(profileVector)]<-0
+  shiftVector<-profileVector[-1]
+  DVector<-shiftVector-profileVector[-length(profileVector)]
+  TVector<-(2:length(profileVector))[DVector<0]
+  winner<-which.min(DVector[TVector])
+  winner<-(2:length(profileVector))[DVector<0][winner]
+  if (length(winner)==0) winner<-length(profileVector)
+  if (any(profileVector[1:winner]==0)){
+    winner<-which(profileVector[1:winner]==0)[1]
+    return(list=c(winner,0))
+  }
+  return(list=c(winner,1))
+}
+
+
+
+.segmentBySign_new<-function(profileVector,orgVal){
+  profileVector[profileVector<0]<-0
+  profileVector[is.na(profileVector)]<-0
+  shiftVector<-c(orgVal,profileVector[-length(profileVector)])
+  signVector<-sign(profileVector-shiftVector)
+  signVector_1<-sign(profileVector-shiftVector)
+  zeroSign<-which(signVector==0)
+
+  if (length(zeroSign)>0){
+
+    for (i in zeroSign){
+      ifelse(i==1 & length(signVector)>=2,
+             {signVector[i] = signVector[i+1]},
+             {
+               plus<-which(signVector[1:i]==1)
+               if (length(plus)>1) plus<-max(plus)
+               minus<-which(signVector[1:i]==-1)
+               if (length(minus)>1) minus<-max(minus)
+               if (length(plus)==0 & length(minus)==0) return(list=c(1,0))
+               pm<-max(c(plus,minus))
+               if (signVector[pm]==1) signVector_1[i]=1 else signVector_1[i]=-1
+
+             })
+    }
+  }
+
+  runLength<-rle(signVector_1)
+  runLength$lengths<-cumsum(runLength$lengths)
+
+  topS_X<-runLength$lengths[runLength$values == 1]
+  if (length(topS_X)>1){
+    topS<-profileVector[topS_X]
+
+    slops<-(topS[2:length(topS)]-topS[1:(length(topS)-1)])/(topS_X[2:length(topS_X)]-topS_X[1:(length(topS_X)-1)])
+
+    runLength<-rle(sign(slops))
+    runLength$lengths<-cumsum(runLength$lengths)
+
+    if (any(runLength$values==-1)){
+      winner<-runLength$lengths[runLength$values==-1]
+      winner<-topS_X[min(winner)]
+    } else {winner <- max(topS_X)
+    }
+  } else {winner<-topS_X}
+
+  if (length(winner)==0) winner<-length(profileVector)
+  if (any(profileVector[1:winner]==0)){
+    winner<-which(profileVector[1:winner]==0)[1]
+    return(list=c(winner,0))
+  }
+  return(list=c(winner,1))
+}
+
+
+.segmentBySign_basin<-function(profileVector,orgVal){
+browser()
+  profileVector[profileVector<0]<-0
+  profileVector[is.na(profileVector)]<-0
+  shiftVector<-c(orgVal,profileVector[-length(profileVector)])
+  signVector<-sign(profileVector-shiftVector)
+  signVector_1<-sign(profileVector-shiftVector)
+  zeroSign<-which(signVector==0)
+
+  if (length(zeroSign)>0){
+
+    for (i in zeroSign){
+      ifelse(i==1 & length(signVector)>=2,
+             {signVector_1[i] = signVector[i+1]},
+             {
+               plus<-which(signVector[1:i]==1)
+               if (length(plus)>1) plus<-max(plus)
+               minus<-which(signVector[1:i]==-1)
+               if (length(minus)>1) minus<-max(minus)
+               if (length(plus)==0 & length(minus)==0) return(list=c(1,0))
+               pm<-max(c(plus,minus))
+               if (signVector[pm]==1) signVector_1[i]=1 else signVector_1[i]=-1
+
+             })
+    }
+  }
+
+  runLength<-rle(signVector_1)
+  runLength$lengths<-cumsum(runLength$lengths)
+
+  topS_X<-runLength$lengths[runLength$values == 1]
+
+  ifelse(length(topS_X)==0,
+
+         {return(list=c(1,0))},
+
+         {ifelse(length(topS_X)==1,
+                 {winner<-topS_X
+                 if (any(profileVector[1:winner]==0)){
+                   winner<-which(profileVector[1:winner]==0)[1]
+                   return(list=c(winner,0))}
+                 return(list=c(winner,1))},
+                 {topS_extended<-topS_X
+
+                 if (topS_X[1]!=1) topS_extended<-c(1,topS_extended)
+                 # if (topS_X[length(topS_X)]!=length(profileVector)) topS_extended<-c(topS_extended,length(profileVector))
+
+                 # topS_extended<-c(1,topS_X,length(profileVector))
+                 topS_AUC<-sapply(2:length(topS_extended),function(x){
+                   DescTools::AUC(x=topS_extended[x-1]:topS_extended[x],
+                                  y=profileVector[topS_extended[x-1]:topS_extended[x]])
+                 })
+
+                 topS_AOC<-sapply(2:length(topS_extended),function(x){
+                   (topS_extended[x]-topS_extended[x-1])*max(profileVector)
+                 })-topS_AUC
+
+                 topS_AOC[1]<-topS_AOC[1]*2
+
+                 topS_AOC_ratio<-topS_AOC[-1]/topS_AOC[1]
+
+                 topS_AOC_rle<-topS_AOC_ratio<0.5
+
+                 topS_AOC_rle<-rle(topS_AOC_rle)
+                 topS_AOC_rle$lengths<-cumsum(topS_AOC_rle$lengths)
+
+                 ifelse (topS_AOC_rle$values[1]==F,
+                         winner<-topS_X[1],
+                         winner<-topS_X[topS_AOC_rle$lengths[1]+1]
+                 )
+
+
+                 # if (length(topS_RK)==0) {
+                 #   winner<-topS_X[which.max(profileVector[topS_X])]} else {
+                 #     winner<-topS_extended[topS_RK[1]+1]
+                 #   }
+
+                 if (length(winner)==0) winner<-length(profileVector)
+                 if (any(profileVector[1:winner]==0)){
+                   winner<-which(profileVector[1:winner]==0)[1]
+                   return(list=c(winner,0))
+                 }
+                 return(list=c(winner,1))
+                 })
+         })
+}
+
+
+
+
 .segmentByQuadratic<-function(profileVector,orgVal,fn_favourForeing,bigX){
 
   profileVector[profileVector<0]<-0

@@ -35,7 +35,6 @@ setMethod('localCorrection',signature = ('environment'),
                    paddingLabel = 'undetermined',
                    ...){
 
-
             chkLayer<-lapply(x$currentAnalysis$classification,names)
 
             chkLayer<-sapply(chkLayer,function(x){any(labelLayer %in% x)},simplify = T,USE.NAMES = F)
@@ -86,8 +85,8 @@ setMethod('localCorrection',signature = ('environment'),
                                       nV<-as.numeric(names(tableX)[wM])
                                       return(nV)
                                     },
-                                    filename = file.path(fileD,
-                                                         paste0(fileNN,suffix,'.',fileE)),
+                                    # filename = file.path(fileD,
+                                    #                      paste0(fileNN,suffix,'.',fileE)),
                                     pad=T,
                                     padValue=pdv,
                                     overwrite = T,
@@ -96,6 +95,11 @@ setMethod('localCorrection',signature = ('environment'),
               levels(newRst)<-raster::levels(rst)
               newName<-paste0(labelLayer,suffix)
               names(newRst)<-newName
+              newRst<-raster::writeRaster(newRst,
+                                          filename = file.path(fileD,
+                                                               paste0(fileNN,suffix,'.',fileE)),
+                                          overwrite=T,
+                                          format='raster')
               oldStk[[i]][[newName]]<-newRst
 
               rstrStk<-IMC_stack(x = as.list(oldStk[[i]]),
