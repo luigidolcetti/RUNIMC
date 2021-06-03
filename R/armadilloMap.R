@@ -5,9 +5,17 @@
 armadilloMap<-function (fn_srt,
                         fn_clpDir = c('8','4'),
                         fn_brake = 10,
+                        fn_lowerQuantile=0.01,
+                        fn_upperQuantile=0.50,
                         fn_lowerAreaLimit=1000,
                         fn_meanArea=100,
+                        fn_populationFactor=5,
+                        fn_varianceArea=1,
+                        fn_lineStringBuffer = 1,
                         fn_criticalMass=40,
+                        fn_PVoptimization = T,
+                        fn_PVBuffer = 1.3,
+                        fn_verbose = T,
 
 
                         fn_radius=10,
@@ -34,14 +42,19 @@ armadilloMap<-function (fn_srt,
 
   drct<-as.numeric(match.arg(fn_clpDir))
 
+  if (fn_verbose) cat('Raster pre-processing.... \n')
+
   globalMax<-raster::maxValue(fn_srt)
   globalMin<-raster::minValue(fn_srt)
 
   clippingMap<-raster::clump(x = fn_srt,
                              directions = drct,
                              gaps = F)
+
+  clippingMap[is.na(clippingMap)]<-0
   newStars<-stars::st_as_stars(clippingMap)
   clippingPolygon<-sf::st_as_sf(newStars,merge=T)
+  clippingPolygon<-clippingPolygon[clippingPolygon$clumps!=0,]
   clippingPolygon<-sf::st_make_valid(clippingPolygon)
   clippingPolygon<-sf::st_buffer(clippingPolygon,0)
   clippingPolygonArea<-sf::st_area(clippingPolygon)
@@ -49,93 +62,299 @@ armadilloMap<-function (fn_srt,
 
   clippingPolygon<-clippingPolygon[clippingPolygon$area>fn_lowerAreaLimit,]
 
-  newSegmentation<-pbapply::pblapply(1:nrow(clippingPolygon), function(cp){
+  AreaToProcess<-nrow(clippingPolygon)
+
+  if (fn_verbose) cat(paste0('Area to process:',AreaToProcess,'\n'))
+
+  newSegmentation<-lapply(1:AreaToProcess, function(cp){
+
+
+    clpp<-sf::st_geometry(clippingPolygon[cp,])
 
     pixelList<-exactextractr::exact_extract(fn_srt,
-                                            clippingPolygon[cp,],
-                                            include_xy=T)[[1]]
-    # newCP<-clippingMap==cp
-    # newBb<-sf::st_bbox(clippingPolygon[cp,])
-    # extRst<-raster::extent(newBb[c(1,3,2,4)])
-    # focusRst<-raster::crop(fn_srt,extRst)
-    # focusMask<-raster::crop(clippingMap,extRst)
-    # pixelList<-exactextractr::exact_extract(focusRst,
-    #                                         clippingPolygon[cp,],
-    #                                         include_xy=T)[[1]]
-    # pixelTable<-hist(pixelList[,'value'])
+                                            clpp,
+                                            include_xy=T,
+                                            progress = F)[[1]]
+
+    if (fn_verbose) cat(paste0('Area ',cp,' of ',AreaToProcess,' ... extension:',
+                               nrow(pixelList), ' pixels \n'))
 
     polyArea<-sf::st_drop_geometry(clippingPolygon[cp,'area'])
     focalNgroups<-as.numeric(round(polyArea/fn_meanArea))
-    pixelMax<-max(pixelList[,'value'])
-    pixelMin<-min(pixelList[,'value'])
+
+    if (fn_verbose) cat(paste0('Espected polygons: ',focalNgroups,'\n'))
+
+    pixelMax<-quantile(pixelList[,'value'],fn_upperQuantile)
+    pixelMin<-quantile(pixelList[,'value'],fn_lowerQuantile)
     pixelBrake<-seq(pixelMin,pixelMax,length.out = fn_brake)
-    bbBcp<-sf::st_bbox(clippingPolygon[cp,])
+    bbBcp<-sf::st_bbox(clpp)
 
-    pixelVoronoi<-pbapply::pblapply(pixelBrake,function(nbrk){
-      focalPixelList<-pixelList[pixelList$value<=nbrk,]
-      # focalPixelList<-aggregate(y~x,focalPixelList,mean)
-      # focalPixelList<-aggregate(x~y,focalPixelList,mean)
+    pixelVoronoi<-lapply(seq_along(pixelBrake),function(nbrk){
+
+      if (fn_verbose) cat(paste0('Iteration ',nbrk,' of ',fn_brake,'\r'))
+
+
+      ########alternative #####
+
+      newPixelList<-pixelList
+      newPixelList$value<-NA
+      newPixelList[pixelList$value<=pixelBrake[nbrk],'value']<-1
+      newSrt<-raster::raster(matrix(NA,bbBcp[4]-bbBcp[2],bbBcp[3]-bbBcp[1]),
+                             xmn=bbBcp[1],
+                             xmx=bbBcp[3],
+                             ymn=bbBcp[2],
+                             ymx=bbBcp[4],
+                             crs=NA)
+      newPixelCell<-raster::cellFromXY(newSrt,newPixelList[,c('x','y')])
+      newSrt[newPixelCell]<-newPixelList[,'value']
+      newSrt<-raster::clump(x = newSrt,
+                            directions = drct,
+                            gaps = F)
+      newPixelList<-exactextractr::exact_extract(newSrt,
+                                                 clpp,
+                                                 include_xy=T,
+                                                 progress = F)[[1]]
+
+      focalPixelList_x<-aggregate(x~value,newPixelList,mean)
+      focalPixelList_y<-aggregate(y~value,newPixelList,mean)
+      focalPixelList<-dplyr::inner_join(focalPixelList_x,
+                                        focalPixelList_y,
+                                        by='value')
+
+      ####alternative - end
+
+      # focalPixelList<-pixelList[pixelList$value<=pixelBrake[nbrk],]
+      # raster::plot(fn_srt<=nbrk,xlim=c(bbBcp[[1]],bbBcp[[3]]),ylim=c(bbBcp[[2]],bbBcp[[4]]))
+
       if (nrow(focalPixelList)<2){
-        out<-clippingPolygon[cp,]
-      } else {
-        if (nrow(focalPixelList)>focalNgroups*fn_criticalMass) {
-          return(0)
-        } else {
-          if (nrow(focalPixelList)>focalNgroups){
-            focalPixelDist<-dist(focalPixelList[,c('x','y')])
-            focalPixelDendro<-hclust(focalPixelDist,method = 'centroid')
 
-            focalPixelGroups<-cutree(focalPixelDendro,k=focalNgroups)
-            focalPoint<-lapply(1:focalNgroups,function(fpg){
-              x<-mean(focalPixelList[focalPixelGroups==fpg,'x'])
-              y<-mean(focalPixelList[focalPixelGroups==fpg,'y'])
-              return(c(x,y))
-            })
-            focalPoint<-do.call(rbind,focalPoint)
-            focalPoint<-sf::st_multipoint(focalPoint)
-          } else {
-            focalPoint<-sf::st_multipoint(as.matrix(focalPixelList[,c('x','y')]))
-          }
+        return(clpp)
+      } else {
+
+        if (nrow(focalPixelList)>focalNgroups & focalNgroups>0){
+          focalPixelDist<-dist(focalPixelList[,c('x','y')])
+          focalPixelDendro<-hclust(focalPixelDist,method = 'centroid')
+
+          focalPixelGroups<-cutree(focalPixelDendro,k=focalNgroups)
+          focalPoint<-lapply(1:focalNgroups,function(fpg){
+            x<-mean(focalPixelList[focalPixelGroups==fpg,'x'])
+            y<-mean(focalPixelList[focalPixelGroups==fpg,'y'])
+            return(c(x,y))
+          })
+          focalPoint<-do.call(rbind,focalPoint)
+          focalPoint<-sf::st_multipoint(focalPoint)
+        } else {
+          focalPoint<-sf::st_multipoint(as.matrix(focalPixelList[,c('x','y')]))
+        }
+
+        if (length(focalPoint)==2){
+          return(clpp)
         }
 
 
-        voroSkeleton<-sf::st_voronoi(focalPoint)
-        voroSkeleton<-sf::st_collection_extract(voroSkeleton)
+        #
+        voroSkeleton<-sf::st_voronoi(focalPoint,envelope = sf::st_geometry(clpp))
+        if (any(sf::st_geometry_type(voroSkeleton)=='GEOMETRYCOLLECTION')){
+          voroSkeleton<-sf::st_collection_extract(voroSkeleton)
+        }
         voroSkeleton<-sf::st_buffer(voroSkeleton,0)
 
+        # voroCover<-sf::st_contains(clpp,voroSkeleton)[[1]]
+        # voroSkeleton_toCut<-voroSkeleton[-voroCover]
+        # voroSkeleton_toLeave<-voroSkeleton[voroCover]
 
-        voroSkeleton<-sf::st_intersection(voroSkeleton,clippingPolygon[cp,])
+        voroSkeleton<-sf::st_intersection(voroSkeleton,clpp)
 
-        out<-voroSkeleton
+        # voroSkeleton<-c(voroSkeleton,voroSkeleton_toLeave)
+
+        if (any(sf::st_geometry_type(voroSkeleton)=='GEOMETRYCOLLECTION')){
+          voroSkeleton<-sf::st_collection_extract(voroSkeleton)
+        }
+
+        if (any(sf::st_geometry_type(voroSkeleton)=='MULTIPOLYGON')){
+          voroSkeleton<-sf::st_cast(voroSkeleton,
+                                    'MULTIPOLYGON',
+                                    group_or_split = T,
+                                    do_split = T)
+          voroSkeleton<-sf::st_cast(voroSkeleton,
+                                    'POLYGON',
+                                    group_or_split = T,
+                                    do_split = T)
+        }
+
+
+        if (!inherits(voroSkeleton,'sfc_POLYGON')){
+          out<-sf::st_sfc(voroSkeleton)
+        } else {
+          out<-voroSkeleton
+        }
+
       }
-      # newMsk<-focusRst<=pixelBrake[nbrk]
-      # newclmp<-raster::clump(newMsk,directions = drct)
-      # nstr<-try(stars::st_as_stars(newclmp))
-      # if (inherits(nstr,'try-error')) browser()
-      # vPl<-try(sf::st_as_sf(nstr,merge=T))
-      # if (inherits(vPl,'try-error')) browser()
-      # cntrd<-sf::st_centroid(vPl)
-      # # raster::plot(focusRst)
-      # # plot(cntrd,add=T)
-      # if (nrow(cntrd)>1){
-      #   newVoronoi<-sf::st_collection_extract(sf::st_voronoi(do.call(c,cntrd$geometry)),'POLYGON')
-      #   newVoronoi<-sf::st_intersection(clippingPolygon[cp,]$geometry,newVoronoi)
-      #   voroArea<-sf::st_area(newVoronoi)
-      #   out<-sf::st_sf(geometry=newVoronoi,sf_column_name = 'geometry',crs = 'NA',sfc_last = T)
-      #   out<-dplyr::bind_cols(out,data.frame(clump=cp,brake=nbrk,area=voroArea))
-      # } else {
-      #   Area<-sf::st_area(clippingPolygon[cp,]$geometry)
-      #   out<-sf::st_sf(geometry=clippingPolygon[cp,]$geometry,sf_column_name = 'geometry',crs = 'NA',sfc_last = T)
-      #   out<-dplyr::bind_cols(out,data.frame(clump=cp,brake=nbrk,area=Area))
-      # }
-      browser()
-      raster::plot(fn_srt,xlim=c(bbBcp[[1]],bbBcp[[3]]),ylim=c(bbBcp[[2]],bbBcp[[4]]))
-      plot(out,add=T)
+
+
+      # raster::plot(fn_srt,xlim=c(bbBcp[[1]],bbBcp[[3]]),ylim=c(bbBcp[[2]],bbBcp[[4]]))
+      # plot(out,add=T)
       return(out)
     })
-    browser()
-    return(pixelVoronoi)
+
+    if (fn_verbose) cat(paste0('Completed ',fn_brake,' iterations \n'))
+    if (fn_verbose) cat(paste0('Evaluating polygon compositions ... \n'))
+    if (fn_verbose) cat(paste0('Area '))
+
+    areaPoly<-lapply(pixelVoronoi,function(x){
+
+      if (fn_verbose) cat(paste0('.'))
+      if (inherits(x,'sfc')){
+        out<-sf::st_area(x)
+      } else {
+        out<-0
+      }
+      return(out)
+    })
+
+    if (fn_verbose) cat(paste0('OK \n'))
+
+    variancePoly<-sapply(areaPoly,var,simplify = T,USE.NAMES = F)
+
+    # clippingLinestring<-sf::st_cast(sf::st_geometry(clpp),
+    #                                 'LINESTRING',
+    #                                 group_or_split = T,
+    #                                 do_split = T)
+
+    if (fn_verbose) cat(paste0('Borders '))
+
+    # lineStringCast<-lapply(pixelVoronoi,function(x){
+    #
+    #   if (fn_verbose) cat(paste0('.'))
+    #   if (inherits(x,'sfc')){
+    #     if (any(sf::st_geometry_type(x)=='GEOMETRYCOLLECTION')){
+    #       out<-sf::st_collection_extract(x)
+    #     } else {
+    #       out<-x
+    #     }
+    #     out<-sf::st_cast(out,
+    #                      'POLYGON',
+    #                      group_or_split = T,
+    #                      do_split = T)
+    #     out<-sf::st_cast(out,
+    #                      'LINESTRING',
+    #                      group_or_split = T,
+    #                      do_split = T)
+    #     out<-nngeo::st_segments(out,progress = F)
+    #
+    #     borderDelimiter<-sf::st_covered_by(out,clippingLinestring)
+    #     wbdl<-sapply(borderDelimiter,
+    #                  function(x){length(x)==0 },simplify = T,USE.NAMES = F)
+    #     out<-out[wbdl,]
+    #   } else {
+    #     out<-sf::st_sfc(NULL)
+    #   }
+    #   return(out)
+    # })
+
+    ####alternative Border#####
+
+    varianceBorder<-sapply(pixelVoronoi,function(x){
+
+      if (fn_verbose) cat(paste0('.'))
+      if (inherits(x,'sfc')){
+        if (any(sf::st_geometry_type(x)=='GEOMETRYCOLLECTION')){
+          out<-sf::st_collection_extract(x)
+        } else {
+          out<-x
+        }
+        out<-sf::st_cast(out,
+                         'POLYGON',
+                         group_or_split = T,
+                         do_split = T)
+        out<-exactextractr::exact_extract(fn_srt,out,include_XY=F,progress=F)
+
+        out<-sapply(out,function(o){
+          o<-o[o[,'coverage_fraction']<1,'value']
+          if (length(o)>1) out<-var(o) else out<-0
+        },simplify = T,USE.NAMES = F)
+        out<-mean(out)
+      } else {
+        out<-NA
+      }
+      return(out)
+    },simplify = T,USE.NAMES = F)
+
+    # varianceBorder<-sapply(lineStringCast,function(x){
+    #   if (!all(sf::st_is_empty(x))){
+    #
+    #     # out<-raster::extract(fn_srt,
+    #     #                      sf::st_sf(x),
+    #     #                      progress = 'none')
+    #
+    #     out<-exactextractr::exact_extract(fn_srt,
+    #                                       sf::st_buffer(x,fn_lineStringBuffer),
+    #                                       progress = F)
+    #     out<-lapply(out,function(x)x[,1,drop=T])
+    #     out<-lapply(out,na.omit)
+    #     out<-lapply(out,var)
+    #     out<-lapply(out,na.omit)
+    #     wout<-sapply(out,function(x) length(x)!=0,simplify = T,USE.NAMES = F)
+    #     out<-out[wout]
+    #     out<-do.call(mean,out)
+    #   } else {
+    #     out<-Inf}
+    #   return(out)
+    # },simplify = T,USE.NAMES = F)
+
+    if (fn_verbose) cat(paste0('OK \n'))
+
+    variancePoly<-(variancePoly-fn_varianceArea)^2
+    rankVpoly<-rank(variancePoly,na.last = T,ties.method = 'average')
+    rankVBorder<-rank(varianceBorder,na.last = T,ties.method = 'average')
+    score<-rankVpoly^2+rankVBorder^2
+    rankScore<-rank(score,na.last = T,ties.method = 'average')
+    out<-pixelVoronoi[[which.min(rankScore)]]
+
+    if (fn_PVoptimization) {
+
+      optiPoly<-lapply(1:length(out),function(no){
+
+        newOut<-sf::st_segmentize(out[no],1)
+        newOut_coods<-sf::st_coordinates(newOut)
+        centroidOut<-sf::st_centroid(newOut)
+        centroidOut_coords<-sf::st_coordinates(centroidOut)
+        newOutBufferOuter<-((newOut-centroidOut_coords)*fn_PVBuffer)+centroidOut_coords
+        newOutBufferInner<-((newOut-centroidOut_coords)/fn_PVBuffer)+centroidOut_coords
+        newOutBufferOuter_coords<-sf::st_coordinates(newOutBufferOuter)
+        newOutBufferInner_coords<-sf::st_coordinates(newOutBufferInner)
+        newSkeleton<-lapply(1:nrow(newOutBufferOuter_coords),function(nr){
+          out_coords<-rbind(
+            newOutBufferInner_coords[nr,c('X','Y')],
+            newOut_coods[nr,c('X','Y')],
+            newOutBufferOuter_coords[nr,c('X','Y')])
+          out<-sf::st_linestring(out_coords)
+          out<-sf::st_segmentize(out,1)
+          out<-sf::st_coordinates(out)
+          out_values<-raster::cellFromXY(fn_srt,out)
+          out_values<-fn_srt[out_values]
+          w_value<-which.max(out_values)
+
+          return(out[w_value,])
+        })
+        newSkeleton<-do.call(rbind,newSkeleton)[,c('X','Y')]
+        newSkeleton<-round(newSkeleton)
+        newSkeleton<-rbind(newSkeleton,newSkeleton[1,])
+
+        out<-sf::st_polygon(list(newSkeleton))
+        return(out)
+      })
+      optiOut<-sf::st_sfc(optiPoly)
+    }
+
+
+
+    # raster::plot(fn_srt,xlim=c(bbBcp[[1]],bbBcp[[3]]),ylim=c(bbBcp[[2]],bbBcp[[4]]))
+    # plot(out,add=T)
+    # plot(optiOut,add=T,border='blue')
+    return(out)
   })
+
 
   return(newSegmentation)
 }
@@ -270,7 +489,7 @@ armadilloMap<-function (fn_srt,
 #       intersectionMatrix[x,spikeEnds[1,x]][[1]][spikeEnds[2,x]+1,]+c(xCoords,yCoords)
 #     })))
 #
-#     if (inherits(polyG,'try-error'))browser()
+#     if (inherits(polyG,'try-error'))
 #     colnames(polyG)<-c('x','y')
 #
 #     polyG<-na.omit(polyG)
