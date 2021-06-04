@@ -67,6 +67,7 @@ dalmataMap<-function (fn_srt,
     clippingPolygonArea<-sf::st_area(clippingPolygon)
     clippingPolygon<-dplyr::bind_cols(clippingPolygon,area=clippingPolygonArea)
     clippingPolygon<-clippingPolygon[clippingPolygon$area>fn_lowerAreaLimit,]
+    # if (nrow(clippingPolygon)==0)
     return(clippingPolygon)
     # plot(clippingPolygon[1],col=NA,add=T)
   })
@@ -76,7 +77,7 @@ dalmataMap<-function (fn_srt,
   maxii<-length(polyLayer)
   pL<-seq_along(polyLayer)[-1]
   polyEdge<-lapply(pL,function(ii){
-    # if (fn_verbose) cat('Edges : ',ii,' of ',maxii,'\r')
+    if (fn_verbose) cat('Edges : ',ii,' of ',maxii,'\r')
     edgeDef<-sf::st_contains(polyLayer[[ii]],polyLayer[[ii-1]],prepared = F)
     maxiii<-length(edgeDef)
     edgeBrake<-lapply(1:length(edgeDef),function(iii){
@@ -85,6 +86,7 @@ dalmataMap<-function (fn_srt,
       if (length(edgeDef[[iii]])>0){
         to<-paste0(ii-1,'.',edgeDef[[iii]])
       } else {
+
         to<-NA
       }
       out<-data.frame(from,to,stringsAsFactors = F)
@@ -93,11 +95,12 @@ dalmataMap<-function (fn_srt,
     out<-do.call(rbind,edgeBrake)
   })
   if (fn_verbose) cat('Edges : done...\n')
+
   polyEdge<-do.call(rbind,polyEdge)
 
   if (fn_verbose) cat('Making big network\n')
 
-  nodeList<-unique(c(polyEdge$from,polyEdge$to))
+  nodeList<-unique(c(na.omit(polyEdge$from),na.omit(polyEdge$to)))
   nodeIndex<-strsplit(nodeList,'.',fixed=T)
   nodeIndex<-do.call(rbind,nodeIndex)
   nodeIndex<-matrix(as.numeric(nodeIndex),ncol = 2,byrow = F)
@@ -108,46 +111,95 @@ dalmataMap<-function (fn_srt,
     return(out)
   })
 
-
-  nodeDataFrame<-data.frame(ID=nodeList,
+  nodeDataFrame<-data.frame(ID=seq_along(nodeList),
                             layerIndex = nodeIndex[,1],
                             polyIndex = nodeIndex[,2],
                             area = areaList,
+                            SplitP_ID = NA,
+                            splitP_area = NA,
+                            visited = F,
                             stringsAsFactors = F)
 
-
   edgeList<-polyEdge[!is.na(polyEdge$to),]
+  newEdgeList<-apply(edgeList,1,function(el){
 
-  polyNet<-igraph::graph_from_data_frame(edgeList, directed=TRUE, vertices=nodeDataFrame)
+    elFrom<-strsplit(el[1],'.',fixed=T)
+    elTo<-strsplit(el[2],'.',fixed=T)
+    outFrom<-nodeDataFrame$ID[nodeDataFrame$layerIndex==elFrom[[1]][1] &
+                                nodeDataFrame$polyIndex==elFrom[[1]][2]]
+    outTo<-nodeDataFrame$ID[nodeDataFrame$layerIndex==elTo[[1]][1] &
+                              nodeDataFrame$polyIndex==elTo[[1]][2]]
+    out<-list(from=outFrom,to=outTo)
+    return(out)
+  })
+
+  newEdgeList<-matrix(unlist(newEdgeList),ncol=2,byrow=T)
+  polyNet<-igraph::graph_from_data_frame(newEdgeList, directed=TRUE, vertices=nodeDataFrame)
+
+  tailNodes<-igraph::V(polyNet)[igraph::degree(polyNet,mode = 'in')==0]
+  headNodes<-igraph::V(polyNet)[igraph::degree(polyNet,mode = 'out')==0]
+
+  allPath<-lapply(tailNodes,function(tn){
+    allDist<-igraph::all_shortest_paths(polyNet,tn,headNodes)$res
+    allDist<-lapply(allDist,length)
+  })
+
+  allPath<-sum(do.call(c,do.call(c,allPath)))
+
+  targetSF<-sf::st_sf(ID=1:allPath,
+                      area=0,
+                      geom = sf::st_sfc(lapply(1:allPath, function(x) sf::st_polygon())))
+
+  targetSF_index<-1
+
+  if (fn_verbose) cat('Crawling the network\n')
 
   subgroups<-igraph::decompose.graph(polyNet)
 
   maxii<-length(subgroups)
 
-  if (fn_verbose) cat('Crawling the network\n')
+  tagetIndex<-1
 
-  chunks<-lapply(1:maxii,function(ii){
+  for (ii in 1:maxii){
+
     sgrp<-subgroups[[ii]]
-    NofEdges<-igraph::gsize(sgrp)
-    while(NofEdges>0){
-      if (fn_verbose) cat('Iland ',ii,' of ',maxii,'... edges: ',NofEdges,'\r')
+
+    NofOutEdges<-igraph::degree(sgrp,mode='out')
+
+    while(any(NofOutEdges>1)){
+
+      # if (fn_verbose) cat('Iland ',ii,' of ',maxii,'... edges: ',NofEdges,'\r')
+      rootNode<-igraph::V(sgrp)[!visited & area==min(area)][1]
+      browser()
       rootNode<-igraph::V(sgrp)[which.min(area)]
       parentNode<-igraph::incident(graph = sgrp,v = rootNode,mode = 'in')
       parentNode<-igraph::tail_of(graph = sgrp,es = parentNode)
+      grandParentNode<-igraph::incident(graph = sgrp,v = parentNode,mode = 'in')
+      grandParentNode<-igraph::tail_of(graph = sgrp,es = grandParentNode)
+      childrenNodes<-igraph::incident(graph = sgrp,v = parentNode,mode = 'out')
+      childrenNodes<-igraph::head_of(graph = sgrp,es = childrenNodes)
       childrenGraph<-igraph::make_ego_graph(graph = sgrp,
                                             order = 1,
                                             nodes = parentNode,
                                             mode = 'out')[[1]]
       newSize<-igraph::gsize(childrenGraph)
       if (newSize==1){
-        sgrp<-igraph::delete_vertices(sgrp,rootNode)
+        polyNet<-igraph::set.vertex.attribute(graph = polyNet,
+                                           name = 'visited',
+                                           index = igraph::get.vertex.attribute(sgrp,
+                                                                                'name',
+                                                                                childrenNodes),
+                                           value = T)
+###### start from here updating target sf!!!!!!!!
+        sgrp<-igraph::delete_vertices(sgrp,childrenNodes)
       } else {
+
         gdf<-igraph::as_long_data_frame(childrenGraph)
         prnt_LI<-gdf$from_layerIndex[1]
         prnt_PI<-gdf$from_polyIndex[1]
         chldrn_LI<-gdf$to_layerIndex
         chldrn_PI<-gdf$to_polyIndex
-        browser()
+
         prnt_poly<-polyLayer[[prnt_LI]][prnt_PI,]
         chldrn_poly<-lapply(1:length(chldrn_LI),function(xi){
           polyLayer[[chldrn_LI[xi]]][chldrn_PI[xi],]
@@ -174,37 +226,24 @@ dalmataMap<-function (fn_srt,
           return(out)
         })
 
-        new_chldrn<-lapply(1:length(newPoly),function(xii){
-          out<-chldrn_poly[xii,]
-          out$geom<-newPoly[[xii]]
-          return(out)
-        })
 
 
-        # new_chldrn<-do.call(dplyr::bind_rows,new_chldrn)
-        #
-        # subRst<-raster::crop(fn_srt,prnt_bBox[c(1,3,2,4)])
-        # prnt_Pixel<-exactextractr::exact_extract(subRst,
-        #                                          prnt_poly,
-        #                                          include_xy=T,
-        #                                          progress=F)[[1]]
-        # chldr_pixel<-exactextractr::exact_extract(subRst,
-        #                                           chldrn_poly,
-        #                                           include_xy=T,
-        #                                           progress=F)
-        # all_chldrn_pixel<-do.call(rbind,chldr_pixel)
-        # orphan_pixel<-dplyr::anti_join(prnt_Pixel,
-        #                                all_chldrn_pixel,
-        #                                by=c('x','y'))
-        #
-        # browser()
-        }
-      NofEdges<-igraph::gsize(sgrp)
+
+        sgrp<-igraph::delete.vertices(sgrp,parentNode)
+        Nchildren<-length(childrenNodes)
+        newEdges<-matrix(c(rep(grandParentNode[]$name,Nchildren),
+                           childrenNodes[]$name),ncol=2,byrow = F)
+        newEdges<-as.vector(t(newEdges))
+        sgrp<-igraph::add.edges(sgrp,newEdges)
+
+      }
+
+      NofOutEdges<-igraph::degree(sgrp,mode='out')
     }
 
-  })
+  }
 
-  browser()
+
 
   if (fn_verbose) cat('Selecting pixel-seeds\n')
 
@@ -241,7 +280,7 @@ dalmataMap<-function (fn_srt,
   newSrt<-fn_srt
 
   newSrt[cellListExact]<-0
-browser()
+
   ######### here starts segmentation
 
   DFraster<-raster::as.data.frame(fn_srt,xy=T)
@@ -362,7 +401,7 @@ browser()
     })))
 
     if (inherits(polyG,'try-error'))
-    colnames(polyG)<-c('x','y')
+      colnames(polyG)<-c('x','y')
 
     polyG<-na.omit(polyG)
     notDup<-!duplicated(polyG)
@@ -663,7 +702,7 @@ browser()
     }
   }
 
-    runLength<-rle(signVector_1)
+  runLength<-rle(signVector_1)
   runLength$lengths<-cumsum(runLength$lengths)
   topS<-profileVector[runLength$lengths[runLength$values == 1]]
   topS_area<-abs(((pi*topS^2)-((maxA-minA)/2)))
