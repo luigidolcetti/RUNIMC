@@ -59,10 +59,11 @@ dalmataMap<-function (fn_srt,
     clippingMap<-raster::clump(x = clippingMap,
                                directions = drct,
                                gaps = F)
-    # raster::plot(clippingMap)
     newStars<-stars::st_as_stars(clippingMap)
     clippingPolygon<-sf::st_as_sf(newStars,merge=T)
-    clippingPolygon<-nngeo::st_remove_holes(clippingPolygon)
+    colnames(clippingPolygon)[2]<-'geom'
+    sf::st_geometry(clippingPolygon)<-'geom'
+    # clippingPolygon<-nngeo::st_remove_holes(clippingPolygon)
     clippingPolygon<-sf::st_make_valid(clippingPolygon)
     clippingPolygon<-sf::st_buffer(clippingPolygon,0)
     clippingPolygonArea<-sf::st_area(clippingPolygon)
@@ -107,6 +108,8 @@ dalmataMap<-function (fn_srt,
   nodeIndex<-strsplit(nodeList,'.',fixed=T)
   nodeIndex<-do.call(rbind,nodeIndex)
   nodeIndex<-matrix(as.numeric(nodeIndex),ncol = 2,byrow = F)
+  nodeList<-nodeList[order(nodeIndex[,1],nodeIndex[,2])]
+  nodeIndex<-nodeIndex[order(nodeIndex[,1],nodeIndex[,2]),]
   polyArea<-lapply(polyLayer,function(x) sf::st_drop_geometry(x))
   areaList<-apply(nodeIndex,1,function(idx){
     out<-polyArea[[idx[1]]][idx[2],'area',drop=T]
@@ -143,8 +146,8 @@ dalmataMap<-function (fn_srt,
   newEdgeList<-matrix(unlist(newEdgeList),ncol=2,byrow=T)
   polyNet<-igraph::graph_from_data_frame(newEdgeList, directed=TRUE, vertices=nodeDataFrame)
 
-  tailNodes<-igraph::V(polyNet)[igraph::degree(polyNet,mode = 'in')==0]
-  headNodes<-igraph::V(polyNet)[igraph::degree(polyNet,mode = 'out')==0]
+  tailNodes<-igraph::V(polyNet)[igraph::degree(polyNet,mode = 'in')==0]$name
+  headNodes<-igraph::V(polyNet)[igraph::degree(polyNet,mode = 'out')==0]$name
 
   allPath<-lapply(tailNodes,function(tn){
     allDist<-igraph::all_shortest_paths(polyNet,tn,headNodes)$res
@@ -165,7 +168,7 @@ dalmataMap<-function (fn_srt,
 
   if (fn_verbose) cat('Crawling the network\n')
 
-  subgroups<-igraph::decompose.graph(polyNet)
+  subgroups<-igraph::decompose.graph(polyNet,min.vertices = 1,mode = 'weak')
 
   maxii<-length(subgroups)
 
@@ -181,30 +184,38 @@ dalmataMap<-function (fn_srt,
 
     sgrp<-subgroups[[ii]]
 
-    sgrp_head<-igraph::V(sgrp)[igraph::degree(sgrp,mode='in')==0]
+    sgrp_head<-igraph::V(sgrp)[igraph::degree(sgrp,mode='in')==0]$name
 
     NofOutEdges<-igraph::degree(sgrp,mode='out')
 
     cladeID<-1
+    endOfGame<-F
 
-    while(!all(NofOutEdges==0)){
 
-      if (fn_verbose) cat('Found ',cladeID,' clades\r')
-cycleIndex<-cycleIndex+1
-      # if (cycleIndex==250) browser()
+
+    while(!endOfGame){
+
+      TEMP_size<-igraph::gsize(sgrp)
+      if (fn_verbose) cat('Found ',cycleIndex,' / ',TEMP_size,' clades\r')
+      cycleIndex<-cycleIndex+1
+      # if (TEMP_size==47)
 
       seeds_newIndex<-1:length(NofOutEdges[NofOutEdges==0])
-      seeds_names<-igraph::V(sgrp)[NofOutEdges==0]
+      seeds_names<-igraph::V(sgrp)[NofOutEdges==0]$name
       seeds_pathLength<-igraph::shortest.paths(sgrp,sgrp_head,seeds_names)
 
       # if (fn_verbose) cat('Iland ',ii,' of ',maxii,'... edges: ',NofEdges,'\r')
       rootNode<-colnames(seeds_pathLength[1,which.max(seeds_pathLength)[1],drop=F])
       parentNode<-igraph::incident(graph = sgrp,v = rootNode,mode = 'in')
       parentNode<-igraph::tail_of(graph = sgrp,es = parentNode)
+      parentNode<-parentNode$name
       grandParentNode<-igraph::incident(graph = sgrp,v = parentNode,mode = 'in')
       grandParentNode<-igraph::tail_of(graph = sgrp,es = grandParentNode)
+      grandParentNode<-grandParentNode$name
+      if (length(grandParentNode)==0) endOfGame<-T
       childrenNodes<-igraph::incident(graph = sgrp,v = parentNode,mode = 'out')
       childrenNodes<-igraph::head_of(graph = sgrp,es = childrenNodes)
+      childrenNodes<-childrenNodes$name
       childrenGraph<-igraph::make_ego_graph(graph = sgrp,
                                             order = 1,
                                             nodes = parentNode,
@@ -310,6 +321,8 @@ cycleIndex<-cycleIndex+1
 
         polyLayer[[TEMP_LAYER]]<-rbind.data.frame(polyLayer[[TEMP_LAYER]],
                                                   newPolyDF)
+
+        if (!endOfGame) {
         newRow<-nrow(polyLayer[[TEMP_LAYER]])
 
         newRowIndex<-(oldRow+1):newRow
@@ -330,18 +343,52 @@ cycleIndex<-cycleIndex+1
                                   visited = F)
 
 
-        newEdges<-matrix(c(rep(grandParentNode[]$name,length(newVertex)),
+        newEdges<-matrix(c(rep(grandParentNode,length(newVertex)),
                            newVertex,
 
                            newVertex,
-                           childrenNodes[]$name),ncol=2,byrow = F)
+                           childrenNodes),ncol=2,byrow = F)
         newEdges<-as.vector(t(newEdges))
+
         sgrp<-igraph::add.edges(sgrp,newEdges)
 
-        sgrp_TEMP<-try(igraph::delete.vertices(sgrp,parentNode[]$name))
+        sgrp<-igraph::delete.vertices(sgrp,parentNode)
 
-        if (inherits(sgrp_TEMP,'try-error')) browser()
-        sgrp<-sgrp_TEMP
+        } else {
+          nodeID<-igraph::vertex_attr(graph = sgrp,
+                                      index = childrenNodes)[
+                                        c('splitP_ID',
+                                          'primary_ID',
+                                          'island_ID',
+                                          'clade_ID',
+                                          'level_ID')]
+          nodeID_poly<-igraph::vertex_attr(graph = sgrp,
+                                           index = childrenNodes)[
+                                             c('layerIndex',
+                                               'polyIndex')]
+          nodeID_poly<-as.data.frame(nodeID_poly)
+          nodeID_poly<-apply(nodeID_poly,1,function(nip){
+            polyLayer[[nip[1]]][nip[2],'geom']
+          })
+          nodeID_poly<-do.call(rbind.data.frame,nodeID_poly)
+          nodeID_DF<-cbind.data.frame(as.data.frame(nodeID),area=0)
+          newNodeID<-dplyr::bind_cols(nodeID_poly,nodeID_DF)
+          targetSF[targetSF_row:(targetSF_row+nrow(newNodeID)-1),]<-newNodeID
+
+          targetSF_row<-targetSF_row+nrow(newNodeID)
+
+          newPolyID_DF<-nodeID_DF
+          newPolyID_DF<-na.omit(newPolyID_DF)
+          newPolyID_DF$level_ID<-newPolyID_DF$level_ID+1
+          newPolyID_DF<-dplyr::bind_cols(sf::st_sf(geom=do.call(c,newPoly)),
+                                         newPolyID_DF)
+          targetSF[targetSF_row:(targetSF_row+nrow(newPolyID_DF)-1),]<-newPolyID_DF
+
+          targetSF_row<-targetSF_row+nrow(newPolyID_DF)
+
+
+          break
+        }
       }
 
       NofOutEdges<-igraph::degree(sgrp,mode='out')
@@ -350,5 +397,6 @@ cycleIndex<-cycleIndex+1
 
   }
 
+  targetSF<-na.omit(targetSF)
   return(targetSF)
 }

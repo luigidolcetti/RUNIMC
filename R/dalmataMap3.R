@@ -165,7 +165,7 @@ dalmataMap<-function (fn_srt,
 
   if (fn_verbose) cat('Crawling the network\n')
 
-  subgroups<-igraph::decompose.graph(polyNet)
+  subgroups<-igraph::decompose.graph(polyNet,min.vertices = 1,mode = 'weak')
 
   maxii<-length(subgroups)
 
@@ -187,11 +187,14 @@ dalmataMap<-function (fn_srt,
 
     cladeID<-1
 
+
+
     while(!all(NofOutEdges==0)){
 
-      if (fn_verbose) cat('Found ',cladeID,' clades\r')
-cycleIndex<-cycleIndex+1
-      # if (cycleIndex==250) browser()
+      TEMP_size<-igraph::gsize(sgrp)
+      if (fn_verbose) cat('Found ',cycleIndex,' / ',TEMP_size,' clades\r')
+      cycleIndex<-cycleIndex+1
+      # if (TEMP_size==47) browser()
 
       seeds_newIndex<-1:length(NofOutEdges[NofOutEdges==0])
       seeds_names<-igraph::V(sgrp)[NofOutEdges==0]
@@ -201,10 +204,14 @@ cycleIndex<-cycleIndex+1
       rootNode<-colnames(seeds_pathLength[1,which.max(seeds_pathLength)[1],drop=F])
       parentNode<-igraph::incident(graph = sgrp,v = rootNode,mode = 'in')
       parentNode<-igraph::tail_of(graph = sgrp,es = parentNode)
+      parentNode<-parentNode$name
       grandParentNode<-igraph::incident(graph = sgrp,v = parentNode,mode = 'in')
       grandParentNode<-igraph::tail_of(graph = sgrp,es = grandParentNode)
+      grandParentNode<-grandParentNode$name
+      if (length(grandParentNode)==0) break
       childrenNodes<-igraph::incident(graph = sgrp,v = parentNode,mode = 'out')
       childrenNodes<-igraph::head_of(graph = sgrp,es = childrenNodes)
+      childrenNodes<-childrenNodes$name
       childrenGraph<-igraph::make_ego_graph(graph = sgrp,
                                             order = 1,
                                             nodes = parentNode,
@@ -330,15 +337,16 @@ cycleIndex<-cycleIndex+1
                                   visited = F)
 
 
-        newEdges<-matrix(c(rep(grandParentNode[]$name,length(newVertex)),
+        newEdges<-matrix(c(rep(grandParentNode,length(newVertex)),
                            newVertex,
 
                            newVertex,
-                           childrenNodes[]$name),ncol=2,byrow = F)
+                           childrenNodes),ncol=2,byrow = F)
         newEdges<-as.vector(t(newEdges))
+
         sgrp<-igraph::add.edges(sgrp,newEdges)
 
-        sgrp_TEMP<-try(igraph::delete.vertices(sgrp,parentNode[]$name))
+        sgrp_TEMP<-try(igraph::delete.vertices(sgrp,parentNode))
 
         if (inherits(sgrp_TEMP,'try-error')) browser()
         sgrp<-sgrp_TEMP

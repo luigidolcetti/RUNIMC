@@ -59,10 +59,11 @@ dalmataMap<-function (fn_srt,
     clippingMap<-raster::clump(x = clippingMap,
                                directions = drct,
                                gaps = F)
-    # raster::plot(clippingMap)
     newStars<-stars::st_as_stars(clippingMap)
     clippingPolygon<-sf::st_as_sf(newStars,merge=T)
-    clippingPolygon<-nngeo::st_remove_holes(clippingPolygon)
+    colnames(clippingPolygon)[2]<-'geom'
+    sf::st_geometry(clippingPolygon)<-'geom'
+    # clippingPolygon<-nngeo::st_remove_holes(clippingPolygon)
     clippingPolygon<-sf::st_make_valid(clippingPolygon)
     clippingPolygon<-sf::st_buffer(clippingPolygon,0)
     clippingPolygonArea<-sf::st_area(clippingPolygon)
@@ -107,6 +108,8 @@ dalmataMap<-function (fn_srt,
   nodeIndex<-strsplit(nodeList,'.',fixed=T)
   nodeIndex<-do.call(rbind,nodeIndex)
   nodeIndex<-matrix(as.numeric(nodeIndex),ncol = 2,byrow = F)
+  nodeList<-nodeList[order(nodeIndex[,1],nodeIndex[,2])]
+  nodeIndex<-nodeIndex[order(nodeIndex[,1],nodeIndex[,2]),]
   polyArea<-lapply(polyLayer,function(x) sf::st_drop_geometry(x))
   areaList<-apply(nodeIndex,1,function(idx){
     out<-polyArea[[idx[1]]][idx[2],'area',drop=T]
@@ -120,7 +123,7 @@ dalmataMap<-function (fn_srt,
                             area = areaList,
                             splitP_ID = NA,
                             primary_ID = NA,
-                            island_ID = NA,
+                            iland_id = NA,
                             clade_ID = NA,
                             level_ID = NA,
                             splitP_area = NA,
@@ -143,8 +146,8 @@ dalmataMap<-function (fn_srt,
   newEdgeList<-matrix(unlist(newEdgeList),ncol=2,byrow=T)
   polyNet<-igraph::graph_from_data_frame(newEdgeList, directed=TRUE, vertices=nodeDataFrame)
 
-  tailNodes<-igraph::V(polyNet)[igraph::degree(polyNet,mode = 'in')==0]
-  headNodes<-igraph::V(polyNet)[igraph::degree(polyNet,mode = 'out')==0]
+  tailNodes<-igraph::V(polyNet)[igraph::degree(polyNet,mode = 'in')==0]$name
+  headNodes<-igraph::V(polyNet)[igraph::degree(polyNet,mode = 'out')==0]$name
 
   allPath<-lapply(tailNodes,function(tn){
     allDist<-igraph::all_shortest_paths(polyNet,tn,headNodes)$res
@@ -155,7 +158,7 @@ dalmataMap<-function (fn_srt,
 
   targetSF<-sf::st_sf(splitP_ID=NA,
                       primary_ID=NA,
-                      island_ID=NA,
+                      iland_id=NA,
                       clade_ID=NA,
                       level_ID=NA,
                       area=0,
@@ -165,7 +168,7 @@ dalmataMap<-function (fn_srt,
 
   if (fn_verbose) cat('Crawling the network\n')
 
-  subgroups<-igraph::decompose.graph(polyNet)
+  subgroups<-igraph::decompose.graph(polyNet,min.vertices = 1,mode = 'weak')
 
   maxii<-length(subgroups)
 
@@ -181,30 +184,80 @@ dalmataMap<-function (fn_srt,
 
     sgrp<-subgroups[[ii]]
 
-    sgrp_head<-igraph::V(sgrp)[igraph::degree(sgrp,mode='in')==0]
+    sgrp_head<-igraph::V(sgrp)[igraph::degree(sgrp,mode='in')==0]$name
 
     NofOutEdges<-igraph::degree(sgrp,mode='out')
 
     cladeID<-1
+    endOfGame<-F
 
-    while(!all(NofOutEdges==0)){
 
-      if (fn_verbose) cat('Found ',cladeID,' clades\r')
-cycleIndex<-cycleIndex+1
-      # if (cycleIndex==250) browser()
+
+    while(!endOfGame){
+
+      cycleIndex<-cycleIndex+1
+      TEMP_size<-igraph::gsize(sgrp)
+
+      if (fn_verbose) cat('Cycle: ',formatC(cycleIndex,
+                                            digits = 2,
+                                            width = 6,
+                                            flag = '#'),' / ',
+                          'network size: ',formatC(TEMP_size,
+                                                   digits = 2,
+                                                   width = 6,
+                                                   flag = '#'),' / ',
+                          'single clades: ',formatC(cladeID-1,
+                                                    digits = 2,
+                                                    width = 6,
+                                                    flag = '#'),'\r')
+
+      if (TEMP_size==0) {
+
+        seeds_newIndex<-1:length(NofOutEdges[NofOutEdges==0])
+        seeds_names<-igraph::V(sgrp)[NofOutEdges==0]$name
+        nodeID<-list(splitP_ID = paste0(c(fn_primaryIndex,
+                                          ii,
+                                          cladeID,
+                                          '0'),collapse='.'),
+                     primary_ID = fn_primaryIndex,
+                     iland_id = ii,
+                     clade_ID = cladeID,
+                     level_ID = 0)
+        targetSF[targetSF_row,c('splitP_ID',
+                                'primary_ID',
+                                'iland_id',
+                                'clade_ID',
+                                'level_ID')]<-unlist(nodeID)
+
+        nodeLayerIndex<-igraph::get.vertex.attribute(sgrp,
+                                                     'layerIndex',
+                                                     seeds_names)
+        nodePolyIndex<-igraph::get.vertex.attribute(sgrp,
+                                                    'polyIndex',
+                                                    seeds_names)
+
+        targetSF$geom[targetSF_row]<-sf::st_geometry(polyLayer[[nodeLayerIndex]][nodePolyIndex,'geom'])
+        targetSF_row<-targetSF_row+1
+        break
+      }
+      # if (TEMP_size==47)
 
       seeds_newIndex<-1:length(NofOutEdges[NofOutEdges==0])
-      seeds_names<-igraph::V(sgrp)[NofOutEdges==0]
+      seeds_names<-igraph::V(sgrp)[NofOutEdges==0]$name
       seeds_pathLength<-igraph::shortest.paths(sgrp,sgrp_head,seeds_names)
 
       # if (fn_verbose) cat('Iland ',ii,' of ',maxii,'... edges: ',NofEdges,'\r')
       rootNode<-colnames(seeds_pathLength[1,which.max(seeds_pathLength)[1],drop=F])
       parentNode<-igraph::incident(graph = sgrp,v = rootNode,mode = 'in')
       parentNode<-igraph::tail_of(graph = sgrp,es = parentNode)
+      parentNode<-parentNode$name
       grandParentNode<-igraph::incident(graph = sgrp,v = parentNode,mode = 'in')
       grandParentNode<-igraph::tail_of(graph = sgrp,es = grandParentNode)
+      grandParentNode<-grandParentNode$name
+      if (length(grandParentNode)==0) endOfGame<-T
       childrenNodes<-igraph::incident(graph = sgrp,v = parentNode,mode = 'out')
       childrenNodes<-igraph::head_of(graph = sgrp,es = childrenNodes)
+      childrenNodes<-childrenNodes$name
       childrenGraph<-igraph::make_ego_graph(graph = sgrp,
                                             order = 1,
                                             nodes = parentNode,
@@ -220,7 +273,7 @@ cycleIndex<-cycleIndex+1
                                             cladeID,
                                             '0'),collapse='.'),
                        primary_ID = fn_primaryIndex,
-                       island_ID = ii,
+                       iland_id = ii,
                        clade_ID = cladeID,
                        level_ID = 0)
 
@@ -231,7 +284,7 @@ cycleIndex<-cycleIndex+1
                                       index = childrenNodes)[
                                         c('splitP_ID',
                                           'primary_ID',
-                                          'island_ID',
+                                          'iland_id',
                                           'clade_ID',
                                           'level_ID')]
 
@@ -239,7 +292,7 @@ cycleIndex<-cycleIndex+1
 
         targetSF[targetSF_row,c('splitP_ID',
                                 'primary_ID',
-                                'island_ID',
+                                'iland_id',
                                 'clade_ID',
                                 'level_ID')]<-unlist(nodeID)
 
@@ -289,17 +342,23 @@ cycleIndex<-cycleIndex+1
         prnt_tassel<-prnt_tassel[sf::st_contains(prnt_poly,prnt_tassel)[[1]]]
         dist_tassel<-sf::st_distance(prnt_tassel,chldrn_poly)
         aggr_tassel<-apply(dist_tassel,1,which.min)
-        newPoly<-lapply(unique(aggr_tassel),function(xii){
-          out<-sf::st_union(prnt_tassel[aggr_tassel==xii])
-          out<-sf::st_buffer(out,0)
-          out<-sf::st_make_valid(out)
-          if (sf::st_geometry_type(out)=='MULTIPOLYGON'){
-            out<-sf::st_cast(out,'POLYGON')
-            area_out<-sf::st_area(out)
-            out<-out[which.max(area_out)]
+        newPoly<-lapply(1:ncol(dist_tassel),function(xii){
+          if (length(prnt_tassel[aggr_tassel==xii])!=0){
+            out<-sf::st_union(prnt_tassel[aggr_tassel==xii])
+            out<-sf::st_buffer(out,0)
+            out<-sf::st_make_valid(out)
+            if (sf::st_geometry_type(out)=='MULTIPOLYGON'){
+              out<-sf::st_cast(out,'POLYGON')
+              area_out<-sf::st_area(out)
+              out<-out[which.max(area_out)]
+            }
+          } else {
+            out<-chldrn_poly[xii,'geom'][[1]]
+
           }
           return(out)
         })
+
         newPolyDF<-sf::st_sf(geom=do.call(c,newPoly))
         newPolyDF<-dplyr::bind_cols(newPolyDF,
                                     data.frame(clumps=NA,
@@ -310,45 +369,99 @@ cycleIndex<-cycleIndex+1
 
         polyLayer[[TEMP_LAYER]]<-rbind.data.frame(polyLayer[[TEMP_LAYER]],
                                                   newPolyDF)
-        newRow<-nrow(polyLayer[[TEMP_LAYER]])
 
-        newRowIndex<-(oldRow+1):newRow
+        if (!endOfGame) {
+          newRow<-nrow(polyLayer[[TEMP_LAYER]])
 
-        lastVertex<-igraph::V(sgrp)
-        lastVertex<-lastVertex[[length(lastVertex)]]$name
-        newVertex<-as.character(as.numeric(lastVertex)+(1:length(childrenNodes)))
-        sgrp<-sgrp+igraph::vertex(name=newVertex,
-                                  layerIndex = rep(TEMP_LAYER,length(childrenNodes)),
-                                  polyIndex = newRowIndex,
-                                  area = polyLayer[[TEMP_LAYER]][newRowIndex,'area'],
-                                  splitP_ID = NA,
-                                  primary_ID = NA,
-                                  island_ID = NA,
-                                  clade_ID = NA,
-                                  level_ID = NA,
-                                  splitP_area = NA,
-                                  visited = F)
+          newRowIndex<-(oldRow+1):newRow
+
+          lastVertex<-igraph::V(sgrp)
+          lastVertex<-lastVertex[[length(lastVertex)]]$name
+          newVertex<-as.character(as.numeric(lastVertex)+(1:length(childrenNodes)))
+          sgrp<-sgrp+igraph::vertex(name=newVertex,
+                                    layerIndex = rep(TEMP_LAYER,length(childrenNodes)),
+                                    polyIndex = newRowIndex,
+                                    area = sf::st_drop_geometry(polyLayer[[TEMP_LAYER]][newRowIndex,'area']),
+                                    splitP_ID = NA,
+                                    primary_ID = NA,
+                                    iland_id = NA,
+                                    clade_ID = NA,
+                                    level_ID = NA,
+                                    splitP_area = NA,
+                                    visited = F)
 
 
-        newEdges<-matrix(c(rep(grandParentNode[]$name,length(newVertex)),
-                           newVertex,
+          newEdges<-matrix(c(rep(grandParentNode,length(newVertex)),
+                             newVertex,
 
-                           newVertex,
-                           childrenNodes[]$name),ncol=2,byrow = F)
-        newEdges<-as.vector(t(newEdges))
-        sgrp<-igraph::add.edges(sgrp,newEdges)
+                             newVertex,
+                             childrenNodes),ncol=2,byrow = F)
+          newEdges<-as.vector(t(newEdges))
 
-        sgrp_TEMP<-try(igraph::delete.vertices(sgrp,parentNode[]$name))
+          sgrp<-igraph::add.edges(sgrp,newEdges)
 
-        if (inherits(sgrp_TEMP,'try-error')) browser()
-        sgrp<-sgrp_TEMP
+          sgrp<-igraph::delete.vertices(sgrp,parentNode)
+
+        } else {
+
+          childern_nodeID<-igraph::vertex_attr(graph = sgrp,
+                                      index = childrenNodes)[
+                                        c('splitP_ID',
+                                          'primary_ID',
+                                          'iland_id',
+                                          'clade_ID',
+                                          'level_ID')]
+          children_polyID<-igraph::vertex_attr(graph = sgrp,
+                                           index = childrenNodes)[
+                                             c('layerIndex',
+                                               'polyIndex')]
+          children_polyID<-as.data.frame(children_polyID)
+          children_poly<-apply(children_polyID,1,function(nip){
+            polyLayer[[nip[1]]][nip[2],'geom']
+          })
+          children_poly<-do.call(rbind.data.frame,children_poly)
+          children_polyFrame<-cbind.data.frame(as.data.frame(childern_nodeID),area=0)
+          # newNodeID<-dplyr::bind_cols(nodeID_poly,nodeID_DF)
+          children_SF<-dplyr::bind_cols(children_poly,children_polyFrame)
+          targetSF[targetSF_row:(targetSF_row+nrow(children_SF)-1),]<-children_SF
+
+          targetSF_row<-targetSF_row+nrow(children_SF)
+
+          parent_polyFrame<-children_polyFrame
+          # newPolyID_DF<-na.omit(newPolyID_DF)
+          parent_polyFrame$level_ID<-parent_polyFrame$level_ID+1
+          parent_SF<-dplyr::bind_cols(sf::st_sf(geom=do.call(c,newPoly)),
+                                             parent_polyFrame)
+
+          targetSF[targetSF_row:(targetSF_row+nrow(parent_SF)-1),]<-parent_SF
+
+          targetSF_row<-targetSF_row+nrow(parent_SF)
+
+
+          break
+        }
       }
 
       NofOutEdges<-igraph::degree(sgrp,mode='out')
       sgrp_head<-igraph::V(sgrp)[igraph::degree(sgrp,mode='in')==0]
     }
 
+    if (fn_verbose) cat('Cycle: ',formatC(cycleIndex,
+                                          digits = 2,
+                                          width = 6,
+                                          flag = '#'),' / ',
+                        'network size: ',formatC(TEMP_size,
+                                                 digits = 2,
+                                                 width = 6,
+                                                 flag = '#'),' / ',
+                        'single clades: ',formatC(cladeID-1,
+                                                  digits = 2,
+                                                  width = 6,
+                                                  flag = '#'),'\n')
+
+
   }
 
+  targetSF<-na.omit(targetSF)
   return(targetSF)
 }
