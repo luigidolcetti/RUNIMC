@@ -177,7 +177,23 @@ dalmataMap<-function (fn_srt,
       return(clippingPolygon)
     })
 
-    #
+
+    polyLayer_check<-sapply(polyLayer,function(x)ifelse(nrow(x)==0,F,T))
+    polyLayer<-polyLayer[polyLayer_check]
+    rm(polyLayer_check)
+
+    if (length(polyLayer)==0){
+      out<-sf::st_sf(splitP_ID = NA,
+                       primary_ID = NA,
+                       tile_ID = NA,
+                       iland_ID = NA,
+                       clade_ID = NA,
+                       level_ID = NA,
+                       area=0,
+                       geom = sf::st_sfc(sf::st_polygon()))[-1,]
+      return(out)
+    }
+
     if (fn_verbose) cat('Layer scan completed\n')
     if (fn_verbose) cat('Constructing network\n')
 
@@ -593,13 +609,21 @@ dalmataMap<-function (fn_srt,
     targetSF<-na.omit(targetSF)
     return(targetSF)
   })
+
   parallel::stopCluster(cl)
 
-  # MULTIOUT_TEMP<-lapply(seq_along(MULTIOUT),function(iMO){
-  #   dplyr::bind_cols(MULTIOUT[[iMO]],tile_ID=iMO)
-  # })
-
   MULTIOUT_TOP<-lapply(MULTIOUT,function(MO){
+    if (nrow(MO)==0) {
+      out<-sf::st_sf(splitP_ID = NA,
+                     primary_ID = NA,
+                     tile_ID = NA,
+                     iland_ID = NA,
+                     clade_ID = NA,
+                     level_ID = NA,
+                     area=0,
+                     geom = sf::st_sfc(sf::st_polygon()))[-1,]
+      return(out)
+    }
     topLayer<-aggregate(level_ID~iland_ID+clade_ID,sf::st_drop_geometry(MO),max)
     out<-apply(topLayer,1,function(dd){
       MO[MO$level_ID == dd[3] &
@@ -611,6 +635,17 @@ dalmataMap<-function (fn_srt,
   })
 
   MULTIOUT_TOP<-lapply(seq_along(MULTIOUT_TOP),function(MTO){
+    if (nrow(MULTIOUT_TOP[[MTO]])==0){
+      out<-sf::st_sf(splitP_ID = NA,
+                     primary_ID = NA,
+                     tile_ID = NA,
+                     iland_ID = NA,
+                     clade_ID = NA,
+                     level_ID = NA,
+                     area=0,
+                     geom = sf::st_sfc(sf::st_polygon()))[-1,]
+      return(out)
+    }
     newIntersect<-sf::st_intersects(overlapTrelis,windowGrid[[MTO]])
     newIntersect<-sapply(newIntersect,function(x)if(length(x)!=0) T else F)
     newBorders<-sf::st_relate(overlapTrelis,windowGrid[[MTO]])
@@ -622,12 +657,13 @@ dalmataMap<-function (fn_srt,
     MULTIOUT_TOP[[MTO]][-crossers,]
   })
 
-  browser()
-  MULTIOUT_TOP<-do.call(dplyr::bind_rows,MULTIOUT_TOP)
+  MULTIOUT_TOP<-do.call(rbind.data.frame,MULTIOUT_TOP)
 
-  plot(MULTIOUT_TOP[1],col=NA)
-  return(MULTIOUT)
+  return(MULTIOUT_TOP)
 }
+
+
+
 
 
 .bestWindow<-function(fn_windowW=80:120,
