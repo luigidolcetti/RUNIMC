@@ -1122,26 +1122,26 @@ setMethod('segment',signature = ('environment'),
 
 
                          TEMP<-list(alligatorMap(fn_srt = rstToSegment[[rst]][[i]],
-                                             fn_Nspikes=mthdPrmtrs$spikes,
-                                             fn_radius = round(sqrt(groupAreaRange[[2]]*mthdPrmtrs$radiusExpansion/pi)),
-                                             fn_coverage = mthdPrmtrs$coverage,
-                                             fn_minArea = groupAreaRange[[1]],
-                                             fn_maxArea = groupAreaRange[[2]],
-                                             fn_minRoundness = groupRoundnessRange[[1]],
-                                             fn_maxRoundness = groupRoundnessRange[[2]],
-                                             fn_seedOutScore = mthdPrmtrs$seedOutScore,
-                                             fn_cycleWindow = mthdPrmtrs$cycleWindow,
-                                             fn_adaptative = mthdPrmtrs$adaptative,
-                                             fn_areaAdaptRate = mthdPrmtrs$areaAdaptRate,
-                                             fn_roundnessAdaptRate = mthdPrmtrs$roundnessAdaptRate,
-                                             fn_segmentAlg = mthdPrmtrs$segmentAlg,
-                                             fn_fusion = mthdPrmtrs$fusion,
-                                             fn_maxNetworkSize = mthdPrmtrs$maxNetworkSize,
-                                             fn_targetArea = targetArea,
-                                             fn_inflateDeflate = mthdPrmtrs$inflateDeflate,
-                                             fn_favourForeing = mthdPrmtrs$favourForeing,
-                                             fn_returnKinetic = mthdPrmtrs$returnKinetic,
-                                             fn_returnRasters = mthdPrmtrs$returnRasters))
+                                                 fn_Nspikes=mthdPrmtrs$spikes,
+                                                 fn_radius = round(sqrt(groupAreaRange[[2]]*mthdPrmtrs$radiusExpansion/pi)),
+                                                 fn_coverage = mthdPrmtrs$coverage,
+                                                 fn_minArea = groupAreaRange[[1]],
+                                                 fn_maxArea = groupAreaRange[[2]],
+                                                 fn_minRoundness = groupRoundnessRange[[1]],
+                                                 fn_maxRoundness = groupRoundnessRange[[2]],
+                                                 fn_seedOutScore = mthdPrmtrs$seedOutScore,
+                                                 fn_cycleWindow = mthdPrmtrs$cycleWindow,
+                                                 fn_adaptative = mthdPrmtrs$adaptative,
+                                                 fn_areaAdaptRate = mthdPrmtrs$areaAdaptRate,
+                                                 fn_roundnessAdaptRate = mthdPrmtrs$roundnessAdaptRate,
+                                                 fn_segmentAlg = mthdPrmtrs$segmentAlg,
+                                                 fn_fusion = mthdPrmtrs$fusion,
+                                                 fn_maxNetworkSize = mthdPrmtrs$maxNetworkSize,
+                                                 fn_targetArea = targetArea,
+                                                 fn_inflateDeflate = mthdPrmtrs$inflateDeflate,
+                                                 fn_favourForeing = mthdPrmtrs$favourForeing,
+                                                 fn_returnKinetic = mthdPrmtrs$returnKinetic,
+                                                 fn_returnRasters = mthdPrmtrs$returnRasters))
 
                          polygonsList[[rst]][[i]]<-list()
                          polygonsList[[rst]][[i]]<-TEMP[[1]]
@@ -1170,8 +1170,75 @@ setMethod('segment',signature = ('environment'),
 
                        }
                      }
-                   }
+                   },
 
+                   pandaMap = {
+
+                     rstToSegment<-sapply(names(x$currentAnalysis$classification),function(nms){
+                       if (!any(labelLayer %in% names(x$currentAnalysis$classification[[nms]]))) stop(RUNIMC:::mError('Check classification layer name provided'))
+                       return(x$currentAnalysis$classification[[nms]][[labelLayer]])
+                     },USE.NAMES = T,simplify = F)
+
+                     polygonsList<-sapply(names(rstToSegment),function(x){
+                       sapply(labelLayer,function(x){},
+                              simplify = F,USE.NAMES = T)},
+                       simplify = F,USE.NAMES = T)
+
+                     for (rst in names(rstToSegment)){
+                       for (i in labelLayer){
+
+                         mrkr<-tf_labelList(x$currentAnalysis$trainingFeatures)
+                         mrkrIndex<-which(sapply(mrkr,function(x)grepl(x,i),USE.NAMES = F,simplify = T))
+
+
+                         cat(paste(rst,mrkr[mrkrIndex],'\n',sep=":::"))
+
+                         polygonsList[[rst]][[i]]<-pandaMap(fn_srt = rstToSegment[[rst]][[i]],
+                                                            fn_uid = rst,
+                                                            fn_primaryIndex=mrkr[mrkrIndex],
+                                                            fn_clpDir = mthdPrmtrs$ClampDetectionDirection,
+                                                            fn_brake = mthdPrmtrs$nOfCutBrakes,
+                                                            fn_lowerQuantile = mthdPrmtrs$lowerQuantile,
+                                                            fn_upperQuantile = mthdPrmtrs$upperQuantile,
+                                                            fn_lowerAreaLimit= mthdPrmtrs$lowerAreaLimit,
+                                                            fn_movingWindow_dim = mthdPrmtrs$movingWindowDimension,
+                                                            fn_movingWindow_overlap = mthdPrmtrs$overlapExtent,
+                                                            fn_cores = mthdPrmtrs$numberOfCores,
+                                                            fn_verbose = mthdPrmtrs$verbose)
+
+                       }
+                     }
+
+
+                     polygonsList<-lapply(polygonsList,function(xuid){
+                       do.call(rbind.data.frame,append(xuid,
+                                                       list(make.row.names = F,
+                                                            stringsAsFactors = F,
+                                                            deparse.level=0)
+                       )
+                       )
+                     })
+
+                     polygonsList<-do.call(rbind.data.frame,append(polygonsList,
+                                                                   list(make.row.names = F,
+                                                                        stringsAsFactors = F,
+                                                                        deparse.level=0)))
+
+                     if (mthdPrmtrs$distillDirect){
+
+                       condensedPoligonList<-extractMeanPixel(fn_polygons = polygonsList,
+                                                              fn_raster = x$raster)
+                     }
+
+                       newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
+                       condensedPoligonList<-initObjectAttr(condensedPoligonList)
+
+                       x$currentAnalysis$exprs<-condensedPoligonList
+                       attr(x,'mdtnTimeStmp')<-newTimeStmp
+                       attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
+                       return()
+
+                   }
             )
 
 
@@ -1425,26 +1492,26 @@ setMethod('testSegment',signature = ('environment'),
                      timerStart<-Sys.time()
 
                      TEMP<-list(alligatorMap(fn_srt = rstToSegment,
-                                         fn_Nspikes=mthdPrmtrs$spikes,
-                                         fn_radius = round(sqrt(groupAreaRange[[2]]*mthdPrmtrs$radiusExpansion/pi)),
-                                         fn_coverage = mthdPrmtrs$coverage,
-                                         fn_minArea = groupAreaRange[[1]],
-                                         fn_maxArea = groupAreaRange[[2]],
-                                         fn_minRoundness = groupRoundnessRange[[1]],
-                                         fn_maxRoundness = groupRoundnessRange[[2]],
-                                         fn_seedOutScore = mthdPrmtrs$seedOutScore,
-                                         fn_cycleWindow = mthdPrmtrs$cycleWindow,
-                                         fn_adaptative = mthdPrmtrs$adaptative,
-                                         fn_areaAdaptRate = mthdPrmtrs$areaAdaptRate,
-                                         fn_roundnessAdaptRate = mthdPrmtrs$roundnessAdaptRate,
-                                         fn_segmentAlg = mthdPrmtrs$segmentAlg,
-                                         fn_fusion = mthdPrmtrs$fusion,
-                                         fn_maxNetworkSize = mthdPrmtrs$maxNetworkSize,
-                                         fn_targetArea = targetArea,
-                                         fn_inflateDeflate = mthdPrmtrs$inflateDeflate,
-                                         fn_favourForeing = mthdPrmtrs$favourForeing,
-                                         fn_returnKinetic = T,
-                                         fn_returnRasters = T))
+                                             fn_Nspikes=mthdPrmtrs$spikes,
+                                             fn_radius = round(sqrt(groupAreaRange[[2]]*mthdPrmtrs$radiusExpansion/pi)),
+                                             fn_coverage = mthdPrmtrs$coverage,
+                                             fn_minArea = groupAreaRange[[1]],
+                                             fn_maxArea = groupAreaRange[[2]],
+                                             fn_minRoundness = groupRoundnessRange[[1]],
+                                             fn_maxRoundness = groupRoundnessRange[[2]],
+                                             fn_seedOutScore = mthdPrmtrs$seedOutScore,
+                                             fn_cycleWindow = mthdPrmtrs$cycleWindow,
+                                             fn_adaptative = mthdPrmtrs$adaptative,
+                                             fn_areaAdaptRate = mthdPrmtrs$areaAdaptRate,
+                                             fn_roundnessAdaptRate = mthdPrmtrs$roundnessAdaptRate,
+                                             fn_segmentAlg = mthdPrmtrs$segmentAlg,
+                                             fn_fusion = mthdPrmtrs$fusion,
+                                             fn_maxNetworkSize = mthdPrmtrs$maxNetworkSize,
+                                             fn_targetArea = targetArea,
+                                             fn_inflateDeflate = mthdPrmtrs$inflateDeflate,
+                                             fn_favourForeing = mthdPrmtrs$favourForeing,
+                                             fn_returnKinetic = T,
+                                             fn_returnRasters = T))
 
                      timerStop<-Sys.time()
 
@@ -1456,7 +1523,7 @@ setMethod('testSegment',signature = ('environment'),
                      newMarker<-mrkr[mrkrIndex]
 
                    }
-                   )
+            )
 
 
             polygonsList<-new('IMC_SegmentationList',polygonsList)

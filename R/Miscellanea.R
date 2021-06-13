@@ -150,5 +150,16 @@ methodParametersSegmentation<-list(
                       favourForeing=T,
                       returnKinetic=T,
                       returnRasters=T),
+  pandaMap = list(ClampDetectionDirection = 4,
+                  nOfCutBrakes = 10,
+                  lowerQuantile = 0.01,
+                  upperQuantile = 0.90,
+                  lowerAreaLimit = 5,
+                  movingWindowDimension = 80:120,
+                  overlapExtent = 30:50,
+                  numberOfCores = NULL,
+                  verbose = T,
+                  distillDirect = T),
   lazyCatMap = list(indexToExclude = NULL)
+
 )

@@ -1,0 +1,705 @@
+#'Some BullShit
+#'
+#'
+#' @export
+dalmataMap<-function (fn_srt,
+                      fn_primaryIndex='PI',
+                      fn_clpDir = c('8','4'),
+                      fn_brake = 10,
+                      fn_lowerQuantile=0.01,
+                      fn_upperQuantile=0.50,
+                      fn_lowerAreaLimit=5,
+                      fn_upperAreaLimit=50,
+                      fn_meanArea=100,
+                      fn_cores=parallel::detectCores(logical = F)-1,
+
+                      fn_movingWindow_dim = NULL,
+                      fn_movingWindow_overlap = 25:50,
+                      fn_populationFactor=5,
+                      fn_varianceArea=1,
+                      fn_lineStringBuffer = 1,
+                      fn_criticalMass=40,
+                      fn_PVoptimization = T,
+                      fn_PVBuffer = 1.3,
+                      fn_verbose = T,
+
+
+                      fn_radius=10,
+                      fn_Nspikes=4,
+                      fn_minArea=10,
+                      fn_maxArea=100,
+                      fn_minRoundness=0.6,
+                      fn_maxRoundness=0.8,
+                      fn_coverage=0.3,
+                      fn_seedOutScore=10,
+                      fn_cycleWindow=1,
+                      fn_discoverTreshold=10e-3,
+                      fn_adaptative=T,
+                      fn_areaAdaptRate=0,
+                      fn_roundnessAdaptRate=0,
+                      fn_segmentAlg = c('sign_simple','sign_extended','quadratic'),
+                      fn_fusion=T,
+                      fn_targetArea=50,
+                      fn_maxNetworkSize=4,
+                      fn_inflateDeflate=0.1,
+                      fn_favourForeing=T,
+                      fn_returnKinetic = F,
+                      fn_returnRasters = F){
+
+  drct<-as.numeric(match.arg(fn_clpDir))
+
+  if (fn_verbose) cat('Raster pre-processing.... \n')
+
+  pixelList<-raster::values(fn_srt)
+  pixelMax<-quantile(pixelList,fn_upperQuantile,na.rm=T)
+  pixelMin<-quantile(pixelList,fn_lowerQuantile,na.rm=T)
+  pixelBrake<-seq(pixelMin,pixelMax,length.out = fn_brake)
+  maxii<-length(pixelBrake)
+
+  if (!is.null(fn_movingWindow_dim)){
+    extRaster<-raster::extent(fn_srt)
+    resRaster<-raster::res(fn_srt)
+    dimXRaster<-(extRaster[2]-extRaster[1])/resRaster[1]
+    dimYRaster<-(extRaster[4]-extRaster[3])/resRaster[2]
+
+    windowSelect_X<-.bestWindow(fn_windowW = fn_movingWindow_dim,
+                                fn_overlapW = fn_movingWindow_overlap,
+                                fn_totalW = dimXRaster)
+
+    windowSelect_Y<-.bestWindow(fn_windowW = fn_movingWindow_dim,
+                                fn_overlapW = fn_movingWindow_overlap,
+                                fn_totalW = dimYRaster)
+
+
+    if (fn_verbose) cat('Moving window :\n X= ',nxCells,' / ',qx,' Y= ',nyCells,' / ',qy )
+
+    xOrigin<-seq(extRaster[1],
+                 windowSelect_X['n']*(windowSelect_X['pair.window']-windowSelect_X['pair.overlap'])+extRaster[1],
+                 windowSelect_X['pair.window']-windowSelect_X['pair.overlap'])
+    yOrigin<-seq(extRaster[3],
+                 windowSelect_Y['n']*(windowSelect_Y['pair.window']-windowSelect_Y['pair.overlap'])+extRaster[3],
+                 windowSelect_Y['pair.window']-windowSelect_Y['pair.overlap'])
+
+    xyDF<-expand.grid(xOrigin,yOrigin)
+
+    xyDF<-lapply(1:nrow(xyDF),function(i){
+      x<-xyDF[i,]
+      out<-(c(x,
+              c(x[1],x[2]+windowSelect_Y['pair.window']),
+              c(x[1]+windowSelect_X['pair.window'],x[2]+windowSelect_Y['pair.window']),
+              c(x[1]+windowSelect_X['pair.window'],x[2]),
+              x))
+      out<-matrix(as.numeric(out),ncol=2,byrow=T)
+      return(out)
+    })
+    #
+    windowGrid<-lapply(xyDF,function(x){sf::st_polygon(list(x))})
+    windowGrid<-sf::st_sfc(windowGrid)
+    windowOverlap<-sf::st_intersection(sf::st_sf(windowGrid))
+    ww<-sapply(windowOverlap$origins,function(x)ifelse(length(x)>1,T,F))
+    ww1<-sapply(windowOverlap$windowGrid,function(x)ifelse(sf::st_geometry_type(x)=='POLYGON',T,F))
+    windowOverlap<-windowOverlap[ww & ww1,]
+
+
+
+    xOverlap<-c(rbind(xOrigin[-1],xOrigin[-length(xOrigin)]+windowSelect_X['pair.window']))
+    yOverlap<-c(rbind(yOrigin[-1],yOrigin[-length(yOrigin)]+windowSelect_Y['pair.window']))
+
+    xTrelis<-lapply(xOverlap,function(x){
+      sf::st_linestring(rbind(c(x,extRaster[3]),c(x,extRaster[4])))})
+    yTrelis<-lapply(yOverlap,function(y){
+      sf::st_linestring(rbind(c(extRaster[1],y),c(extRaster[2],y)))})
+
+    overlapTrelis<-sf::st_sfc(append(xTrelis,yTrelis))
+
+    extentDF<-lapply(xyDF,function(x){
+      raster::extent(c(min(x[,1]),max(x[,1]),min(x[,2]),max(x[,2])))
+    })
+
+    newSrt<-lapply(extentDF,function(ext){
+      raster::crop(fn_srt,ext)
+    })
+  } else {
+    newSrt<-list(fn_srt)
+  }
+
+  cl <- parallel::makeCluster(fn_cores)
+  print(cl)
+  parallel::clusterExport(cl,c(
+    'newSrt',
+    'pixelBrake',
+    'fn_verbose',
+    'maxii',
+    'drct',
+    'fn_lowerAreaLimit'),envir = environment())
+
+  MULTIOUT<-pbapply::pblapply(cl=cl,seq_along(newSrt),function(iXSRT){
+    # MULTIOUT<-lapply(newSrt,function(XSRT){
+    raster::raster()
+    XSRT<-newSrt[[iXSRT]]
+
+    polyLayer<-lapply(seq_along(pixelBrake),function(ii){
+      if (fn_verbose) cat('Layer : ',ii,' of ',maxii,'\r')
+
+      clippingMap<-XSRT<=pixelBrake[ii]
+      clippingMap<-raster::clump(x = clippingMap,
+                                 directions = drct,
+                                 gaps = F)
+      newStars<-stars::st_as_stars(clippingMap)
+      clippingPolygon<-sf::st_as_sf(newStars,merge=T)
+      colnames(clippingPolygon)[2]<-'geom'
+      sf::st_geometry(clippingPolygon)<-'geom'
+      clippingPolygon<-sf::st_make_valid(clippingPolygon)
+      clippingPolygon<-sf::st_buffer(clippingPolygon,0)
+      clippingPolygonArea<-sf::st_area(clippingPolygon)
+      clippingPolygon<-dplyr::bind_cols(clippingPolygon,area=clippingPolygonArea)
+      clippingPolygon<-clippingPolygon[clippingPolygon$area>fn_lowerAreaLimit,]
+      return(clippingPolygon)
+    })
+
+
+    polyLayer_check<-sapply(polyLayer,function(x)ifelse(nrow(x)==0,F,T))
+    polyLayer<-polyLayer[polyLayer_check]
+    rm(polyLayer_check)
+
+    if (length(polyLayer)==0){
+      out<-sf::st_sf(splitP_ID = NA,
+                     primary_ID = NA,
+                     tile_ID = NA,
+                     iland_ID = NA,
+                     clade_ID = NA,
+                     level_ID = NA,
+                     area=0,
+                     geom = sf::st_sfc(sf::st_polygon()))[-1,]
+      return(out)
+    }
+
+    if (fn_verbose) cat('Layer scan completed\n')
+    if (fn_verbose) cat('Constructing network\n')
+
+    maxii<-length(polyLayer)
+    pL<-seq_along(polyLayer)[-1]
+    polyEdge<-lapply(pL,function(ii){
+      if (fn_verbose) cat('Edges : ',ii,' of ',maxii,'\r')
+      edgeDef<-sf::st_contains(polyLayer[[ii]],polyLayer[[ii-1]],prepared = F)
+      maxiii<-length(edgeDef)
+      if (maxiii>0) {
+        edgeBrake<-lapply(1:length(edgeDef),function(iii){
+          if (fn_verbose) cat('Edges : ',ii,' of ',maxii,'... element: ',iii, ' of ',maxiii,'\r')
+          from<-paste0(ii,'.',iii)
+          if (length(edgeDef[[iii]])>0){
+            to<-paste0(ii-1,'.',edgeDef[[iii]])
+          } else {
+
+            to<-NA
+          }
+          out<-data.frame(from,to,stringsAsFactors = F)
+        })
+
+        out<-do.call(rbind,edgeBrake)
+      } else {out<-NULL}
+      return(out)
+    })
+    if (fn_verbose) cat('Edges : done...\n')
+
+    polyEdge<-do.call(rbind,polyEdge)
+
+    if (fn_verbose) cat('Making big network\n')
+
+    nodeList<-unique(c(na.omit(polyEdge$from),na.omit(polyEdge$to)))
+    nodeIndex<-strsplit(nodeList,'.',fixed=T)
+    nodeIndex<-do.call(rbind,nodeIndex)
+    nodeIndex<-matrix(as.numeric(nodeIndex),ncol = 2,byrow = F)
+    nodeList<-nodeList[order(nodeIndex[,1],nodeIndex[,2])]
+    nodeIndex<-nodeIndex[order(nodeIndex[,1],nodeIndex[,2]),]
+    polyArea<-lapply(polyLayer,function(x) sf::st_drop_geometry(x))
+    areaList<-apply(nodeIndex,1,function(idx){
+      out<-polyArea[[idx[1]]][idx[2],'area',drop=T]
+      if (!is.numeric(out)) out<-0
+      return(out)
+    })
+
+    nodeDataFrame<-data.frame(ID=seq_along(nodeList),
+                              layerIndex = nodeIndex[,1],
+                              polyIndex = nodeIndex[,2],
+                              area = areaList,
+                              splitP_ID = NA,
+                              primary_ID = NA,
+                              tile_ID = NA,
+                              iland_ID = NA,
+                              clade_ID = NA,
+                              level_ID = NA,
+                              splitP_area = NA,
+                              visited = F,
+                              stringsAsFactors = F)
+
+    edgeList<-polyEdge[!is.na(polyEdge$to),]
+    newEdgeList<-apply(edgeList,1,function(el){
+
+      elFrom<-strsplit(el[1],'.',fixed=T)
+      elTo<-strsplit(el[2],'.',fixed=T)
+      outFrom<-nodeDataFrame$ID[nodeDataFrame$layerIndex==elFrom[[1]][1] &
+                                  nodeDataFrame$polyIndex==elFrom[[1]][2]]
+      outTo<-nodeDataFrame$ID[nodeDataFrame$layerIndex==elTo[[1]][1] &
+                                nodeDataFrame$polyIndex==elTo[[1]][2]]
+      out<-list(from=outFrom,to=outTo)
+      return(out)
+    })
+    #
+    newEdgeList<-matrix(unlist(newEdgeList),ncol=2,byrow=T)
+    polyNet<-igraph::graph_from_data_frame(newEdgeList, directed=TRUE, vertices=nodeDataFrame)
+
+    tailNodes<-igraph::V(polyNet)[igraph::degree(polyNet,mode = 'in')==0]$name
+    headNodes<-igraph::V(polyNet)[igraph::degree(polyNet,mode = 'out')==0]$name
+
+    allPath<-lapply(tailNodes,function(tn){
+      allDist<-igraph::all_shortest_paths(polyNet,tn,headNodes)$res
+      allDist<-lapply(allDist,length)
+    })
+
+    allPath<-sum(do.call(c,do.call(c,allPath)))
+
+    targetSF<-sf::st_sf(splitP_ID = NA,
+                        primary_ID = NA,
+                        tile_ID = NA,
+                        iland_ID = NA,
+                        clade_ID = NA,
+                        level_ID = NA,
+                        area=0,
+                        geom = sf::st_sfc(lapply(1:allPath, function(x) sf::st_polygon())))
+
+
+
+    if (fn_verbose) cat('Crawling the network\n')
+
+    subgroups<-igraph::decompose.graph(polyNet,min.vertices = 1,mode = 'weak')
+
+    maxii<-length(subgroups)
+
+    targetSF_row<-1
+
+    TEMP_LAYER<-length(polyLayer)+1
+    polyLayer[[TEMP_LAYER]]<-sf::st_sfc()
+    cycleIndex<-0
+
+    for (ii in 1:maxii){
+
+      if (fn_verbose) cat('scanning iland ',ii,' of ',maxii,'\n')
+
+      sgrp<-subgroups[[ii]]
+
+      sgrp_head<-igraph::V(sgrp)[igraph::degree(sgrp,mode='in')==0]$name
+
+      NofOutEdges<-igraph::degree(sgrp,mode='out')
+
+      cladeID<-1
+      endOfGame<-F
+
+
+
+      while(!endOfGame){
+
+        cycleIndex<-cycleIndex+1
+        TEMP_size<-igraph::gsize(sgrp)
+
+        if (fn_verbose) cat('Cycle: ',formatC(cycleIndex,
+                                              digits = 2,
+                                              width = 6,
+                                              flag = '#'),' / ',
+                            'network size: ',formatC(TEMP_size,
+                                                     digits = 2,
+                                                     width = 6,
+                                                     flag = '#'),' / ',
+                            'single clades: ',formatC(cladeID-1,
+                                                      digits = 2,
+                                                      width = 6,
+                                                      flag = '#'),'\r')
+
+        if (TEMP_size==0) {
+
+          seeds_newIndex<-1:length(NofOutEdges[NofOutEdges==0])
+          seeds_names<-igraph::V(sgrp)[NofOutEdges==0]$name
+          nodeID<-list(splitP_ID = paste(fn_primaryIndex,
+                                         iXSRT,
+                                         ii,
+                                         cladeID,
+                                         '0',
+                                         sep='.'),
+                       primary_ID = fn_primaryIndex,
+                       tile_ID = iXSRT,
+                       iland_ID = ii,
+                       clade_ID = cladeID,
+                       level_ID = 0)
+          targetSF[targetSF_row,c('splitP_ID',
+                                  'primary_ID',
+                                  'tile_ID',
+                                  'iland_ID',
+                                  'clade_ID',
+                                  'level_ID')]<-unlist(nodeID)
+
+          nodeLayerIndex<-igraph::get.vertex.attribute(sgrp,
+                                                       'layerIndex',
+                                                       seeds_names)
+          nodePolyIndex<-igraph::get.vertex.attribute(sgrp,
+                                                      'polyIndex',
+                                                      seeds_names)
+
+          targetSF$geom[targetSF_row]<-sf::st_geometry(polyLayer[[nodeLayerIndex]][nodePolyIndex,'geom'])
+          targetSF_row<-targetSF_row+1
+          break
+        }
+        # if (TEMP_size==47)
+
+        seeds_newIndex<-1:length(NofOutEdges[NofOutEdges==0])
+        seeds_names<-igraph::V(sgrp)[NofOutEdges==0]$name
+        seeds_pathLength<-igraph::shortest.paths(sgrp,sgrp_head,seeds_names)
+
+        # if (fn_verbose) cat('Iland ',ii,' of ',maxii,'... edges: ',NofEdges,'\r')
+        rootNode<-colnames(seeds_pathLength[1,which.max(seeds_pathLength)[1],drop=F])
+        parentNode<-igraph::incident(graph = sgrp,v = rootNode,mode = 'in')
+        parentNode<-igraph::tail_of(graph = sgrp,es = parentNode)
+        parentNode<-parentNode$name
+        grandParentNode<-igraph::incident(graph = sgrp,v = parentNode,mode = 'in')
+        grandParentNode<-igraph::tail_of(graph = sgrp,es = grandParentNode)
+        grandParentNode<-grandParentNode$name
+        if (length(grandParentNode)==0) endOfGame<-T
+        childrenNodes<-igraph::incident(graph = sgrp,v = parentNode,mode = 'out')
+        childrenNodes<-igraph::head_of(graph = sgrp,es = childrenNodes)
+        childrenNodes<-childrenNodes$name
+        childrenGraph<-igraph::make_ego_graph(graph = sgrp,
+                                              order = 1,
+                                              nodes = parentNode,
+                                              mode = 'out')[[1]]
+        newSize<-igraph::gsize(childrenGraph)
+        if (newSize==1){
+          nodeID<-igraph::get.vertex.attribute(sgrp,
+                                               name = 'splitP_ID',
+                                               index = childrenNodes)
+          if (is.na(nodeID)){
+            nodeID<-list(splitP_ID = paste(fn_primaryIndex,
+                                           iXSRT,
+                                           ii,
+                                           cladeID,
+                                           '0',
+                                           sep='.'),
+                         primary_ID = fn_primaryIndex,
+                         tile_ID = iXSRT,
+                         iland_ID = ii,
+                         clade_ID = cladeID,
+                         level_ID = 0)
+
+            cladeID<-cladeID+1
+
+          } else {
+            nodeID<-igraph::vertex_attr(graph = sgrp,
+                                        index = childrenNodes)[
+                                          c('splitP_ID',
+                                            'primary_ID',
+                                            'tile_ID',
+                                            'iland_ID',
+                                            'clade_ID',
+                                            'level_ID')]
+
+          }
+
+          targetSF[targetSF_row,c('splitP_ID',
+                                  'primary_ID',
+                                  'tile_ID',
+                                  'iland_ID',
+                                  'clade_ID',
+                                  'level_ID')]<-unlist(nodeID)
+
+          nodeLayerIndex<-igraph::get.vertex.attribute(sgrp,
+                                                       'layerIndex',
+                                                       childrenNodes)
+          nodePolyIndex<-igraph::get.vertex.attribute(sgrp,
+                                                      'polyIndex',
+                                                      childrenNodes)
+
+          targetSF$geom[targetSF_row]<-sf::st_geometry(polyLayer[[nodeLayerIndex]][nodePolyIndex,'geom'])
+          targetSF_row<-targetSF_row+1
+
+          parentNodeID<-nodeID
+          parentNodeID$level_ID<-parentNodeID$level_ID+1
+          parentNodeID$splitP_ID<-paste0(unlist(parentNodeID[-1]),collapse='.')
+
+          for (attrI in names(parentNodeID)){
+            sgrp<-igraph::set.vertex.attribute(graph = sgrp,
+                                               name = attrI,
+                                               index = parentNode,
+                                               value = parentNodeID[[attrI]])}
+
+          sgrp<-igraph::delete_vertices(sgrp,childrenNodes)
+          # NofOutEdges<-igraph::degree(sgrp,mode='out')
+          # sgrp_head<-igraph::V(sgrp)[igraph::degree(sgrp,mode='in')==0]
+        } else {
+
+
+          gdf<-igraph::as_long_data_frame(childrenGraph)
+          prnt_LI<-gdf$from_layerIndex[1]
+          prnt_PI<-gdf$from_polyIndex[1]
+          chldrn_LI<-gdf$to_layerIndex
+          chldrn_PI<-gdf$to_polyIndex
+
+          prnt_poly<-polyLayer[[prnt_LI]][prnt_PI,]
+          chldrn_poly<-lapply(1:length(chldrn_LI),function(xi){
+            polyLayer[[chldrn_LI[xi]]][chldrn_PI[xi],]
+          })
+          chldrn_poly<-do.call(dplyr::bind_rows,chldrn_poly)
+          prnt_bBox<-sf::st_bbox(prnt_poly)
+          prnt_tassel<-sf::st_make_grid(x = prnt_poly,
+                                        cellsize = 1,
+                                        what = 'polygons',
+                                        square = T,
+                                        crs = 'NA')
+          prnt_tassel<-prnt_tassel[sf::st_contains(prnt_poly,prnt_tassel)[[1]]]
+          dist_tassel<-sf::st_distance(prnt_tassel,chldrn_poly)
+          aggr_tassel<-apply(dist_tassel,1,which.min)
+          newPoly<-lapply(1:ncol(dist_tassel),function(xii){
+            if (length(prnt_tassel[aggr_tassel==xii])!=0){
+              out<-sf::st_union(prnt_tassel[aggr_tassel==xii])
+              out<-sf::st_buffer(out,0)
+              out<-sf::st_make_valid(out)
+              if (sf::st_geometry_type(out)=='MULTIPOLYGON'){
+                out<-sf::st_cast(out,'POLYGON')
+                area_out<-sf::st_area(out)
+                out<-out[which.max(area_out)]
+              }
+            } else {
+              out<-chldrn_poly[xii,'geom'][[1]]
+
+            }
+            return(out)
+          })
+
+          newPolyDF<-sf::st_sf(geom=do.call(c,newPoly))
+          newPolyDF<-dplyr::bind_cols(newPolyDF,
+                                      data.frame(clumps=NA,
+                                                 area=sf::st_area(newPolyDF)))
+
+          oldRow<-nrow(polyLayer[[TEMP_LAYER]])
+          if (is.null(oldRow)) oldRow<-0
+
+          polyLayer[[TEMP_LAYER]]<-rbind.data.frame(polyLayer[[TEMP_LAYER]],
+                                                    newPolyDF)
+
+          if (!endOfGame) {
+            newRow<-nrow(polyLayer[[TEMP_LAYER]])
+
+            newRowIndex<-(oldRow+1):newRow
+
+            lastVertex<-igraph::V(sgrp)
+            lastVertex<-lastVertex[[length(lastVertex)]]$name
+            newVertex<-as.character(as.numeric(lastVertex)+(1:length(childrenNodes)))
+            sgrp<-sgrp+igraph::vertex(name=newVertex,
+                                      layerIndex = rep(TEMP_LAYER,length(childrenNodes)),
+                                      polyIndex = newRowIndex,
+                                      area = sf::st_drop_geometry(polyLayer[[TEMP_LAYER]][newRowIndex,'area']),
+                                      splitP_ID = NA,
+                                      primary_ID = NA,
+                                      tile_ID = NA,
+                                      iland_ID = NA,
+                                      clade_ID = NA,
+                                      level_ID = NA,
+                                      splitP_area = NA,
+                                      visited = F)
+
+
+            newEdges<-matrix(c(rep(grandParentNode,length(newVertex)),
+                               newVertex,
+
+                               newVertex,
+                               childrenNodes),ncol=2,byrow = F)
+            newEdges<-as.vector(t(newEdges))
+
+            sgrp<-igraph::add.edges(sgrp,newEdges)
+
+            sgrp<-igraph::delete.vertices(sgrp,parentNode)
+
+          } else {
+
+            childern_nodeID<-igraph::vertex_attr(graph = sgrp,
+                                                 index = childrenNodes)[
+                                                   c('splitP_ID',
+                                                     'primary_ID',
+                                                     'tile_ID',
+                                                     'iland_ID',
+                                                     'clade_ID',
+                                                     'level_ID')]
+            children_polyID<-igraph::vertex_attr(graph = sgrp,
+                                                 index = childrenNodes)[
+                                                   c('layerIndex',
+                                                     'polyIndex')]
+            children_polyID<-as.data.frame(children_polyID)
+            children_poly<-apply(children_polyID,1,function(nip){
+              polyLayer[[nip[1]]][nip[2],'geom']
+            })
+            children_poly<-do.call(rbind.data.frame,children_poly)
+            children_polyFrame<-cbind.data.frame(as.data.frame(childern_nodeID,stringsAsFactors = F),area=0)
+            # newNodeID<-dplyr::bind_cols(nodeID_poly,nodeID_DF)
+            children_SF<-dplyr::bind_cols(children_poly,children_polyFrame)
+            targetSF[targetSF_row:(targetSF_row+nrow(children_SF)-1),]<-children_SF
+
+
+            targetSF_row<-targetSF_row+nrow(children_SF)
+
+            parent_polyFrame<-children_polyFrame
+            # newPolyID_DF<-na.omit(newPolyID_DF)
+            parent_polyFrame$level_ID<-parent_polyFrame$level_ID+1
+            parent_polyFrame$splitP_ID<-apply(parent_polyFrame,1,
+                                              function(x){
+                                                paste(x['primary_ID'],
+                                                      as.numeric(x['tile_ID']),
+                                                      as.numeric(x['iland_ID']),
+                                                      as.numeric(x['clade_ID']),
+                                                      as.numeric(x['level_ID']),
+                                                      sep = '.')})
+            parent_SF<-dplyr::bind_cols(sf::st_sf(geom=do.call(c,newPoly)),
+                                        parent_polyFrame)
+
+            targetSF[targetSF_row:(targetSF_row+nrow(parent_SF)-1),]<-parent_SF
+
+            targetSF_row<-targetSF_row+nrow(parent_SF)
+
+
+            break
+          }
+        }
+
+        NofOutEdges<-igraph::degree(sgrp,mode='out')
+        sgrp_head<-igraph::V(sgrp)[igraph::degree(sgrp,mode='in')==0]
+      }
+
+      if (fn_verbose) cat('Cycle: ',formatC(cycleIndex,
+                                            digits = 2,
+                                            width = 6,
+                                            flag = '#'),' / ',
+                          'network size: ',formatC(TEMP_size,
+                                                   digits = 2,
+                                                   width = 6,
+                                                   flag = '#'),' / ',
+                          'single clades: ',formatC(cladeID-1,
+                                                    digits = 2,
+                                                    width = 6,
+                                                    flag = '#'),'\n')
+
+
+    }
+
+    targetSF<-na.omit(targetSF)
+    return(targetSF)
+  })
+
+  parallel::stopCluster(cl)
+
+  MULTIOUT_TOP<-lapply(MULTIOUT,function(MO){
+    if (nrow(MO)==0) {
+      out<-sf::st_sf(splitP_ID = NA,
+                     primary_ID = NA,
+                     tile_ID = NA,
+                     iland_ID = NA,
+                     clade_ID = NA,
+                     level_ID = NA,
+                     area=0,
+                     geom = sf::st_sfc(sf::st_polygon()))[-1,]
+      return(out)
+    }
+    topLayer<-aggregate(level_ID~iland_ID+clade_ID,sf::st_drop_geometry(MO),max)
+    out<-apply(topLayer,1,function(dd){
+      MO[MO$level_ID == dd[3] &
+           MO$iland_ID == dd[1] &
+           MO$clade_ID == dd[2],]
+    })
+    out<-do.call(dplyr::bind_rows,out)
+    return(out)
+  })
+
+  MULTIOUT_TOP<-lapply(seq_along(MULTIOUT_TOP),function(MTO){
+    if (nrow(MULTIOUT_TOP[[MTO]])==0){
+      out<-sf::st_sf(splitP_ID = NA,
+                     primary_ID = NA,
+                     tile_ID = NA,
+                     iland_ID = NA,
+                     clade_ID = NA,
+                     level_ID = NA,
+                     area=0,
+                     geom = sf::st_sfc(sf::st_polygon()))[-1,]
+      return(out)
+    }
+    newIntersect<-sf::st_intersects(overlapTrelis,windowGrid[[MTO]])
+    newIntersect<-sapply(newIntersect,function(x)if(length(x)!=0) T else F)
+    newBorders<-sf::st_relate(overlapTrelis,windowGrid[[MTO]])
+    newBorders<-grepl('F11F00212',newBorders,fixed = T) | grepl('F11FF0212',newBorders,fixed = T)
+    newBorders<-newBorders[newIntersect]
+    newBorders<-sf::st_intersection(overlapTrelis,windowGrid[[MTO]])[newBorders]
+    crossers<-sf::st_intersects(newBorders,MULTIOUT_TOP[[MTO]])
+    crossers<-do.call(c,crossers)
+    MULTIOUT_TOP[[MTO]][-crossers,]
+  })
+
+  MULTIOUT_TOP<-do.call(rbind.data.frame,MULTIOUT_TOP)
+
+  MULTIOUT_TOP_perfectMatch<-sf::st_relate(MULTIOUT_TOP,
+                                           pattern = "FF2F01212",
+                                           sparse = T)
+  wh<-sapply(MULTIOUT_TOP_perfectMatch,function(x)length(x)!=0)
+  MULTIOUT_TOP_perfectMatch<-MULTIOUT_TOP_perfectMatch[wh]
+  MULTIOUT_TOP_perfectMatch<-unique(MULTIOUT_TOP_perfectMatch)
+  PM_polyIN<-sapply(MULTIOUT_TOP_perfectMatch,'[',1)
+  PM_polyOUT<-sapply(MULTIOUT_TOP_perfectMatch,'[',-1)
+  PM_polyOUT<-do.call(c,PM_polyOUT)
+
+  MULTIOUT_TOP_partialMatch<-sf::st_relate(MULTIOUT_TOP,
+                                           pattern = "212F11FF2",
+                                           sparse = T)
+  wh<-sapply(MULTIOUT_TOP_partialMatch,function(x)length(x)!=0)
+  MULTIOUT_TOP_partialMatch<-MULTIOUT_TOP_partialMatch[wh]
+  MM_polyIN<-sapply(MULTIOUT_TOP_partialMatch,function(x){
+    areas<-sf::st_area(MULTIOUT_TOP[x,])
+    x[which.max(areas)]
+  })
+
+  MM_polyIN<-unique(MM_polyIN)
+  MM_polyOUT<-unlist(MULTIOUT_TOP_partialMatch)
+  MM_polyOUT<-MM_polyOUT[!(MM_polyOUT %in% MM_polyIN)]
+
+  total_OUT<-c(PM_polyOUT,MM_polyOUT)
+
+  IndexDF<-sf::st_drop_geometry(MULTIOUT_TOP)
+  IndexDF<-IndexDF[-total_OUT]
+
+  MULTIOUT<-do.call(rbind.data.frame,MULTIOUT)
+
+  w<-apply(IndexDF,1,function(i){
+    tile<-MULTIOUT$tile_ID == i['tile_ID']
+    iland<-MULTIOUT$iland_ID == i['iland_ID']
+    clade<-MULTIOUT$clade_ID == i['clade_ID']
+    total<-tile & iland & clade
+    rev(which(total))
+  })
+
+  w<-do.call(c,w)
+  OUT<-MULTIOUT[w,]
+
+  return(OUT)
+}
+
+
+
+
+
+.bestWindow<-function(fn_windowW=80:120,
+                      fn_overlapW=25:50,
+                      fn_totalW=1000){
+  windowMatrix<-expand.grid(window=fn_windowW,overlap=fn_overlapW)
+  eachCombination<-apply(windowMatrix,1,function(x){
+    n<-floor((fn_totalW-x['overlap'])/(x['window']-x['overlap']))
+    b<-abs(((n*x['window']-(n-1)*x['overlap'])-fn_totalW))
+    list(dev=sum(abs(x[1]-median(fn_windowW)),abs(x[2]-median(fn_overlapW)),abs(x[1]-b)),
+         n=unname(n),
+         overhead=unname(b),
+         pair = x)
+  })
+  ww<-which.min(unlist(lapply(eachCombination,function(x)x$dev)))
+  return(unlist(eachCombination[ww]))
+}
