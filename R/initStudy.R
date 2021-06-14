@@ -84,9 +84,9 @@ initStudy<-function(fn_studyName='IMCstudy',
         mrkr<-''
         if (fn_whichColumns=='named') ldld<-F
       } else
-        if (length(mstrhdrSplit)==2){
+        if (length(mstrhdrSplit)>=2){
           chnl<-mstrhdrSplit[1]
-          mrkr<-gsub("\\(.+?\\)", "", mstrhdrSplit[2])
+          mrkr<-gsub("\\(.+?\\)", "", paste0(mstrhdrSplit[-1], collapse = "-"))
           if (fn_whichColumns=='named') ldld<-T
         } else {stop('Something weird whith the raw files...')}
       chnls<-data.frame(columnNames=mstrhdr,
@@ -103,7 +103,7 @@ initStudy<-function(fn_studyName='IMCstudy',
 
   ### load rasters
 
-  rawDataFiles<-list.files(fn_rawDataFolder)
+  rawDataFiles<-list.files(fn_rawDataFolder, pattern = "*.txt")
   if (!is.null(fn_whichFiles)) rawDataFiles<-rawDataFiles[fn_whichFiles]
 
   rst<-lapply(rawDataFiles,
