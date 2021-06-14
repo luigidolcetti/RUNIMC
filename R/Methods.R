@@ -1163,13 +1163,35 @@ setMethod('segment',signature = ('environment'),
 
                          cat(paste(rst,i,'\n',sep=":::"))
 
-                         TEMP<-list(lazyCatMap_NEW(fn_srt = rstToSegment[[rst]][[i]],
-                                                   fn_indexToExclude = mthdPrmtrs$indexToExclude))
-                         polygonsList[[rst]][[i]]<-list()
-                         polygonsList[[rst]][[i]]<-TEMP[[1]]
+                         polygonsList[[rst]][[i]]<-list(lazyCatMap(fn_srt = rstToSegment[[rst]][[i]],
+                                               fn_uid = rst,
+                                               fn_indexToExclude = mthdPrmtrs$indexToExclude))
+                         # polygonsList[[rst]][[i]]<-list()
+                         # polygonsList[[rst]][[i]]<-TEMP[[1]]
 
                        }
                      }
+
+                     polygonsList<-lapply(polygonsList,function(xuid){
+                       do.call(dplyr::bind_rows,xuid)})
+
+                     polygonsList<-do.call(dplyr::bind_rows,polygonsList)
+
+                     if (mthdPrmtrs$distillDirect){
+
+                       condensedPoligonList<-extractMeanPixel(fn_polygons = polygonsList,
+                                                              fn_raster = x$raster)
+                     }
+
+                     newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
+                     condensedPoligonList<-initObjectAttr(condensedPoligonList)
+
+                     x$currentAnalysis$exprs<-condensedPoligonList
+                     attr(x,'mdtnTimeStmp')<-newTimeStmp
+                     attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
+                     return()
+
+
                    },
 
                    pandaMap = {
@@ -1230,13 +1252,13 @@ setMethod('segment',signature = ('environment'),
                                                               fn_raster = x$raster)
                      }
 
-                       newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
-                       condensedPoligonList<-initObjectAttr(condensedPoligonList)
+                     newTimeStmp<-format(Sys.time(),format="%F %T %Z", tz = Sys.timezone())
+                     condensedPoligonList<-initObjectAttr(condensedPoligonList)
 
-                       x$currentAnalysis$exprs<-condensedPoligonList
-                       attr(x,'mdtnTimeStmp')<-newTimeStmp
-                       attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
-                       return()
+                     x$currentAnalysis$exprs<-condensedPoligonList
+                     attr(x,'mdtnTimeStmp')<-newTimeStmp
+                     attr(x$currentAnalysis,'mdtnTimeStmp')<-newTimeStmp
+                     return()
 
                    }
             )

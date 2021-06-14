@@ -2,58 +2,37 @@
 #'
 #'
 #' @export
-lazyCatMap<-function (fn_srt){
-  eachValue<-raster::unique(fn_srt)
-  eachValue<-eachValue[eachValue!=0]
-  totalObjects<-length(eachValue)
-  passPoly<-0
-  rejectPoly<-0
-  remainingObject<-totalObjects
-  startTime<-Sys.time()
-  polyList<-sapply(eachValue,function(x){
-    cat(paste0('Total objects to parse: ',
-               formatC(totalObjects,digits = 6,flag='0'),
-               ' | ',
-               formatC(remainingObject,digits = 6,flag='0'),
-               ' | accepted: ',
-               formatC(passPoly,digits = 6,flag='0'),
-               ' | rejected: ',
-               formatC(rejectPoly,digits = 6,flag='0'),
-               '\r'))
-    polyG<-raster::rasterToPolygons(fn_srt,fun=function(srt){srt==x})
-    polyG<-sf::st_as_sf(polyG)
-    polyG<-sf::st_union(polyG)
-    polyG<-unlist(polyG,recursive=T)
-    polyG<-matrix(polyG,ncol=2,byrow = F)
-    colnames(polyG)<-c('x','y')
-    tryIt<-try(sf::st_polygon(list(polyG)),silent = T)
-    if (inherits(tryIt,'try-error')) {
-      polyG<-NA
-      rejectPoly<<-rejectPoly+1
-    } else {passPoly<<-passPoly+1}
-    remainingObject<<-remainingObject-1
-    return(polyG)
-  },USE.NAMES = T,simplify = F)
-  cat(paste0('Total objects to parse: ',
-             formatC(totalObjects,digits = 6,flag='0'),
-             ' | ',
-             formatC(remainingObject,digits = 6,flag='0'),
-             ' | accepted: ',
-             formatC(passPoly,digits = 6,flag='0'),
-             ' | rejected: ',
-             formatC(rejectPoly,digits = 6,flag='0'),
-             '\n'))
-  polyList<-polyList[!is.na(polyList)]
-  stopTime<-Sys.time()
-  segmentationOut<-new('IMC_Segmentation',
-                       polygons=polyList,
-                       performance=data.frame(
-                         total=totalObjects,
-                         accepted=passPoly,
-                         rejected=rejectPoly,
-                         elapsed=stopTime-startTime),
-                       raster=fn_srt)
-  return(segmentationOut)
+lazyCatMap<-function (fn_srt=NULL,
+                      fn_uid=NULL,
+                      fn_indexToExclude=NULL){
+
+
+  if (is.null(fn_uid)) fn_uid<-NA
+  if (!is.null(fn_indexToExclude)) {
+    for (i in fn_indexToExclude){
+      fn_srt[fn_srt==i]<-NA
+    }
+  }
+
+  newStars<-stars::st_as_stars(fn_srt)
+
+  newPoly<-sf::st_as_sf(newStars,merge=T)
+  newPoly<-sf::st_buffer(newPoly,0)
+  colnames(newPoly)[1]<-'ID'
+  #### new part ####
+
+  newCondensedPoly<-lapply(unique(newPoly$ID),function(x){
+    out<-sf::st_union(newPoly[newPoly$ID==x,])
+    out<-sf::st_sf(sf_column_name = 'geom',
+                   geom = out,
+                   uid = fn_uid,
+                   ID = x,
+                   stringsAsFactors = F)
+  })
+
+  newCondensedPoly<-do.call(dplyr::bind_rows,newCondensedPoly)
+  return(newCondensedPoly)
+
 }
 
 

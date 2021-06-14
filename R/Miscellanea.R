@@ -160,6 +160,7 @@ methodParametersSegmentation<-list(
                   numberOfCores = NULL,
                   verbose = T,
                   distillDirect = T),
-  lazyCatMap = list(indexToExclude = NULL)
+  lazyCatMap = list(indexToExclude = NULL,
+                    distillDirect = T)
 
 )

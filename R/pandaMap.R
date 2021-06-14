@@ -157,6 +157,22 @@ pandaMap<-function (fn_srt=NULL,
                                  gaps = F)
       newStars<-stars::st_as_stars(clippingMap)
       clippingPolygon<-sf::st_as_sf(newStars,merge=T)
+      #### try that
+      if (any(duplicated(clippingPolygon$clumps))){
+
+        clippingPolygon<-sf::st_buffer(clippingPolygon,0)
+        clippingPolygon<-lapply((unique(clippingPolygon$clumps)),function(clmps){
+
+          out<-sf::st_union(clippingPolygon[clippingPolygon$clumps==clmps,])
+          out<-sf::st_sf(sf_column_name = 'geometry',
+                         geometry = out,
+                         clumps = clmps,
+                         stringsAsFactors = F)
+
+        })
+
+        clippingPolygon<-do.call(dplyr::bind_rows,clippingPolygon)
+      }
       colnames(clippingPolygon)[2]<-'geom'
       sf::st_geometry(clippingPolygon)<-'geom'
       clippingPolygon<-sf::st_make_valid(clippingPolygon)
@@ -193,14 +209,14 @@ pandaMap<-function (fn_srt=NULL,
 
     if (length(pL)==0) {
       out<-sf::st_sf(uid = fn_uid,
-                          splitp_id = NA,
-                          primary_id = fn_primaryIndex,
-                          tile_id = iXSRT,
-                          iland_id = polyLayer[[1]]$clumps,
-                          clade_id = polyLayer[[1]]$clumps,
-                          level_id = 0,
-                          area=0,
-                          geom = polyLayer[[1]]$geom)
+                     splitp_id = NA,
+                     primary_id = fn_primaryIndex,
+                     tile_id = iXSRT,
+                     iland_id = polyLayer[[1]]$clumps,
+                     clade_id = polyLayer[[1]]$clumps,
+                     level_id = 0,
+                     area=0,
+                     geom = polyLayer[[1]]$geom)
       return(out)
     }
 
@@ -498,11 +514,11 @@ pandaMap<-function (fn_srt=NULL,
               out<-sf::st_union(c(prnt_tassel[aggr_tassel==xii],chlP[xii]))
               out<-sf::st_buffer(out,0)
               out<-sf::st_make_valid(out)
-              if (sf::st_geometry_type(out)=='MULTIPOLYGON'){
-                out<-sf::st_cast(out,'POLYGON')
-                area_out<-sf::st_area(out)
-                out<-out[which.max(area_out)]
-              }
+              # if (sf::st_geometry_type(out)=='MULTIPOLYGON'){
+              #   out<-sf::st_cast(out,'POLYGON')
+              #   area_out<-sf::st_area(out)
+              #   out<-out[which.max(area_out)]
+              # }
             } else {
               out<-chldrn_poly[xii,'geom'][[1]]
 
@@ -704,18 +720,18 @@ pandaMap<-function (fn_srt=NULL,
   MULTIOUT_TOP_Match<-sf::st_contains(MULTIOUT_TOP)
 
   PM_polyIN<-unique(unlist(lapply(MULTIOUT_TOP_Match,'[',1),recursive = T))
-# browser()
-#   PM_polyIN<-unique(unlist(lapply(MULTIOUT_TOP_Match,function(x){
-#     area<-sf::st_area(MULTIOUT_TOP[x,])
-#     warea<-which.max(area)[1]
-#     x[warea]
-#   }),recursive = T))
+  # browser()
+  #   PM_polyIN<-unique(unlist(lapply(MULTIOUT_TOP_Match,function(x){
+  #     area<-sf::st_area(MULTIOUT_TOP[x,])
+  #     warea<-which.max(area)[1]
+  #     x[warea]
+  #   }),recursive = T))
 
 
   PM_polyOUT<-unique(unlist(lapply(MULTIOUT_TOP_Match,'[',-1),recursive = T))
   PM_polyIN<-PM_polyIN[!(PM_polyIN %in% PM_polyOUT)]
 
-    IndexDF<-sf::st_drop_geometry(MULTIOUT_TOP)
+  IndexDF<-sf::st_drop_geometry(MULTIOUT_TOP)
 
   if (!is.null(PM_polyIN)) {
     if (length(PM_polyIN)!=0){
@@ -730,11 +746,11 @@ pandaMap<-function (fn_srt=NULL,
   MULTIOUT<-do.call(dplyr::bind_rows,MULTIOUT)
 
   OUT<-dplyr::semi_join(MULTIOUT,
-                         IndexDF,
-                         by = c('tile_id',
-                                'iland_id',
-                                'clade_id'),
-                         copy=F)
+                        IndexDF,
+                        by = c('tile_id',
+                               'iland_id',
+                               'clade_id'),
+                        copy=F)
 
   OUT<-OUT[order(OUT$tile_id,OUT$iland_id,OUT$clade_id,OUT$level_id,decreasing = T),]
 
