@@ -103,7 +103,7 @@ initStudy<-function(fn_studyName='IMCstudy',
 
   ### load rasters
 
-  rawDataFiles<-list.files(fn_rawDataFolder)
+  rawDataFiles<-list.files(fn_rawDataFolder, pattern = "*.txt")
   if (!is.null(fn_whichFiles)) rawDataFiles<-rawDataFiles[fn_whichFiles]
 
   rst<-lapply(rawDataFiles,
