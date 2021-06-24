@@ -860,12 +860,26 @@ server <- function(input, output, session) {
 
       paste0(shinyServiceEnv$rstStack@IMC_text_file,".sqlite")},
     content = function(file) {
+
+      uid_check<-unique(GEOM$dataBase$uid)
+      if (length(uid_check)>1) {
+        MESSAGETOTHEPEOPLE('Polygons referring to more than one image has been detected,
+                         foreign polygong will be deleted')
+        GEOM$dataBase<-GEOM$dataBase[GEOM$dataBase$uid==shinyServiceEnv$rstStack@uid,]
+      }
       sf::st_write(GEOM$dataBase,file,append=F,quite=T)
 
     }
   )
 
   observeEvent(input$savePolyOTF,{
+
+    uid_check<-unique(GEOM$dataBase$uid)
+    if (length(uid_check)>1) {
+      MESSAGETOTHEPEOPLE('Polygons referring to more than one image has been detected,
+                         foreign polygong will be deleted')
+      GEOM$dataBase<-GEOM$dataBase[GEOM$dataBase$uid==shinyServiceEnv$rstStack@uid,]
+    }
     fileTarget<-file.path(shinyServiceEnv$trainingPolygonPath,
                           paste0(shinyServiceEnv$rstStack@IMC_text_file,".sqlite"))
     sf::st_write(GEOM$dataBase,fileTarget,append=F,quite=T)
