@@ -58,6 +58,7 @@ initStudy<-function(fn_studyName='IMCstudy',
   analysisFolder<-checkDir(studyFolder,'analysis',verbose=fn_verbose)
 
   rawDataFiles<-list.files(fn_rawDataFolder,full.names = T,pattern = '*.txt',recursive = F)
+  if (length(rawDataFiles)==0) stop(RUNIMC:::mError("Could not find any raw data"),call. = F)
   if (!is.null(fn_whichFiles)) rawDataFiles<-rawDataFiles[fn_whichFiles]
 
   headersLine<-lapply(rawDataFiles,function(flnm){
