@@ -4,7 +4,7 @@
 \alias{lazyCatMap}
 \title{Some BullShit}
 \usage{
-lazyCatMap(fn_srt = NULL, fn_indexToExclude = NULL)
+lazyCatMap(fn_srt = NULL, fn_uid = NULL, fn_indexToExclude = NULL)
 }
 \description{
 Some BullShit

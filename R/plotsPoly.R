@@ -18,6 +18,7 @@ plotsPoly<-function(fn_rst,
                     fn_bgc,
                     fn_geom,
                     fn_geomB,
+                    fn_lwd,
                     fn_title){
   plot(fn_rst,
        xlim=c(fn_xmin,
@@ -38,6 +39,7 @@ plotsPoly<-function(fn_rst,
          bg=fn_bgc)
   plot(fn_geom,
        border=fn_geomB,
+       lwd=fn_lwd,
        add=T)
   title(fn_title,adj=0,line=0.3)
 }
