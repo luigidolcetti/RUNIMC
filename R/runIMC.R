@@ -12,7 +12,7 @@ runIMC <- function() {
 
 
 #' @export
-runIMC_V2 <- function(x=NULL) {
+runIMC_V2 <- function(x=NULL,help=T) {
 
 
   appDir <- system.file("shiny-bits", "ShinyRUNIMC_V2", package = "RUNIMC")
@@ -25,7 +25,8 @@ runIMC_V2 <- function(x=NULL) {
  shiny::shinyOptions(studyName=x$name,
                      rasterPath=file.path(x$rootFolder,x$name,'rasterStacks'),
                      analysisName=x$currentAnalysis$name,
-                     trainingPolygonPath=file.path(x$currentAnalysis$folder,'training','polygons'))
+                     trainingPolygonPath=file.path(x$currentAnalysis$folder,'training','polygons'),
+                     help = help)
 
  shiny::runApp(appDir, display.mode = "normal")
 
