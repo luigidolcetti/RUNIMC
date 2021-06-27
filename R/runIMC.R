@@ -21,6 +21,8 @@ runIMC_V2 <- function(x=NULL,help=T) {
   }
 
   if (is.null(x)) stop(RUNIMC:::mError("specify a study"),call. = F)
+  if (is.null(x$currentAnalysis$name)) stop(RUNIMC:::mError("study does not contain a current analysis"),call. = F)
+  if (!dir.exists(file.path(x$currentAnalysis$folder,'training','polygons'))) stop(RUNIMC:::mError("the current analysis folder tree is currupted"),call. = F)
 
  shiny::shinyOptions(studyName=x$name,
                      rasterPath=file.path(x$rootFolder,x$name,'rasterStacks'),
