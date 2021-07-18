@@ -940,9 +940,8 @@ server <- function(input, output, session) {
                          foreign polygong will be deleted')
         GEOM$dataBase<-GEOM$dataBase[GEOM$dataBase$uid==shinyServiceEnv$rstStack@uid,]
       }
-      sf::st_write(GEOM$dataBase,file,append=F,quite=T)
-
-    }
+      sf::st_write(GEOM$dataBase,fileTarget,append=F,quite=T,layer_options = c("OVERWRITE=yes"))
+      }
   )
 
   observeEvent(input$savePolyOTF,{
@@ -955,7 +954,7 @@ server <- function(input, output, session) {
     }
     fileTarget<-file.path(shinyServiceEnv$trainingPolygonPath,
                           paste0(shinyServiceEnv$rstStack@IMC_text_file,".sqlite"))
-    sf::st_write(GEOM$dataBase,fileTarget,append=F,quite=T)
+    sf::st_write(GEOM$dataBase,fileTarget,append=F,quite=T,layer_options = c("OVERWRITE=yes"))
     MESSAGETOTHEPEOPLE('Polygon table saved')
   })
 
