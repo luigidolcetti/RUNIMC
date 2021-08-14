@@ -1,4 +1,4 @@
-#'Some BullShit
+#'Some nice thing
 #'
 #'
 XMLparseObject<-function(x=NULL,objectType=NULL){

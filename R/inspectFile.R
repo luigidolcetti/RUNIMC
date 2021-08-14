@@ -17,8 +17,8 @@ inspectFile<-function(fn_file=NULL){
   numberOfRows<-nrow(rawMatrix)
 
   namesOfColumns<-colnames(rawMatrix)
-  if (any(namesOfColumns=='X')) check.X <-'OK' else check.X<-'error'
-  if (any(namesOfColumns=='Y')) check.Y <-'OK' else check.Y<-'error'
+  if (any(namesOfColumns=='X')) check.X <-crayon::bgGreen('OK') else check.X<-crayon::bgRed('ERROR')
+  if (any(namesOfColumns=='Y')) check.Y <-crayon::bgGreen('OK') else check.Y<-crayon::bgRed('ERROR')
 
   emptyChannelPattern<-'[0-9]+[A-z]+\\([A-z]+[0-9]+[A-z]+\\)'
   usedChannelPattern<-'[0-9]+[A-z]+-[A-z0-9]+\\([A-z]+[0-9]+[A-z]+\\)'
@@ -27,19 +27,19 @@ inspectFile<-function(fn_file=NULL){
   UCC<-grepl(usedChannelPattern,namesOfColumns)
   OCC<-!ECC & !UCC
 
-  if (check.X=='OK' & check.Y=='OK'){
+  if (check.X==crayon::bgGreen('OK') & check.Y==crayon::bgGreen('OK')){
     xCol <- length(unique(rawMatrix[,'X']))
     yCol <- length(unique(rawMatrix[,'Y']))
     xyLength <- xCol*yCol
-    if (xyLength!=numberOfRows) check.matrix<-'error' else check.matrix<-'OK'
+    if (xyLength!=numberOfRows) check.matrix<-crayon::bgRed(crayon::bgRed('ERROR')) else check.matrix<-crayon::bgGreen('OK')
   }
 
   check.na.empty<-sapply(namesOfColumns[ECC],function(x){
-    if (any(is.na(rawMatrix[,x]))) return (paste0(x,': error')) else return(paste0(x,': OK'))
+    if (any(is.na(rawMatrix[,x]))) return (paste0(x,': ',crayon::bgRed(crayon::bgRed('ERROR')))) else return(paste0(x,': ',crayon::bgGreen(crayon::bgGreen('OK'))))
   },USE.NAMES = F,simplify = T)
 
   check.na.used<-sapply(namesOfColumns[UCC],function(x){
-    if (any(is.na(rawMatrix[,x]))) return (paste0(x,': error')) else return(paste0(x,': OK'))
+    if (any(is.na(rawMatrix[,x]))) return (paste0(x,': ',crayon::bgRed(crayon::bgRed('ERROR')))) else return(paste0(x,': ',crayon::bgGreen(crayon::bgGreen('OK'))))
   },USE.NAMES = F,simplify = T)
 
   uid = paste0('uid.',digest::digest(rawMatrix,seed=123))

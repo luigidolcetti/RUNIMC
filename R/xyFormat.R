@@ -1,4 +1,4 @@
-#'Some BullShit
+#'Some nice thing
 #'
 #'
 #' @export
@@ -22,7 +22,7 @@ xyFormat<-function(fn_raster){
     return(DFraster)
 }
 
-#'Some BullShit
+#'Some nice thing
 #'
 #'
 #' @export

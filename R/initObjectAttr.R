@@ -1,4 +1,4 @@
-#'Some BullShit
+#'Some nice thing
 #'
 #'
 initObjectAttr<-function(x){

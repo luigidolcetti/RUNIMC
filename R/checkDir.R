@@ -1,4 +1,4 @@
-#'Some BullShit
+#'Some nice thing
 #'
 #'
 checkDir<-function(parentalFolder,childFolder,verbose=T){

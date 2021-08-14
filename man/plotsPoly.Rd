@@ -23,6 +23,7 @@ plotsPoly(
   fn_bgc,
   fn_geom,
   fn_geomB,
+  fn_lwd,
   fn_title
 )
 }
